@@ -7,9 +7,9 @@ def get_args():
     search against reference protein library.'''
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('--config', help='Path to config.ini')
-    parser.add_argument('--infile', help='Input file (tabular DIAMOND output)')
-    parser.add_argument('--fastq', help='FASTQ file')
-    parser.add_argument('--col', help='Reference collection name')
+    parser.add_argument('--project', help='Path to project.ini')
+    parser.add_argument('--sample', help='Sample ID')
+    parser.add_argument('--end', help='paired end ID. Must be either pe1 or pe2')
     args = parser.parse_args()
     if len(sys.argv) == 1:
         parser.print_help()
@@ -19,29 +19,17 @@ def get_args():
 def main():
     args = get_args()
 
-    config_file = '/mnt/data2/SEED/fama/py/config.ini'
-    collection = 'nitrogen_v7'
-    infile = '/mnt/data2/SEED/fama/t/data/test_diamond_output.txt'
-    outdir = '/mnt/data2/SEED/fama/t/data/'
-
-    #parser = DiamondParser(config_file, collection)
-    parser = DiamondParser(args.config, args.col)
-    #parser.parse_tabular_output(infile)
-    parser.parse_tabular_output(args.infile)
-    
-    #Import sequence data for selected sequence reads
-    print ('Reading FASTQ file')
-    parser.import_fastq(args.fastq)
-    
-    print ('Exporting FASTQ ')
-    parser.export_hit_fastq(outdir)
-    print ('Exporting hits')
-    parser.export_hit_list(outdir)
+    parser = DiamondParser(args.config, args.project, args.sample, args.end)
+    parser.parse_background_output()
     
     read_dict = parser.get_reads()
     print (len(read_dict))
     for read in read_dict.keys():
+        print(read)
+        print(read_dict[read].get_status())
+        print(read_dict[read].get_functions())
         read_dict[read].show_hits()
+        pass
 
 if __name__=='__main__':
     main()

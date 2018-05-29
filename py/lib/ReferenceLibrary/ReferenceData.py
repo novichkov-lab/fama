@@ -54,7 +54,7 @@ class ReferenceData:
         else: 
             #if protein ID contains starts with function ID
             protein_tokens = protein.split('_')
-            protein = protein_tokens[1]
+            protein = protein_tokens[-1]
             if protein in self.proteins_dict:
                 ret_val = self.proteins_dict[protein].split('|')
                 return ret_val

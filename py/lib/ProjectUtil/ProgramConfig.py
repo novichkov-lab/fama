@@ -46,9 +46,9 @@ class ProgramConfig:
 
     def get_biscore_range_cutoff(self, collection):
         if self.config[collection]['biscore_range_cutoff']:
-            return int(self.config[collection]['biscore_range_cutoff'])
+            return float(self.config[collection]['biscore_range_cutoff'])
         else:
-            return int(self.config['DEFAULT']['biscore_range_cutoff'])
+            return float(self.config['DEFAULT']['biscore_range_cutoff'])
 
     def list_collections(self):
         return self.config.sections()

@@ -1,3 +1,5 @@
+import re
+
 class DiamondHit:
     def __init__(self, query_id = "", subject_id = "", identity = 0.0,\
                 length = 0, mismatch = 0, s_len = 0, q_start = 0, \
@@ -19,24 +21,37 @@ class DiamondHit:
         
     def get_identity(self):
         return self.identity
+
     def get_subject_id(self):
         return self.subject_id
+
     def get_query_id(self):
         return self.query_id
+
     def get_query_start(self):
         return self.q_start
+
     def get_query_end(self):
         return self.q_end
+
     def get_subject_start(self):
         return self.s_start
+
     def get_subject_end(self):
         return self.s_end
+
     def get_length(self):
         return self.length
+
+    def get_subject_length(self):
+        return self.s_len
+    
     def get_evalue(self):
         return self.evalue
+
     def get_bitscore(self):
         return self.bitscore
+
     def get_functions(self):
         return self.functions
     
@@ -107,13 +122,19 @@ class DiamondHit:
         self.s_end = entry_tokens[9]
         self.evalue = entry_tokens[10]
         self.bitscore = entry_tokens[11]
-        self.functions = entry_tokens[12].split('|')
+        try:
+            self.functions = entry_tokens[12].split('|')
+        except IndexError:
+            print (entry_tokens)
     
     def annotate_hit(self, ref_data):
         if self.subject_id:
-            self.functions = ref_data.lookup_protein_function(self.subject_id)
+            arr = self.subject_id.split('_')
+            if len(arr)>1:
+                self.functions = ref_data.lookup_protein_function('_'.join(arr[1:]))
+            else:
+                self.functions = ref_data.lookup_protein_function(self.subject_id)
 
-    
     def __str__(self):
         return "\t".join((self.query_id, self.subject_id, str(self.identity), \
                           str(self.length), str(self.mismatch), str(self.s_len), str(self.q_start), \

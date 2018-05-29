@@ -38,11 +38,17 @@ class ProjectOptions:
         else:
             return None
     
+    def get_fastq1_readcount(self, sample):
+        return self.project[sample]['fastq_pe1_readcount']
+    
+    def get_fastq2_readcount(self, sample):
+        return self.project[sample]['fastq_pe2_readcount']
+    
     def get_ref_output_name(self, sample):
         if self.project[sample]['ref_output_name']:
             return self.project[sample]['ref_output_name']
         else:
-        return self.project['DEFAULT']['ref_output_name']
+            return self.project['DEFAULT']['ref_output_name']
 
     def get_ref_output_name(self):
         return self.project['DEFAULT']['ref_output_name']
@@ -51,7 +57,7 @@ class ProjectOptions:
         if self.project[sample]['background_output_name']:
             return self.project[sample]['background_output_name']
         else:
-        return self.project['DEFAULT']['background_output_name']
+            return self.project['DEFAULT']['background_output_name']
 
     def get_background_output_name(self):
         return self.project['DEFAULT']['background_output_name']
@@ -60,7 +66,7 @@ class ProjectOptions:
         if self.project[sample]['ref_hits_list_name']:
             return self.project[sample]['ref_hits_list_name']
         else:
-        return self.project['DEFAULT']['ref_hits_list_name']
+            return self.project['DEFAULT']['ref_hits_list_name']
 
     def get_ref_hits_list_name(self):
         return self.project['DEFAULT']['ref_hits_list_name']

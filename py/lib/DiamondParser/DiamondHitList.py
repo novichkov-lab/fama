@@ -108,7 +108,7 @@ class DiamondHitList:
             if hit == hit_to_remove:
                 index_remove = index
                 break
-        if index_remove not None:
+        if index_remove != None:
             del self.data[index]
     
     
@@ -119,3 +119,6 @@ class DiamondHitList:
     def print_hits(self):
         for hit in self.data:
             print(hit)
+    
+    def __str__(self):
+        return ('Hit List '+'/n'.join(str(hit) for hit in self.data))
