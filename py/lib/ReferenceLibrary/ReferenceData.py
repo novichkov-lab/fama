@@ -26,7 +26,7 @@ class ReferenceData:
                 else:
                     line = line.rstrip('\n\r')
                     line_tokens = line.split('\t')
-                    if len(line_tokens) == 3:
+                    if len(line_tokens) > 1:
                         _dict[line_tokens[0]] = line_tokens[1]
         print (len(_dict), ' functions found')
         return _dict
@@ -62,3 +62,8 @@ class ReferenceData:
         ret_val.append('')
         return ret_val
             
+    def lookup_function_name(self, func_id):
+        ret_val = ''
+        if func_id in self.functions_dict:
+            ret_val = self.functions_dict[func_id]
+        return ret_val

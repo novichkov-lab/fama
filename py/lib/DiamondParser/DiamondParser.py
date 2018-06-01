@@ -54,12 +54,19 @@ class DiamondParser:
                         # annotate_hits
                         _hit_list.annotate_hits(self.ref_data)
                         read = AnnotatedRead(current_sequence_read_id)
-                        read.set_hits(_hit_list)
+                        read.set_hit_list(_hit_list)
                         self.reads[current_sequence_read_id] = read
 
                     current_sequence_read_id = hit.get_query_id()
                     _hit_list = DiamondHitList(current_sequence_read_id)
                 _hit_list.add_hit(hit)
+            if _hit_list.get_hits_number() != 0:
+                _hit_list.filter_list(self.config.get_overlap_cutoff(self.collection))
+                # annotate_hits
+                _hit_list.annotate_hits(self.ref_data)
+                read = AnnotatedRead(current_sequence_read_id)
+                read.set_hit_list(_hit_list)
+                self.reads[current_sequence_read_id] = read
 
     def parse_background_output(self):
         
@@ -107,10 +114,18 @@ class DiamondParser:
                     current_query_id = hit.get_query_id()
                     _hit_list = DiamondHitList(current_query_id)
                 _hit_list.add_hit(hit)
+            _hit_list.annotate_hits(self.ref_data)
+            (read_id, hit_start, hit_end) = current_query_id.split('|')
+            hit_start= int(hit_start)
+            hit_end = int(hit_end)
+            if read_id in self.reads.keys():
+                compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
+            else:
+                print ('Read not found: ', read_id)
 
     
     def import_fastq(self):
-        fastq_file = self.project.get_fastq1_path(self.sample)
+        fastq_file = self.project.get_fastq_path(self.sample,self.end)
         line_counter = 0
         current_read = None
         fh = None
@@ -142,19 +157,18 @@ class DiamondParser:
                         self.reads[current_read].set_quality(line)
         fh.close()
         
-    def export_hit_fastq(self):
+    def export_read_fastq(self):
         outdir = self.project.get_project_dir(self.sample)
-        with open(os.path.join(outdir, self.sample + '_' + self.end + self.project.get_reads_fastq_name()), 'w') as of:
+        with open(os.path.join(outdir, self.sample + '_' + self.end + '_' + self.project.get_reads_fastq_name()), 'w') as of:
             for read_id in self.reads.keys():
-                of.write("@" + self.reads[read_id].get_read_id() + '|' + \
-                    str(start) + '|' + str(end) + '\n')
-                of.write(self.reads[read_id].get_sequence() + '\n')
+                of.write("@" + self.reads[read_id].get_read_id() + '\n')
+                of.write(self.reads[read_id].get_sequence() + '\n') 
                 of.write(self.reads[read_id].get_line3() + '\n') 
                 of.write(self.reads[read_id].get_quality() + '\n') 
 
-    def export_read_fastq(self):
+    def export_hit_fastq(self):
         outdir = self.project.get_project_dir(self.sample)
-        with open(os.path.join(outdir, self.sample + '_' + self.end + '_reference_hits.fastq'), 'w') as of:
+        with open(os.path.join(outdir, self.sample + '_' + self.end + '_' + self.project.get_ref_hits_fastq_name()), 'w') as of:
             for read_id in self.reads.keys():
                 for hit in self.reads[read_id].get_hit_list().get_hits():
                     start = hit.get_query_start()
@@ -164,12 +178,12 @@ class DiamondParser:
                     if start < end:
                         # hit on + strand
                         start = start - 1
-                        end= end - 1
+                        end= end
                     else:
                         # hit on - strand
                         t = start
                         start = end - 1
-                        end = t - 1
+                        end = t
                     try:
                         of.write(self.reads[read_id].get_sequence()[start:end] + '\n') 
                         of.write(self.reads[read_id].get_line3() + '\n') 
@@ -180,7 +194,7 @@ class DiamondParser:
 
     def export_hit_list(self):
         outfile = self.project.get_project_dir(self.sample) + '/' + self.sample + '_' + self.end + '_' + self.project.get_ref_hits_list_name()
-        with open(outdir+'reference_hits.txt', 'w') as of:
+        with open(outfile, 'w') as of:
             for read in self.reads.keys():
                 for hit in self.reads[read].get_hit_list().get_hits():
                     of.write(str(hit) + '\n')
@@ -242,11 +256,10 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                 if cleanup_protein_id(new_hits[0].get_subject_id()) == cleanup_protein_id(hit.get_subject_id()):
                     # this is the same top hit as before
 #                    print ('case 1.1')
-                    read.set_status('function,besthit')
+                    read.set_status('function,besthit')                    
                     total_count = len(new_hits[0].get_functions())
                     for function in new_hits[0].get_functions():
                         new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount)
-                    
                 elif '' in functions:
                     # function unknown
 #                    print ('case 1.3')
@@ -305,6 +318,9 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                             new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount)
                     read.set_functions(new_functions)
                 else:
+                    for hit1 in new_hits:
+                        print(hit1)
+                    print(functions)
                     new_functions = {}
                     if len(functions) == 1 and '' in functions:
 #                        print ('case 2.4')
@@ -314,9 +330,14 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
 #                        print ('case 2.1')
                         read.set_status('function,besthit')
                         total_count = len(new_hits[0].get_functions())
-                        for function in new_hits[0].get_functions():
-                            if function in functions:
+                        for function in functions:
+                            if function in new_hits[0].get_functions():
                                 new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount)
+                        if not new_functions:
+                            for function in functions:
+                                new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount)
+                        print(hit)
+                        print(new_functions)
                     else:
                         # the most interesting: best hit is close to top hit in reference DB search
 #                        print ('case 2.2')
@@ -381,10 +402,8 @@ def compare_functions(hit, new_hits):
         minimal_count = new_functions_counter.most_common(len(old_functions))[-1][1]
     else:
         minimal_count = new_functions_counter.most_common()[-1][1]
-    
     # second, let's truncate new_functions_counter, taking only elements with count equal or above minimal_count
     new_functions = {i[0]:i[1] for i in new_functions_counter.most_common() if i[1] >= minimal_count}
-
     # if new_functions dict is empty after all, add empty value into ret_val and return
     if not new_functions:
         ret_val[''] = 0

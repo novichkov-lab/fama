@@ -26,17 +26,17 @@ class ProjectOptions:
         else:
             return self.project['DEFAULT']['work_dir']
         
-    def get_fastq1_path(self, sample):
-        if self.project[sample]['fastq_pe1']:
-            return self.project[sample]['fastq_pe1']
-        else:
-            return None
-    
-    def get_fastq2_path(self, sample):
-        if self.project[sample]['fastq_pe2']:
-            return self.project[sample]['fastq_pe2']
-        else:
-            return None
+    def get_fastq_path(self, sample, end):
+        if end == 'pe1':
+            if self.project[sample]['fastq_pe1']:
+                return self.project[sample]['fastq_pe1']
+            else:
+                return None
+        elif end == 'pe2':
+            if self.project[sample]['fastq_pe2']:
+                return self.project[sample]['fastq_pe2']
+            else:
+                return None
     
     def get_fastq1_readcount(self, sample):
         return int(self.project[sample]['fastq_pe1_readcount'])
@@ -53,7 +53,7 @@ class ProjectOptions:
     def get_ref_output_name(self):
         return self.project['DEFAULT']['ref_output_name']
 
-    def get_background_output_name(self, sample):
+    def get_background_output_name(self):
         if self.project[sample]['background_output_name']:
             return self.project[sample]['background_output_name']
         else:
@@ -71,12 +71,9 @@ class ProjectOptions:
     def get_ref_hits_list_name(self):
         return self.project['DEFAULT']['ref_hits_list_name']
 
-    def get_ref_hits_fastq1_name(self, sample):
-        return self.project['DEFAULT']['fastq_pe1']
+    def get_ref_hits_fastq_name(self):
+        return self.project['DEFAULT']['ref_hits_fastq_name']
 
-    def get_ref_hits_fastq2_name(self, sample):
-        return self.project['DEFAULT']['fastq_pe2']
-        
     def get_reads_fastq_name(self):
         return self.project['DEFAULT']['reads_fastq_name']
 
