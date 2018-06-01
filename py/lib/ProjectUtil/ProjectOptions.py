@@ -39,10 +39,10 @@ class ProjectOptions:
             return None
     
     def get_fastq1_readcount(self, sample):
-        return self.project[sample]['fastq_pe1_readcount']
+        return int(self.project[sample]['fastq_pe1_readcount'])
     
     def get_fastq2_readcount(self, sample):
-        return self.project[sample]['fastq_pe2_readcount']
+        return int(self.project[sample]['fastq_pe2_readcount'])
     
     def get_ref_output_name(self, sample):
         if self.project[sample]['ref_output_name']:
@@ -76,6 +76,9 @@ class ProjectOptions:
 
     def get_ref_hits_fastq2_name(self, sample):
         return self.project['DEFAULT']['fastq_pe2']
+        
+    def get_reads_fastq_name(self):
+        return self.project['DEFAULT']['reads_fastq_name']
 
     def get_report_name(self):
         return self.project['DEFAULT']['report_name']

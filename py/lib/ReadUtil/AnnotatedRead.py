@@ -1,3 +1,4 @@
+from collections import Counter
 from lib.DiamondParser.DiamondHit import DiamondHit
 from lib.DiamondParser.DiamondHitList import DiamondHitList
 
@@ -8,8 +9,8 @@ class AnnotatedRead:
         self.quality = None     # 4th FASTQ line
         self.line3 = None       # 3rd FASTQ line
         self.hit_list = None    # hit_list is a DiamondHitList object
-        self.status = 'Unaccounted'
-        self.functions = {}     # functions dictionary key is function ID and value is RPKM score
+        self.status = 'unaccounted'
+        self.functions = Counter()     # functions dictionary key is function ID and value is RPKM score
         
     def get_read_id(self):
         return self.read_id
@@ -39,20 +40,22 @@ class AnnotatedRead:
         return self.line3
     
     def set_functions(self, functions):
-        self.functions = functions
+        for function in functions:
+            self.functions[function] += functions[function]
 
     def append_functions(self, functions):
         for function in functions:
-            if function in self.functions:
-                self.functions[function] += functions[function]
-            else:
-                self.functions[function] = functions[function]
+            self.functions[function] += functions[function]
 
     def get_functions(self):
         return self.functions
 
     def set_status(self, status):
-        self.status = status
+        if self.status == 'unaccounted' or self.status == 'nofunction':
+            self.status = status
+        elif self.status == 'function':
+            if status != 'nofunction':
+                self.status = status
         
     def get_status(self):
         return self.status

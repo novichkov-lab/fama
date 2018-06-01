@@ -13,6 +13,9 @@ class ProgramConfig:
     
     def load_config(self, config_file):
         self.config.read(config_file)
+    
+    def get_threads(self):
+        return self.config['DEFAULT']['threads']
 
     def get_functions_file (self, collection):
         if self.config[collection]['functions_file']:
@@ -32,6 +35,12 @@ class ProgramConfig:
         else:
             return float(self.config['DEFAULT']['identity_cutoff'])
 
+    def get_evalue_cutoff(self, collection):
+        if self.config[collection]['evalue_cutoff']:
+            return float(self.config[collection]['evalue_cutoff'])
+        else:
+            return float(self.config['DEFAULT']['evalue_cutoff'])
+
     def get_length_cutoff(self, collection):
         if self.config[collection]['length_cutoff']:
             return int(self.config[collection]['length_cutoff'])
@@ -49,6 +58,18 @@ class ProgramConfig:
             return float(self.config[collection]['biscore_range_cutoff'])
         else:
             return float(self.config['DEFAULT']['biscore_range_cutoff'])
+            
+    def get_reference_diamond_db(self, collection):
+        if self.config[collection]['reference_diamond_db']:
+            return self.config[collection]['reference_diamond_db']
+        else:
+            return self.config['DEFAULT']['reference_diamond_db']
+
+    def get_background_diamond_db(self, collection):
+        if self.config[collection]['background_diamond_db']:
+            return self.config[collection]['background_diamond_db']
+        else:
+            return self.config['DEFAULT']['background_diamond_db']
 
     def list_collections(self):
         return self.config.sections()

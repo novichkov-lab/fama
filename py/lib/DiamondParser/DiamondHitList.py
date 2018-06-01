@@ -11,7 +11,7 @@ class DiamondHitList:
         if hit.get_query_id() == self.query_id:
             self.data.append(hit)
         else:
-            print ('Diamond hit was not added into the list: different query IDs:' + self.query_id + ','+hit.get_query_id)
+            print ('Diamond hit was not added into the list: different query IDs:' + self.query_id + ',' + hit.get_query_id())
 
     def get_hits(self):
         return self.data
@@ -121,4 +121,4 @@ class DiamondHitList:
             print(hit)
     
     def __str__(self):
-        return ('Hit List '+'/n'.join(str(hit) for hit in self.data))
+        return ('Hit List '+'\n'.join(str(hit) for hit in self.data))

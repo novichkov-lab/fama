@@ -33,6 +33,7 @@ def main():
     
     print ('Exporting FASTQ ')
     parser.export_hit_fastq()
+    parser.export_read_fastq()
     print ('Exporting hits')
     parser.export_hit_list()
     
