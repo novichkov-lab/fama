@@ -160,11 +160,12 @@ class DiamondParser:
     def export_read_fastq(self):
         outdir = self.project.get_project_dir(self.sample)
         with open(os.path.join(outdir, self.sample + '_' + self.end + '_' + self.project.get_reads_fastq_name()), 'w') as of:
-            for read_id in self.reads.keys():
-                of.write("@" + self.reads[read_id].get_read_id() + '\n')
-                of.write(self.reads[read_id].get_sequence() + '\n') 
-                of.write(self.reads[read_id].get_line3() + '\n') 
-                of.write(self.reads[read_id].get_quality() + '\n') 
+            for read_id in sorted(self.reads.keys()):
+                if self.reads[read_id].get_status() == 'function' or self.reads[read_id].get_status() == 'function,besthit':
+                    of.write("@" + self.reads[read_id].get_read_id() + '\n')
+                    of.write(self.reads[read_id].get_sequence() + '\n') 
+                    of.write(self.reads[read_id].get_line3() + '\n') 
+                    of.write(self.reads[read_id].get_quality() + '\n') 
 
     def export_hit_fastq(self):
         outdir = self.project.get_project_dir(self.sample)
@@ -211,7 +212,39 @@ class DiamondParser:
     def parse_fastq_seqid(self,line):
         #to be implemented
         return (line.split('\s')[0][1:], '1')
-
+    
+    def export_paired_end_reads_fastq(self):
+        fastq_file = self.project.get_fastq_path(self.sample,get_paired_end(self.end))
+        outdir = self.project.get_project_dir(self.sample)
+        read_ids = set()
+        for read_id in sorted(self.reads.keys()):
+            read_ids.add(get_paired_read_id(read_id))
+        line_counter = 0
+        with open(os.path.join(outdir, self.sample + '_' + self.end + '_' + self.project.get_pe_reads_fastq_name()), 'w') as of:
+            current_read = None
+            fh = None
+            if fastq_file.endswith('.gz'):
+                fh = gzip.open(fastq_file, 'rb')
+            else:
+                fh = open(fastq_file, 'rb')
+            if fh:
+                for line in fh:
+                    line_counter += 1
+                    if line_counter == 5:
+                        line_counter = 1
+                    line = line.decode('utf8').rstrip('\n\r')
+                    if line_counter == 1:
+#                        (read_id, end) = self.parse_fastq_seqid(line)
+                        if line[1:] in read_ids:
+                            current_read = line
+                            of.write(line + '\n')
+                        else: 
+                            current_read = None
+                    elif current_read:
+                            of.write(line + '\n')
+                fh.close()
+            of.closed
+                
 
 
 def get_rpkm_score(hit, function_fraction, total_readcount):
@@ -239,10 +272,11 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
             bitscore_upper_cutoff = bitscore * (1 + bitscore_range_cutoff)
 #            print('Cutoffs:',bitscore_lower_cutoff,bitscore_upper_cutoff)
             # first, make a list of hits with acceptable bitscore values (i.e. within given range):
-            new_hits = [hit for hit in new_hit_list.get_hits() if hit.get_bitscore() > bitscore_lower_cutoff]
+            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if hit.get_bitscore() > bitscore_lower_cutoff]
 #            print ('Hits found: ', len(new_hits) or 0)
             if not new_hits:
                 print ('case 0')
+                print (hit)
                 read.set_status('nofunction')
                 # nothing to do here
                 
@@ -318,9 +352,9 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                             new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount)
                     read.set_functions(new_functions)
                 else:
-                    for hit1 in new_hits:
-                        print(hit1)
-                    print(functions)
+#                    for hit1 in new_hits:
+#                        print(hit1)
+#                    print(functions)
                     new_functions = {}
                     if len(functions) == 1 and '' in functions:
 #                        print ('case 2.4')
@@ -336,8 +370,8 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                         if not new_functions:
                             for function in functions:
                                 new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount)
-                        print(hit)
-                        print(new_functions)
+#                        print(hit)
+#                        print(new_functions)
                     else:
                         # the most interesting: best hit is close to top hit in reference DB search
 #                        print ('case 2.2')
@@ -352,10 +386,12 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
             
 
 def cleanup_protein_id(protein):
-    if len(protein.split('_')) > 1:
-        return "_".join(protein.split('_')[1:])
-    else:
-        return protein
+    # for compatibility with old format of protein IDs uncomment next 4 lines 
+    #if len(protein.split('_')) > 1:
+    #    return "_".join(protein.split('_')[1:])
+    #else:
+    #    return protein
+    return protein
 
 
 def import_hit_list(infile):
@@ -421,3 +457,22 @@ def compare_functions(hit, new_hits):
             top_function = max(new_functions.items(), key=operator.itemgetter(1))[0]
             ret_val[top_function] = new_functions[top_function]
         return ret_val
+
+def get_paired_end(end):
+    if end == 'pe1':
+        return 'pe2'
+    elif end=='pe2':
+        return 'pe1'
+
+def get_paired_read_id(read_id):
+    if ' ' in read_id:
+        # new Illumina format
+        # to be implemented
+        pass
+    else:
+        # old Illumina format
+        paired_end = read_id[-1]
+        if paired_end == '1':
+            return read_id[:-1] + '2'
+        elif paired_end == '2':
+            return read_id[:-1] + '1'

@@ -25,7 +25,16 @@ class ProjectOptions:
             return self.project[sample]['sample_dir']
         else:
             return self.project['DEFAULT']['work_dir']
+
+    def get_output_subdir(self, sample):
+        if self.project[sample]['output_subdir']:
+            return self.project[sample]['output_subdir']
+        else:
+            return self.project['DEFAULT']['output_subdir']
         
+    def get_sample_id(self, sample):
+        return self.project[sample]['sample_id']
+
     def get_fastq_path(self, sample, end):
         if end == 'pe1':
             if self.project[sample]['fastq_pe1']:
@@ -76,6 +85,9 @@ class ProjectOptions:
 
     def get_reads_fastq_name(self):
         return self.project['DEFAULT']['reads_fastq_name']
+    
+    def get_pe_reads_fastq_name(self):
+        return self.project['DEFAULT']['pe_reads_fastq_name']
 
     def get_report_name(self):
         return self.project['DEFAULT']['report_name']

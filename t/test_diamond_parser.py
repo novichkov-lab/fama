@@ -10,6 +10,7 @@ from lib.DiamondParser.DiamondParser import DiamondParser
 from lib.DiamondParser.DiamondParser import import_hit_list
 from lib.DiamondParser.DiamondParser import compare_functions
 from lib.DiamondParser.DiamondParser import compare_hits
+from lib.DiamondParser.DiamondParser import get_paired_read_id
 from lib.ReadUtil.AnnotatedRead import AnnotatedRead
 
 
@@ -23,16 +24,32 @@ class DiamondParserTest(unittest.TestCase):
 
     def setUp(self):
         self.parser = DiamondParser(config_path, project_path, sample, end)
+        
+    def test_6_annotate_hit(self):
+        print ('Test hit annotation')
+        hit_line = 'NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1	fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	UreA'
+        hit = DiamondHit()
+        hit.import_hit(hit_line.split('\t'))
+        hit.annotate_hit(self.parser.ref_data)
+        self.assertEqual(len(hit.get_functions()), 1)
+        self.assertEqual(hit.get_functions()[0], 'UreA')
 
-    def test_1_compare_functions(self):
+        hit_line = 'NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	cap:CLDAP_03170	81.8	33	6	100	99	1	1	33	1.4e-06	56.2	UreA'
+        hit = DiamondHit()
+        hit.import_hit(hit_line.split('\t'))
+        hit.annotate_hit(self.parser.ref_data)
+        self.assertEqual(len(hit.get_functions()), 1)
+        self.assertEqual(hit.get_functions()[0], 'UreA')
+
+    def test_1_compare_functions_1(self):
         # test hit with one function
         old_hit = DiamondHit()
-        old_hit.import_hit('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1	118_fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	118'.split('\t'))
+        old_hit.import_hit('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1	fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	UreA'.split('\t'))
 
         # test three hits
 #        print ('*  test 3 hits with one function        *')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	fig|485913.3.peg.8591	87.9	33	4	101	99	1	1	33	2.1e-07	58.9',
-                    'NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	K01430_cap:CLDAP_03170	81.8	33	6	100	99	1	1	33	1.4e-06	56.2',
+                    'NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	cap:CLDAP_03170	81.8	33	6	100	99	1	1	33	1.4e-06	56.2',
                     'NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	fig|316274.7.peg.2519	78.8	33	7	100	99	1	1	33	6.8e-06	53.9'
                     ]
         hit_list = []
@@ -44,7 +61,12 @@ class DiamondParserTest(unittest.TestCase):
         functions = compare_functions(old_hit, hit_list)
 #        print('Functions:', functions)
         self.assertEqual(len(functions), 1)
-        self.assertEqual(functions['118'], 2)
+        self.assertEqual(functions['UreA'], 3)
+
+    def test_1_compare_functions_2(self):
+        # test hit with one function
+        old_hit = DiamondHit()
+        old_hit.import_hit('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1	fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	UreA'.split('\t'))
 
         # test two hits
 #        print ('*  test 2 hits with one function        *')
@@ -60,11 +82,16 @@ class DiamondParserTest(unittest.TestCase):
         functions = compare_functions(old_hit, hit_list)
 #        print('Functions:', functions)
         self.assertEqual(len(functions), 1)
-        self.assertEqual(functions['118'], 2)
+        self.assertEqual(functions['UreA'], 2)
+
+    def test_1_compare_functions_3(self):
+        # test hit with one function
+        old_hit = DiamondHit()
+        old_hit.import_hit('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1	fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	UreA'.split('\t'))
 
         # test one hit, different function
 #        print ('*  test 1 hit with one function         *')
-        new_hits = ['NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	K01430_cap:CLDAP_03170	81.8	33	6	100	99	1	1	33	1.4e-06	56.2'
+        new_hits = ['NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	cap:CLDAP_03170	81.8	33	6	100	99	1	1	33	1.4e-06	56.2'
                     ]
         hit_list = []
         for new_hit in new_hits:
@@ -73,29 +100,29 @@ class DiamondParserTest(unittest.TestCase):
             hit.annotate_hit(self.parser.ref_data)
             hit_list.append(hit)
         functions = compare_functions(old_hit, hit_list)
-#        print('Functions:', functions)
         self.assertEqual(len(functions), 1)
-        self.assertEqual(functions['K01430'], 1)
+        self.assertEqual(functions['UreA'], 1)
 
+    def test_1_compare_functions_4(self):
         # test hit with two functions
         old_hit = DiamondHit()
-        old_hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1	118|1866_fig|1121378.3.peg.2960	76.0	50	12	231	150	1	23	72	9.0e-15	75.5	118|1866'.split('\t'))
+        old_hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1	fig|1121378.3.peg.2960	76.0	50	12	231	150	1	23	72	9.0e-15	75.5	UreA|UreB'.split('\t'))
 
         # test 20 hits, one function
 #        print ('*  test 20 hits with two functions      *')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1121378.3.peg.2960	76.0	50	12	231	150	1	23	72	3.3e-12	75.5',
-                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	K01430_hco:LOKO_03690	72.0	50	14	100	150	1	23	72	4.3e-12	75.1',
+                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	hco:LOKO_03690	72.0	50	14	100	150	1	23	72	4.3e-12	75.1',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1160705.3.peg.7402	72.0	50	14	236	150	1	159	208	4.3e-12	75.1',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1156841.3.peg.6425	74.0	50	13	100	150	1	23	72	4.3e-12	75.1',
-                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	K01430_masw:AM586_12165	74.0	50	13	100	150	1	23	72	5.6e-12	74.7',
+                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	masw:AM586_12165	74.0	50	13	100	150	1	23	72	5.6e-12	74.7',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1203460.3.peg.2591	72.0	50	14	100	150	1	23	72	5.6e-12	74.7',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1121943.4.peg.3735	72.0	50	14	100	150	1	23	72	5.6e-12	74.7',
-                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	K01430_samb:SAM23877_1321	72.0	50	14	100	150	1	23	72	7.3e-12	74.3',
+                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	samb:SAM23877_1321	72.0	50	14	100	150	1	23	72	7.3e-12	74.3',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|100226.15.peg.1235	72.0	50	14	100	150	1	23	72	7.3e-12	74.3',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|290398.11.peg.2325	72.0	50	14	100	150	1	23	72	7.3e-12	74.3',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|264198.6.peg.1607	70.0	50	15	100	150	1	23	72	7.3e-12	74.3',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1000565.3.peg.3274	72.0	50	14	100	150	1	23	72	9.6e-12	73.9',
-                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	K01430_hhu:AR456_08480	68.0	50	16	100	150	1	23	72	1.3e-11	73.6',
+                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	hhu:AR456_08480	68.0	50	16	100	150	1	23	72	1.3e-11	73.6',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1126229.3.peg.323	70.0	50	15	100	150	1	23	72	1.3e-11	73.6',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1155714.3.peg.3022	70.0	50	15	100	150	1	23	72	1.3e-11	73.6',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1078086.3.peg.4033	70.0	50	15	118	150	1	41	90	1.3e-11	73.6',
@@ -111,17 +138,22 @@ class DiamondParserTest(unittest.TestCase):
             hit.annotate_hit(self.parser.ref_data)
             hit_list.append(hit)
         functions = compare_functions(old_hit, hit_list)
-#        print('Functions:', functions)
-        self.assertEqual(len(functions), 1)
-        self.assertEqual(functions['118'], 16)
+#        print('test 1_4 Functions:', functions)
+        self.assertEqual(len(functions), 2)
+        self.assertEqual(functions['UreA'], 20)
+
+    def test_1_compare_functions_5(self):
+        # test hit with two functions
+        old_hit = DiamondHit()
+        old_hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1	fig|1121378.3.peg.2960	76.0	50	12	231	150	1	23	72	9.0e-15	75.5	UreA|UreB'.split('\t'))
 
         # test 7 hits, two functions
 #        print ('*  test 7 hits with two functions       *')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1121378.3.peg.2960	76.0	50	12	231	150	1	23	72	3.3e-12	75.5',
-                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	K01430_hco:LOKO_03690	72.0	50	14	100	150	1	23	72	4.3e-12	75.1',
+                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	hco:LOKO_03690	72.0	50	14	100	150	1	23	72	4.3e-12	75.1',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1160705.3.peg.7402	72.0	50	14	236	150	1	159	208	4.3e-12	75.1',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1156841.3.peg.6425	74.0	50	13	100	150	1	23	72	4.3e-12	75.1',
-                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	K01430_masw:AM586_12165	74.0	50	13	100	150	1	23	72	5.6e-12	74.7',
+                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	masw:AM586_12165	74.0	50	13	100	150	1	23	72	5.6e-12	74.7',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1203460.3.peg.2591	72.0	50	14	100	150	1	23	72	5.6e-12	74.7',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1121943.4.peg.3735	72.0	50	14	100	150	1	23	72	5.6e-12	74.7'
                     ]
@@ -134,21 +166,21 @@ class DiamondParserTest(unittest.TestCase):
         functions = compare_functions(old_hit, hit_list)
 #        print('Functions:', functions)
         self.assertEqual(len(functions), 2)
-        self.assertEqual(functions['118'], 5)
-        self.assertEqual(functions['1866'], 2)
+        self.assertEqual(functions['UreA'], 7)
+        self.assertEqual(functions['UreB'], 2)
 
 
-    def test_2_compare_hits(self):
+    def test_2_compare_hits_1(self):
         # test 3 hits with 1 function, case 1.1
         hit = DiamondHit()
-        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1	118_fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	118'.split('\t'))
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1	fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	UreA'.split('\t'))
         read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1')
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1')
         old_hit_list.add_hit(hit)
         read.set_hit_list(old_hit_list)
 #        print ('* test 3 hits with 1 function, case 1.1 *')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	fig|485913.3.peg.8591	87.9	33	4	101	99	1	1	33	2.1e-07	58.9',
-                    'NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	K01430_cap:CLDAP_03170	81.8	33	6	100	99	1	1	33	1.4e-06	56.2',
+                    'NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	cap:CLDAP_03170	81.8	33	6	100	99	1	1	33	1.4e-06	56.2',
                     'NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	fig|316274.7.peg.2519	78.8	33	7	100	99	1	1	33	6.8e-06	53.9'
                     ]
         hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2')
@@ -162,11 +194,12 @@ class DiamondParserTest(unittest.TestCase):
 #        print('Read function:', read.get_functions())
         self.assertEqual(read.get_status(), 'function,besthit')
         self.assertEqual(len(read.get_functions()), 1)
-        self.assertEqual(read.get_functions()['118'], 245098.03921568627)
+        self.assertEqual(read.get_functions()['UreA'], 735294.1176470588)
 
+    def test_2_compare_hits_2(self):
         # test 2 hits with 1 function, case 1.2
         hit = DiamondHit()
-        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1	118_fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	118'.split('\t'))
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1	fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	UreA'.split('\t'))
         read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1')
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1')
         old_hit_list.add_hit(hit)
@@ -185,11 +218,12 @@ class DiamondParserTest(unittest.TestCase):
 #        print('Read function:', read.get_functions())
         self.assertEqual(read.get_status(), 'function')
         self.assertEqual(len(read.get_functions()), 1)
-        self.assertEqual(read.get_functions()['118'], 245098.03921568627)
+        self.assertEqual(read.get_functions()['UreA'], 245098.03921568627)
 
+    def test_2_compare_hits_3(self):
         # test 3 hits with 1 function, case 1.3
         hit = DiamondHit()
-        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1	118_fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	118'.split('\t'))
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1	fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	UreA'.split('\t'))
         read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1')
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1')
         old_hit_list.add_hit(hit)
@@ -210,9 +244,10 @@ class DiamondParserTest(unittest.TestCase):
         self.assertEqual(len(read.get_functions()), 0)
 
 
+    def test_2_compare_hits_4(self):
         # test hit with two functions
         hit = DiamondHit()
-        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1	118|1866_fig|1121378.3.peg.2960	76.0	50	12	231	150	1	23	72	9.0e-15	75.5	118|1866'.split('\t'))
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1	fig|1121378.3.peg.2960	76.0	50	12	231	150	1	23	72	9.0e-15	75.5	UreA|UreB'.split('\t'))
         read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1')
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1')
         old_hit_list.add_hit(hit)
@@ -220,18 +255,18 @@ class DiamondParserTest(unittest.TestCase):
         # test 20 hits, one function
 #        print ('*test 20 hits with 2 functions, case 2.1*')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1121378.3.peg.2960	76.0	50	12	231	150	1	23	72	3.3e-12	75.5',
-                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	K01430_hco:LOKO_03690	72.0	50	14	100	150	1	23	72	4.3e-12	75.1',
+                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	hco:LOKO_03690	72.0	50	14	100	150	1	23	72	4.3e-12	75.1',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1160705.3.peg.7402	72.0	50	14	236	150	1	159	208	4.3e-12	75.1',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1156841.3.peg.6425	74.0	50	13	100	150	1	23	72	4.3e-12	75.1',
-                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	K01430_masw:AM586_12165	74.0	50	13	100	150	1	23	72	5.6e-12	74.7',
+                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	masw:AM586_12165	74.0	50	13	100	150	1	23	72	5.6e-12	74.7',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1203460.3.peg.2591	72.0	50	14	100	150	1	23	72	5.6e-12	74.7',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1121943.4.peg.3735	72.0	50	14	100	150	1	23	72	5.6e-12	74.7',
-                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	K01430_samb:SAM23877_1321	72.0	50	14	100	150	1	23	72	7.3e-12	74.3',
+                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	samb:SAM23877_1321	72.0	50	14	100	150	1	23	72	7.3e-12	74.3',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|100226.15.peg.1235	72.0	50	14	100	150	1	23	72	7.3e-12	74.3',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|290398.11.peg.2325	72.0	50	14	100	150	1	23	72	7.3e-12	74.3',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|264198.6.peg.1607	70.0	50	15	100	150	1	23	72	7.3e-12	74.3',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1000565.3.peg.3274	72.0	50	14	100	150	1	23	72	9.6e-12	73.9',
-                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	K01430_hhu:AR456_08480	68.0	50	16	100	150	1	23	72	1.3e-11	73.6',
+                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	hhu:AR456_08480	68.0	50	16	100	150	1	23	72	1.3e-11	73.6',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1126229.3.peg.323	70.0	50	15	100	150	1	23	72	1.3e-11	73.6',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1155714.3.peg.3022	70.0	50	15	100	150	1	23	72	1.3e-11	73.6',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1078086.3.peg.4033	70.0	50	15	118	150	1	41	90	1.3e-11	73.6',
@@ -248,25 +283,26 @@ class DiamondParserTest(unittest.TestCase):
             hit.annotate_hit(self.parser.ref_data)
             hit_list.add_hit(hit)
         compare_hits(read, 150, 1, hit_list, self.parser.get_config().get_biscore_range_cutoff(self.parser.collection), 20)
-#        print('Read status:', read.get_status())
-#        print('Read function:', read.get_functions())
+#        print('268 Read status:', read.get_status())
+#        print('269 Read function:', read.get_functions())
         self.assertEqual(read.get_status(), 'function,besthit')
-        self.assertEqual(len(read.get_functions()), 1)
-        self.assertEqual(read.get_functions()['118'], 368324.12523020257)
+        self.assertEqual(len(read.get_functions()), 2)
+        self.assertEqual(read.get_functions()['UreA'], 920810.3130755065)
 
+    def test_2_compare_hits_5(self):
         # test 7 hits, two functions, case 2.1
         hit = DiamondHit()
-        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1	118|1866_fig|1121378.3.peg.2960	76.0	50	12	231	150	1	23	72	9.0e-15	75.5	118|1866'.split('\t'))
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1	fig|1121378.3.peg.2960	76.0	50	12	231	150	1	23	72	9.0e-15	75.5	UreA|UreB'.split('\t'))
         read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1')
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1')
         old_hit_list.add_hit(hit)
         read.set_hit_list(old_hit_list)
 #        print ('* test 7 hits with 2 functions, case 2.1*')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1121378.3.peg.2960	76.0	50	12	231	150	1	23	72	3.3e-12	75.5',
-                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	K01430_hco:LOKO_03690	72.0	50	14	100	150	1	23	72	4.3e-12	75.1',
+                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	hco:LOKO_03690	72.0	50	14	100	150	1	23	72	4.3e-12	75.1',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1160705.3.peg.7402	72.0	50	14	236	150	1	159	208	4.3e-12	75.1',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1156841.3.peg.6425	74.0	50	13	100	150	1	23	72	4.3e-12	75.1',
-                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	K01430_masw:AM586_12165	74.0	50	13	100	150	1	23	72	5.6e-12	74.7',
+                    'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	masw:AM586_12165	74.0	50	13	100	150	1	23	72	5.6e-12	74.7',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1203460.3.peg.2591	72.0	50	14	100	150	1	23	72	5.6e-12	74.7',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1121943.4.peg.3735	72.0	50	14	100	150	1	23	72	5.6e-12	74.7',
                      ]
@@ -281,11 +317,12 @@ class DiamondParserTest(unittest.TestCase):
 #        print('Read function:', read.get_functions())
         self.assertEqual(read.get_status(), 'function,besthit')
         self.assertEqual(len(read.get_functions()), 2)
-        self.assertEqual(read.get_functions()['118'], 230202.57826887662)
+        self.assertEqual(read.get_functions()['UreA'], 322283.60957642726)
 
+    def test_2_compare_hits_6(self):
         # test hit with one function and many close homologs, case 2.1
         hit = DiamondHit()
-        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	6326_fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	99.0	6326'.split('\t'))
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	99.0	UreC'.split('\t'))
         read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
         old_hit_list.add_hit(hit)
@@ -297,21 +334,21 @@ class DiamondParserTest(unittest.TestCase):
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266835.9.peg.3902	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|411684.3.peg.2730	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|176299.10.peg.2410	90.0	50	5	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_maad:AZF01_14085	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	maad:AZF01_14085	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266834.11.peg.3959	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_six:BSY16_122	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	six:BSY16_122	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1144306.3.peg.717	86.0	50	7	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_meso:BSQ44_05880	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	meso:BSQ44_05880	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|118163.3.peg.2804	90.0	50	5	565	1	150	266	315	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|244592.3.peg.2201	90.0	50	5	570	1	150	270	319	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1150469.3.peg.1765	90.0	50	5	583	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_don:BSK21_03675	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	don:BSK21_03675	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1048680.4.peg.3848	86.0	50	7	569	1	150	269	318	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|311402.9.peg.5014	86.0	50	7	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_hoe:IMCC20628_02897	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	hoe:IMCC20628_02897	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|744979.4.peg.2070	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1123256.3.peg.2564	90.0	50	5	570	1	150	270	319	1.1e-18	97.1',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_labr:CHH27_19355	90.0	50	5	570	1	150	270	319	1.1e-18	97.1',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	labr:CHH27_19355	90.0	50	5	570	1	150	270	319	1.1e-18	97.1',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1156935.5.peg.1846	86.0	50	7	570	1	150	270	319	1.1e-18	97.1',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|314231.3.peg.911	90.0	50	5	570	1	150	270	319	1.1e-18	97.1',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|216596.11.peg.5042	86.0	50	7	570	1	150	270	319	1.1e-18	97.1',
@@ -345,11 +382,12 @@ class DiamondParserTest(unittest.TestCase):
 #        print('Read function:', read.get_functions())
         self.assertEqual(read.get_status(), 'function,besthit')
         self.assertEqual(len(read.get_functions()), 1)
-        self.assertEqual(read.get_functions()['6326'], 544871.7948717949)
+        self.assertEqual(read.get_functions()['UreC'], 1282051.282051282)
 
+    def test_2_compare_hits_7(self):
         # test hit with one function and many close homologs, case 2.2
         hit = DiamondHit()
-        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	6326_fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	99.0	6326'.split('\t'))
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	99.0	UreC'.split('\t'))
         read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
         old_hit_list.add_hit(hit)
@@ -361,18 +399,18 @@ class DiamondParserTest(unittest.TestCase):
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|363754.4.peg.84	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|411684.3.peg.2730	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|176299.10.peg.2410	90.0	50	5	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_maad:AZF01_14085	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	maad:AZF01_14085	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266834.11.peg.3959	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_six:BSY16_122	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	six:BSY16_122	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1144306.3.peg.717	86.0	50	7	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_meso:BSQ44_05880	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	meso:BSQ44_05880	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|118163.3.peg.2804	90.0	50	5	565	1	150	266	315	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|244592.3.peg.2201	90.0	50	5	570	1	150	270	319	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1150469.3.peg.1765	90.0	50	5	583	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_don:BSK21_03675	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	don:BSK21_03675	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1048680.4.peg.3848	86.0	50	7	569	1	150	269	318	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|311402.9.peg.5014	86.0	50	7	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_hoe:IMCC20628_02897	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	hoe:IMCC20628_02897	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|744979.4.peg.2070	88.0	50	6	570	1	150	270	319	8.1e-19	97.4'
                      ]
         hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150')
@@ -386,11 +424,12 @@ class DiamondParserTest(unittest.TestCase):
 #        print('Read function:', read.get_functions())
         self.assertEqual(read.get_status(), 'function')
         self.assertEqual(len(read.get_functions()), 1)
-        self.assertEqual(read.get_functions()['6326'], 32051.28205128205)
+        self.assertEqual(read.get_functions()['UreC'], 32051.28205128205)
 
+    def test_2_compare_hits_8(self):
         # test hit with one function and many close homologs, case 2.4
         hit = DiamondHit()
-        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	6326_fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	99.0	6326'.split('\t'))
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	99.0	UreC'.split('\t'))
         read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
         old_hit_list.add_hit(hit)
@@ -428,9 +467,10 @@ class DiamondParserTest(unittest.TestCase):
         self.assertEqual(read.get_status(), 'nofunction')
         self.assertEqual(len(read.get_functions()), 0)
 
+    def test_2_compare_hits_9(self):
         # test hit with one function and many close homologs, case 2.3 and 2.5
         hit = DiamondHit()
-        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	6326_fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	79.0	6326'.split('\t'))
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	79.0	UreC'.split('\t'))
         read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
         old_hit_list.add_hit(hit)
@@ -442,18 +482,18 @@ class DiamondParserTest(unittest.TestCase):
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|363754.4.peg.84	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|411684.3.peg.2730	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|176299.10.peg.2410	90.0	50	5	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_maad:AZF01_14085	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	maad:AZF01_14085	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266834.11.peg.3959	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_six:BSY16_122	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	six:BSY16_122	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1144306.3.peg.717	86.0	50	7	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_meso:BSQ44_05880	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	meso:BSQ44_05880	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|118163.3.peg.2804	90.0	50	5	565	1	150	266	315	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|244592.3.peg.2201	90.0	50	5	570	1	150	270	319	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1150469.3.peg.1765	90.0	50	5	583	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_don:BSK21_03675	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	don:BSK21_03675	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1048680.4.peg.3848	86.0	50	7	569	1	150	269	318	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|311402.9.peg.5014	86.0	50	7	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_hoe:IMCC20628_02897	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	hoe:IMCC20628_02897	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|744979.4.peg.2070	88.0	50	6	570	1	150	270	319	8.1e-19	97.4'
                      ]
         hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150')
@@ -467,11 +507,12 @@ class DiamondParserTest(unittest.TestCase):
 #        print('Read function:', read.get_functions())
         self.assertEqual(read.get_status(), 'function')
         self.assertEqual(len(read.get_functions()), 1)
-        self.assertEqual(read.get_functions()['6326'], 32051.28205128205)
+        self.assertEqual(read.get_functions()['UreC'], 32051.28205128205)
 
+    def test_2_compare_hits_10(self):
         # test 20 hits, one function, case 2.5
         hit = DiamondHit()
-        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	6326_fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	79.0	6326'.split('\t'))
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	79.0	UreC'.split('\t'))
         read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
         old_hit_list.add_hit(hit)
@@ -506,12 +547,13 @@ class DiamondParserTest(unittest.TestCase):
 #        print('Read function:', read.get_functions())
         self.assertEqual(read.get_status(), 'nofunction')
         self.assertEqual(len(read.get_functions()), 0)
-        
+
+    def test_2_compare_hits_11(self):
         # read with two hits
         hit1 = DiamondHit()
-        hit1.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	6326_fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	99.0	6326'.split('\t'))
+        hit1.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	99.0	UreC'.split('\t'))
         hit2 = DiamondHit()
-        hit2.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	118_fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	118'.split('\t'))
+        hit2.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	UreA'.split('\t'))
         read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
         old_hit_list.add_hit(hit1)
@@ -520,7 +562,7 @@ class DiamondParserTest(unittest.TestCase):
 
 #        print ('* test read with 2 hits                 *')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|100|2	fig|485913.3.peg.8591	87.9	33	4	101	99	1	1	33	2.1e-07	58.9',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|100|2	K01430_cap:CLDAP_03170	81.8	33	6	100	99	1	1	33	1.4e-06	56.2',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|100|2	cap:CLDAP_03170	81.8	33	6	100	99	1	1	33	1.4e-06	56.2',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|100|2	fig|316274.7.peg.2519	78.8	33	7	100	99	1	1	33	6.8e-06	53.9'
                     ]
         hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|100|2')
@@ -535,18 +577,18 @@ class DiamondParserTest(unittest.TestCase):
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|363754.4.peg.84	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|411684.3.peg.2730	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|176299.10.peg.2410	90.0	50	5	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_maad:AZF01_14085	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	maad:AZF01_14085	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266834.11.peg.3959	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_six:BSY16_122	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	six:BSY16_122	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1144306.3.peg.717	86.0	50	7	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_meso:BSQ44_05880	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	meso:BSQ44_05880	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|118163.3.peg.2804	90.0	50	5	565	1	150	266	315	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|244592.3.peg.2201	90.0	50	5	570	1	150	270	319	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1150469.3.peg.1765	90.0	50	5	583	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_don:BSK21_03675	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	don:BSK21_03675	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1048680.4.peg.3848	86.0	50	7	569	1	150	269	318	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|311402.9.peg.5014	86.0	50	7	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	K01428_hoe:IMCC20628_02897	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	hoe:IMCC20628_02897	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|744979.4.peg.2070	88.0	50	6	570	1	150	270	319	8.1e-19	97.4'
                      ]
         hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150')
@@ -561,19 +603,39 @@ class DiamondParserTest(unittest.TestCase):
 #        print('Read function:', read.get_functions())
         self.assertEqual(read.get_status(), 'function,besthit')
         self.assertEqual(len(read.get_functions()), 2)
-        self.assertEqual(read.get_functions()['118'], 245098.03921568627)
+        self.assertEqual(read.get_functions()['UreA'], 735294.1176470588)
 
     def test_3_background_search(self):
         print('Test parser')
         self.parser.parse_background_output()
-        for read in self.parser.reads:
-            print('Read:',read)
-            print('Status:',self.parser.reads[read].get_status())
-            print('Functions:',self.parser.reads[read].get_functions())
-            for hit in self.parser.reads[read].get_hit_list().get_hits():
-                print('\t',hit)
+#        for read in self.parser.reads:
+#            print('Read:',read)
+#            print('Status:',self.parser.reads[read].get_status())
+#            print('Functions:',self.parser.reads[read].get_functions())
+#            for hit in self.parser.reads[read].get_hit_list().get_hits():
+#                print('\t',hit)
         self.assertEqual(len(self.parser.reads), 10)
 
+    def test_4_export_paired_end_reads_fastq(self):
+        # load data first
+        self.parser.parse_background_output()
+
+        # export reads
+        self.parser.export_paired_end_reads_fastq()
+        # read outfile:
+        
+        lines = []
+        outfile = os.path.join(self.parser.project.get_project_dir(sample), sample + '_' + end + '_' + self.parser.project.get_pe_reads_fastq_name())
+        with open (outfile, 'r') as f:
+            for line in f:
+                lines.append(line)
+        self.assertEqual(len(lines), 40)
+        self.assertEqual(lines[0], '@NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/2\n')
+
+    def test_5_get_paired_read_id(self):
+        self.assertEqual(get_paired_read_id('@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/1'),'@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/2')
+        self.assertEqual(get_paired_read_id('@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/2'),'@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/1')
+        
     def tearDown(self):
         self.parser = None
 

@@ -125,15 +125,11 @@ class DiamondHit:
         try:
             self.functions = entry_tokens[12].split('|')
         except IndexError:
-            print (entry_tokens)
+            print ('Unable to parse function list:',entry_tokens)
     
     def annotate_hit(self, ref_data):
         if self.subject_id:
-            arr = self.subject_id.split('_')
-            if len(arr)>1:
-                self.functions = ref_data.lookup_protein_function('_'.join(arr[1:]))
-            else:
-                self.functions = ref_data.lookup_protein_function(self.subject_id)
+            self.functions = ref_data.lookup_protein_function(self.subject_id)
 
     def __str__(self):
         return "\t".join((self.query_id, self.subject_id, str(self.identity), \

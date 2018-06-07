@@ -71,6 +71,27 @@ class ProgramConfig:
         else:
             return self.config['DEFAULT']['background_diamond_db']
 
+    def get_reference_db_size(self, collection):
+        if self.config[collection]['reference_db_size']:
+            return int(self.config[collection]['reference_db_size'])
+        else:
+            return int(self.config['DEFAULT']['reference_db_size'])
+
+    def get_background_db_size(self, collection):
+        if self.config[collection]['background_db_size']:
+            return int(self.config[collection]['background_db_size'])
+        else:
+            return int(self.config['DEFAULT']['background_db_size'])
+
+    def get_taxonomy_names_file (self):
+            return self.config['DEFAULT']['taxonomy_names_file']
+
+    def get_taxonomy_nodes_file (self):
+            return self.config['DEFAULT']['taxonomy_nodes_file']
+
+    def get_taxonomy_merged_file (self):
+            return self.config['DEFAULT']['taxonomy_merged_file']
+
     def list_collections(self):
         return self.config.sections()
     
