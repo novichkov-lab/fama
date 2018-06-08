@@ -77,3 +77,6 @@ class ReferenceData:
         if func_id in self.functions_dict:
             ret_val = self.functions_dict[func_id]['group']
         return ret_val
+
+    def get_functions_in_group(self, group):
+        return [function for function in self.functions_dict if self.functions_dict[function]['group'] == group]

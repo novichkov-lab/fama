@@ -5,7 +5,8 @@ from collections import Counter
 from lib.DiamondParser.DiamondParser import DiamondParser
 from lib.OutputUtil.Report import generate_report
 from lib.OutputUtil.PdfReport import generate_pdf_report
-
+from lib.OutputUtil.KronaXMLWriter import generate_xml
+from lib.OutputUtil.JSONUtil import export_annotated_reads
 
 def get_args():
     desc = '''This program  parses DIAMOND tabular output of sequence reads
@@ -84,14 +85,17 @@ def run_bgr_search(parser):
 def write_output(parser):
     generate_report(parser)
     generate_pdf_report(parser)
+    generate_xml(parser)
 
 
 def main():
     args = get_args()
     parser = DiamondParser(args.config, args.project, args.sample, args.end)
     
-    os.mkdir(parser.project.get_project_dir(parser.sample))
-    os.mkdir(os.path.join(parser.project.get_project_dir(parser.sample),parser.project.get_output_subdir(parser.sample)))
+    if not os.path.isdir(parser.project.get_project_dir(parser.sample)):
+        os.mkdir(parser.project.get_project_dir(parser.sample))
+    if not os.path.isdir(os.path.join(parser.project.get_project_dir(parser.sample),parser.project.get_output_subdir(parser.sample))):
+        os.mkdir(os.path.join(parser.project.get_project_dir(parser.sample),parser.project.get_output_subdir(parser.sample)))
 
     # Search in reference database
     run_ref_search(parser)
@@ -113,7 +117,10 @@ def main():
 
     # Process output of reference DB search
     parser.parse_background_output()
+
     parser.export_read_fastq()
+    parser.export_paired_end_reads_fastq()
+    export_annotated_reads(parser)
     
     # Generate output
     write_output(parser)

@@ -20,7 +20,7 @@ class DiamondParser:
         self.project = ProjectOptions(project_file)
         collection = self.project.get_collection(self.sample)
         if collection not in collections:
-            raise ValueError ('Collection ' + collection + ' not found')
+            raise Exception ('Collection ' + collection + ' not found. Available collections are: ' + (',').join(colelctions))
         self.collection = collection
         self.ref_data = ReferenceData(self.config)
         self.ref_data.load_reference_data(self.collection)
@@ -208,6 +208,9 @@ class DiamondParser:
 
     def get_reads(self):
         return self.reads
+
+    def set_reads(self, reads):
+        self.reads = reads
     
     def parse_fastq_seqid(self,line):
         #to be implemented
@@ -216,9 +219,9 @@ class DiamondParser:
     def export_paired_end_reads_fastq(self):
         fastq_file = self.project.get_fastq_path(self.sample,get_paired_end(self.end))
         outdir = self.project.get_project_dir(self.sample)
-        read_ids = set()
+        read_ids = {}
         for read_id in sorted(self.reads.keys()):
-            read_ids.add(get_paired_read_id(read_id))
+            read_ids[get_paired_read_id(read_id)] = read_id
         line_counter = 0
         with open(os.path.join(outdir, self.sample + '_' + self.end + '_' + self.project.get_pe_reads_fastq_name()), 'w') as of:
             current_read = None
@@ -236,12 +239,20 @@ class DiamondParser:
                     if line_counter == 1:
 #                        (read_id, end) = self.parse_fastq_seqid(line)
                         if line[1:] in read_ids:
-                            current_read = line
+                            current_read = read_ids[line[1:]]
+                            self.reads[current_read].set_pe_id(line[1:])
                             of.write(line + '\n')
                         else: 
                             current_read = None
                     elif current_read:
-                            of.write(line + '\n')
+                        of.write(line + '\n')
+                        if line_counter == 2:
+                            self.reads[current_read].set_pe_sequence(line)
+                        elif line_counter == 3:
+                            self.reads[current_read].set_pe_line3(line)
+                        elif line_counter == 4:
+                            self.reads[current_read].set_pe_quality(line)
+                            
                 fh.close()
             of.closed
                 

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import os, csv, operator
 import unittest
+import json
 from context import lib
 from collections import Counter
 
@@ -12,6 +13,8 @@ from lib.DiamondParser.DiamondParser import compare_functions
 from lib.DiamondParser.DiamondParser import compare_hits
 from lib.DiamondParser.DiamondParser import get_paired_read_id
 from lib.ReadUtil.AnnotatedRead import AnnotatedRead
+from lib.OutputUtil.JSONUtil import export_annotated_reads
+from lib.OutputUtil.JSONUtil import import_annotated_reads
 
 
 data_dir = 'data'
@@ -622,6 +625,8 @@ class DiamondParserTest(unittest.TestCase):
 
         # export reads
         self.parser.export_paired_end_reads_fastq()
+        
+        
         # read outfile:
         
         lines = []
@@ -631,13 +636,30 @@ class DiamondParserTest(unittest.TestCase):
                 lines.append(line)
         self.assertEqual(len(lines), 40)
         self.assertEqual(lines[0], '@NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/2\n')
+        self.assertEqual(self.parser.reads['NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1'].pe_id, 'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/2')
 
     def test_5_get_paired_read_id(self):
         self.assertEqual(get_paired_read_id('@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/1'),'@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/2')
         self.assertEqual(get_paired_read_id('@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/2'),'@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/1')
         
+    def test_7_export_annotated_reads(self):
+        self.parser.parse_background_output()
+        export_annotated_reads(self.parser)
+        
+    def test_8_import_annotated_reads(self):
+        self.parser.parse_background_output()
+        hits = ','.join([str(hit) for read in sorted(self.parser.reads.keys()) for hit in self.parser.reads[read].get_hit_list().get_hits()])
+        infile = os.path.join(self.parser.project.get_project_dir(sample), sample + '_' + end + '_' + self.parser.project.get_reads_json_name())
+        self.parser.set_reads(import_annotated_reads(infile))
+        for read in self.parser.reads:
+            for hit in self.parser.reads[read].get_hit_list().get_hits():
+                print(hit)
+        self.assertEqual(len(self.parser.reads),10)
+        self.assertEqual(','.join([str(hit) for read in sorted(self.parser.reads.keys()) for hit in self.parser.reads[read].get_hit_list().get_hits()]),hits)
+        
     def tearDown(self):
         self.parser = None
+
 
 if __name__=='__main__':
     unittest.main()

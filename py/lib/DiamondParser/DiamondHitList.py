@@ -1,7 +1,7 @@
 from lib.DiamondParser.DiamondHit import DiamondHit
 
 class DiamondHitList:
-    def __init__(self, query_id):
+    def __init__(self, query_id = None):
         self.query_id = query_id
         self.data = []
 

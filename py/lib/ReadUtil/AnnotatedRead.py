@@ -3,7 +3,7 @@ from lib.DiamondParser.DiamondHit import DiamondHit
 from lib.DiamondParser.DiamondHitList import DiamondHitList
 
 class AnnotatedRead:
-    def __init__(self, read_id):
+    def __init__(self, read_id = None):
         self.read_id = read_id  # 1st FASTQ line
         self.sequence = None    # 2nd FASTQ line
         self.quality = None     # 4th FASTQ line
@@ -11,9 +11,16 @@ class AnnotatedRead:
         self.hit_list = None    # hit_list is a DiamondHitList object
         self.status = 'unaccounted'
         self.functions = Counter()     # functions dictionary key is function ID and value is RPKM score
+        self.pe_id = None          # 1st FASTQ line
+        self.pe_sequence = None    # 2nd FASTQ line
+        self.pe_quality = None     # 4th FASTQ line
+        self.pe_line3 = None       # 3rd FASTQ line
         
     def get_read_id(self):
         return self.read_id
+
+    def set_read_id(self,read_id):
+        self.read_id = read_id
         
     def set_hit_list(self,hit_list):
         self.hit_list = hit_list
@@ -21,6 +28,7 @@ class AnnotatedRead:
     def get_hit_list(self):
         return self.hit_list
         
+    # Sequence data
     def set_sequence(self, seq):
         self.sequence = seq
         
@@ -38,7 +46,21 @@ class AnnotatedRead:
         
     def get_line3(self):
         return self.line3
+
+    # Paired-end data
+    def set_pe_id(self, pe_id):
+        self.pe_id = pe_id
+        
+    def set_pe_sequence(self, seq):
+        self.pe_sequence = seq
+        
+    def set_pe_quality(self, quality):
+        self.pe_quality = quality
     
+    def set_pe_line3(self,line3):
+        self.pe_line3 = line3
+
+    # Function data
     def set_functions(self, functions):
         for function in functions:
             self.functions[function] += functions[function]

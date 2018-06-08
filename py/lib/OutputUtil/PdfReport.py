@@ -175,7 +175,6 @@ def generate_pdf_report(parser):
     table_rows.append('</tbody></table></font>' )
     pdf.write_html('\n'.join(table_rows))
 
-
     # Write taxonomy stats
     tax_stats = Counter()
     identity_stats = Counter()
