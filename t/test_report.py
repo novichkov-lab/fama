@@ -4,10 +4,10 @@ import unittest
 from collections import Counter
 from fpdf import FPDF
 
-from context import lib
-from lib.DiamondParser.DiamondParser import DiamondParser
-from lib.OutputUtil.PdfReport import generate_pdf_report
-from lib.OutputUtil.KronaXMLWriter import generate_xml
+from context import Fama
+from Fama.DiamondParser.DiamondParser import DiamondParser
+from Fama.OutputUtil.PdfReport import generate_pdf_report
+from Fama.OutputUtil.KronaXMLWriter import generate_functions_chart
 
 
 
@@ -20,7 +20,7 @@ end = 'pe1'
 class DiamondParserTest(unittest.TestCase):
 
     def setUp(self):
-        self.parser = DiamondParser(config_path, project_path, sample, end)
+        self.parser = DiamondParser(config_file=config_path, project_file=project_path, sample=sample, end=end)
 
     def test_1_collection_pdf_output(self):
         outfile = os.path.join(data_dir,'collection_list.pdf')
@@ -57,7 +57,7 @@ class DiamondParserTest(unittest.TestCase):
         
     def test_4_generate_xml(self):
         self.parser.parse_background_output()
-        generate_xml(self.parser)
+        generate_functions_chart(self.parser)
 
     def tearDown(self):
         self.parser = None

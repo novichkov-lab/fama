@@ -2,19 +2,16 @@
 import os, csv, operator
 import unittest
 import json
-from context import lib
+from context import Fama
 from collections import Counter
 
-from lib.DiamondParser.DiamondHit import DiamondHit
-from lib.DiamondParser.DiamondHitList import DiamondHitList
-from lib.DiamondParser.DiamondParser import DiamondParser
-from lib.DiamondParser.DiamondParser import import_hit_list
-from lib.DiamondParser.DiamondParser import compare_functions
-from lib.DiamondParser.DiamondParser import compare_hits
-from lib.DiamondParser.DiamondParser import get_paired_read_id
-from lib.ReadUtil.AnnotatedRead import AnnotatedRead
-from lib.OutputUtil.JSONUtil import export_annotated_reads
-from lib.OutputUtil.JSONUtil import import_annotated_reads
+from Fama.DiamondParser.DiamondHit import DiamondHit
+from Fama.DiamondParser.DiamondHitList import DiamondHitList
+from Fama.DiamondParser.DiamondParser import DiamondParser
+from Fama.DiamondParser.hit_util import compare_hits,compare_functions,get_paired_read_id
+from Fama.ReadUtil.AnnotatedRead import AnnotatedRead
+from Fama.OutputUtil.JSONUtil import export_annotated_reads
+from Fama.OutputUtil.JSONUtil import import_annotated_reads
 
 
 data_dir = 'data'
@@ -26,7 +23,7 @@ end = 'pe1'
 class DiamondParserTest(unittest.TestCase):
 
     def setUp(self):
-        self.parser = DiamondParser(config_path, project_path, sample, end)
+        self.parser = DiamondParser(config_file=config_path, project_file=project_path, sample=sample, end=end)
         
     def test_6_annotate_hit(self):
         print ('Test hit annotation')
@@ -636,11 +633,12 @@ class DiamondParserTest(unittest.TestCase):
                 lines.append(line)
         self.assertEqual(len(lines), 40)
         self.assertEqual(lines[0], '@NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/2\n')
-        self.assertEqual(self.parser.reads['NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1'].pe_id, 'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/2')
+        self.assertEqual(self.parser.reads['NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT'].pe_id, '@NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/2')
 
     def test_5_get_paired_read_id(self):
         self.assertEqual(get_paired_read_id('@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/1'),'@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/2')
         self.assertEqual(get_paired_read_id('@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/2'),'@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/1')
+        self.assertEqual(get_paired_read_id('@SN638:1534:HGTGHBCX2:1:1105:1128:2086'),'@SN638:1534:HGTGHBCX2:1:1105:1128:2086')
         
     def test_7_export_annotated_reads(self):
         self.parser.parse_background_output()
@@ -656,6 +654,20 @@ class DiamondParserTest(unittest.TestCase):
                 print(hit)
         self.assertEqual(len(self.parser.reads),10)
         self.assertEqual(','.join([str(hit) for read in sorted(self.parser.reads.keys()) for hit in self.parser.reads[read].get_hit_list().get_hits()]),hits)
+
+    def test_9_import_fastq(self):
+        self.parser.parse_reference_output()
+        self.parser.import_fastq()
+        print(self.parser.reads.keys())
+        self.assertEqual(len(self.parser.reads),10)
+        self.assertEqual(self.parser.reads['NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT'].get_read_id_line(),'@NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1')
+        self.assertEqual(self.parser.reads['NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT'].get_sequence(),'CCCTTCCATCACTTCGTCCCGGCTCAGAATTTTTATCCCTGACTCCATCAGCTCGGAGACAGATCTTCCGTCCCTTATCCCTTCGAGCACTTCGGCAGTGATTAGGGCCAGCGCCTCTGGGTAGTTGAGTTTAAGACAACGAGCACGCCT')
+
+    def test_10_export_hit_fastq(self):
+        self.parser.parse_reference_output()
+        self.parser.import_fastq()
+        self.parser.export_hit_fastq()
+        self.assertEqual(len(self.parser.reads),10)
         
     def tearDown(self):
         self.parser = None
