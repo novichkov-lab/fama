@@ -112,7 +112,7 @@ class DiamondParser:
                     #print (read_id, hit_start, hit_end, biscore_range_cutoff)
                     #print (_hit_list.print_hits())
                     if read_id in self.reads.keys():
-                        compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
+                        compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                     else:
                         print ('Read not found: ', read_id)
 #                        raise TypeError
@@ -124,7 +124,7 @@ class DiamondParser:
             hit_start= int(hit_start)
             hit_end = int(hit_end)
             if read_id in self.reads.keys():
-                compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
+                compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
             else:
                 print ('Read not found: ', read_id)
 

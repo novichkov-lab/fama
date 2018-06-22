@@ -32,14 +32,14 @@ class Project(object):
                 if not os.path.exists(os.path.join(self.options.get_project_dir(sample), sample + '_' + end + '_' + self.options.get_reads_json_name())):
                     run_functional_profiling_sample(self, sample, end)
                 else:
-                    load_annotated_reads(self, sample, end)
-
+                    self.load_annotated_reads(sample, end)
 
     def load_functional_profile(self):
         for sample in self.list_samples():
             for end in ENDS:
                 if not os.path.exists(os.path.join(self.options.get_project_dir(sample), sample + '_' + end + '_' + self.options.get_reads_json_name())):
                     raise Exception('Annotated reads missing for sample ' + sample + ' and end ' + end)
+                    pass
                 else:
                     self.load_annotated_reads(sample, end)
                     

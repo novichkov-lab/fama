@@ -31,15 +31,6 @@ class TaxonomyData:
         if not self.names:
             raise Exception('Taxonomy names load failed')
         
-        with open(merged_file, 'r') as f:
-            for line in f:
-                line = line.rstrip('\n\r')
-                line_tokens = line.split('\t|\t')
-                old_id = line_tokens[0]
-                new_id = line_tokens[1]
-                if new_id in self.names and old_id not in self.names:
-                    self.names[old_id]['name'] = self.names[new_id]['name']
-            f.closed
         
 
         #initialize self.nodes
@@ -53,23 +44,29 @@ class TaxonomyData:
                 self.nodes[taxid]['parent'] = parent
                 self.nodes[taxid]['rank'] = rank
             f.closed
+            
+        #merge 
         with open(merged_file, 'r') as f:
             for line in f:
                 line = line.rstrip('\n\r')
-                line_tokens = line.split('\t|\t')
+                line_tokens = line.split('\t')
                 old_id = line_tokens[0]
-                new_id = line_tokens[1]
-                if new_id in self.names and old_id not in self.names:
+                new_id = line_tokens[2]
+                if new_id in self.names:
+                    self.names[old_id]['name'] = self.names[new_id]['name']
                     self.nodes[old_id]['parent'] = self.nodes[new_id]['parent']
                     self.nodes[old_id]['rank'] = self.nodes[new_id]['rank']
             f.closed
-
-            
+        
+        # inject 'Unknown' entry
+        self.names['0']['name'] = 'Unknown'
+        self.nodes['0']['parent'] = '1'
+        self.nodes['0']['rank'] = 'norank'
         
     def get_taxonomy_profile(self,counts,identity,scores):
         unknown_label = 'Unknown'
         unknown_rank = 'superkingdom'
-        ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
+        ranks = ['norank', 'superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
         
         cellular_organisms_taxid = '131567';
         non_cellular_organisms_name = 'Non-cellular';

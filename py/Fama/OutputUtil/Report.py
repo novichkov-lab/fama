@@ -151,8 +151,52 @@ def generate_report(parser):
         of.write('\n\n*** End of report ***\n')
         of.closed
 
-def generate_functions_table(project):
+def generate_functions_scores_table(project):
     functions = defaultdict(dict)
+    protein_counts = defaultdict(dict)
+    # initialize list of functions
+    for sample in project.samples:
+        for end in project.samples[sample]:
+            reads = project.samples[sample][end]
+            for read in reads:
+                for function in reads[read].functions:
+                    protein_counts
+                    if sample in functions[function]:
+                        functions[function][sample] += reads[read].functions[function]
+                        protein_counts[function][sample] += 1
+                    else:
+                        functions[function][sample] = reads[read].functions[function]
+                        protein_counts[function][sample] = 1
+    # fill table of functions
+    
+    samples_list = sorted(project.samples.keys())
+    lines = ['Function\t' + '\t'.join(samples_list) + '\tDefinition',]
+    for function in sorted(functions.keys()):
+        line = function
+        for sample in samples_list:
+            if sample in functions[function]:
+                line += '\t' + '{0:.2f}'.format(functions[function][sample])
+            else:
+                line += '\t0.00'
+        line += '\t' + project.ref_data.lookup_function_name(function)
+        lines.append(line)
+    
+    lines.append('\nFunction\t' + '\t'.join(samples_list) + '\tDefinition')
+    for function in sorted(functions.keys()):
+        line = function
+        for sample in samples_list:
+            if sample in functions[function]:
+                line += '\t' + str(protein_counts[function][sample])
+            else:
+                line += '\t0'
+        line += '\t' + project.ref_data.lookup_function_name(function)
+        lines.append(line)
+    
+    return '\n'.join(lines)
+    
+def generate_functions_scores_list(project):
+    functions = defaultdict(dict)
+    protein_counts = defaultdict(dict)
     # initialize list of functions
     for sample in project.samples:
         for end in project.samples[sample]:
@@ -161,20 +205,33 @@ def generate_functions_table(project):
                 for function in reads[read].functions:
                     if sample in functions[function]:
                         functions[function][sample] += reads[read].functions[function]
+                        protein_counts[function][sample] += 1
                     else:
                         functions[function][sample] = reads[read].functions[function]
+                        protein_counts[function][sample] = 1
     # fill table of functions
     
     samples_list = sorted(project.samples.keys())
-    line = 'Function\t' + '\t'.join(samples_list) + '\tDefinition\n'
-    for function in functions:
-        line += function
-        for sample in samples_list:
+    lines = ['Function\tSample\tScore\tDefinition',]
+    for sample in samples_list:
+        for function in sorted(functions.keys()):
+            line = sample
             if sample in functions[function]:
-                line += '\t' + '{0:.2f}'.format(functions[function][sample])
+                line +=  '\t' + function + '\t' + '{0:.2f}'.format(functions[function][sample])
             else:
-                line += '\t0'
-        line += '\t' + project.ref_data.lookup_function_name(function) + '\n'
-    return line
+                line +=  '\t' + function + '\t0.00'
+            line += '\t' + project.ref_data.lookup_function_name(function)
+            lines.append(line)
     
-                
+    lines.append('\nFunction\tSample\tCount\tDefinition')
+    for sample in samples_list:
+        for function in sorted(functions.keys()):
+            line = sample
+            if sample in functions[function]:
+                line +=  '\t' + function + '\t' + str(protein_counts[function][sample])
+            else:
+                line +=  '\t' + function + '\t0'
+            line += '\t' + project.ref_data.lookup_function_name(function)
+            lines.append(line)
+    
+    return '\n'.join(lines)

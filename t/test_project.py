@@ -6,7 +6,7 @@ from collections import Counter
 
 from context import Fama
 from Fama.ProjectUtil.ProjectOptions import ProjectOptions
-from Fama.OutputUtil.Report import generate_functions_table
+from Fama.OutputUtil.Report import generate_functions_scores_table
 from Fama.Project import Project
 
 
@@ -43,7 +43,7 @@ class ProjectTest(unittest.TestCase):
         print ('Load project from JSON')
         self.project.load_functional_profile()
         with open('outfile.tsv', 'w') as of:
-            #of.write(generate_functions_table(self.project))
+            #of.write(generate_functions_scores_table(self.project))
             of.close()
         self.assertEqual(len(self.project.samples), 8)
         

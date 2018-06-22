@@ -62,6 +62,12 @@ class ProjectOptions:
                 return self.project[sample]['fastq_pe2']
             else:
                 return None
+    
+    def get_coverage_path(self, sample):
+        if self.project[sample]['coverage']:
+            return self.project[sample]['coverage']
+        else:
+            return None
 
     # File names
     

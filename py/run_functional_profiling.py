@@ -5,11 +5,8 @@ from collections import Counter
 from Fama.DiamondParser.DiamondParser import DiamondParser
 from Fama.OutputUtil.Report import generate_report
 from Fama.OutputUtil.PdfReport import generate_pdf_report
-from Fama.OutputUtil.KronaXMLWriter import generate_functions_chart
+from Fama.OutputUtil.KronaXMLWriter import generate_xml
 from Fama.OutputUtil.JSONUtil import export_annotated_reads
-
-# This program runs functional profiling for individual FASTQ file
-
 
 def get_args():
     desc = '''This program  parses DIAMOND tabular output of sequence reads
@@ -85,9 +82,15 @@ def run_bgr_search(parser):
 
     print ('DIAMOND finished')
 
+def write_output(parser):
+    generate_report(parser)
+    generate_pdf_report(parser)
+    generate_xml(parser)
 
-def functional_profiling_pipeline(config_file, project_file, sample, end):
-    parser = DiamondParser(config_file=config_file, project_file=project_file, sample=sample, end=end)
+
+def main():
+    args = get_args()
+    parser = DiamondParser(config_file=args.config, project_file=args.project, sample=args.sample, end=args.end)
     
     if not os.path.isdir(parser.project.get_project_dir(parser.sample)):
         os.mkdir(parser.project.get_project_dir(parser.sample))
@@ -120,14 +123,8 @@ def functional_profiling_pipeline(config_file, project_file, sample, end):
     export_annotated_reads(parser)
     
     # Generate output
-    generate_report(parser)
-    generate_pdf_report(parser)
-    generate_functions_chart(parser)
-
-
-def main():
-    
-    print('This program is not intended to run directly')
+    write_output(parser)
+    print('Done!')
 
 if __name__=='__main__':
     main()

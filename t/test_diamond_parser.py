@@ -8,7 +8,7 @@ from collections import Counter
 from Fama.DiamondParser.DiamondHit import DiamondHit
 from Fama.DiamondParser.DiamondHitList import DiamondHitList
 from Fama.DiamondParser.DiamondParser import DiamondParser
-from Fama.DiamondParser.hit_util import compare_hits,compare_functions,get_paired_read_id
+from Fama.DiamondParser.hit_utils import compare_hits,compare_functions,get_paired_read_id
 from Fama.ReadUtil.AnnotatedRead import AnnotatedRead
 from Fama.OutputUtil.JSONUtil import export_annotated_reads
 from Fama.OutputUtil.JSONUtil import import_annotated_reads

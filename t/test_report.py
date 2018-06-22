@@ -55,7 +55,7 @@ class DiamondParserTest(unittest.TestCase):
         self.assertEqual(len(urease_list), 4)
         self.assertEqual(sorted(urease_list)[0], 'UreA')
         
-    def test_4_generate_xml(self):
+    def test_4_generate_functions_chart(self):
         self.parser.parse_background_output()
         generate_functions_chart(self.parser)
 

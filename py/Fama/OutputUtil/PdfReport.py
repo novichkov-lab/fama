@@ -248,7 +248,7 @@ def generate_protein_pdf_report(parser):
     pdf.ln(h = 5)
     pdf.cell(105, 10, 'FASTA file: ' + parser.project.get_fastq_path(parser.sample, parser.end))
     pdf.ln(h = 5)
-    pdf.cell(135, 10, 'Total number of proteins: ' + str(parser.project.get_fastq1_readcount(parser.sample)))
+    pdf.cell(135, 10, 'Number of reads: ' + str(parser.project.get_fastq1_readcount(parser.sample)))
     pdf.ln(h = 20)
 
     pdf.set_font('Arial', 'B', 12)
@@ -346,7 +346,7 @@ def generate_protein_pdf_report(parser):
         func_identity[function] = func_identity[function]/func_hit_counts[function]
 
     table_rows = ['<table border="0" align="center" width="100%">',
-                    '<thead><tr><<th width="55%">Definition</th><th width="15%">Coverage</th><th width="15%">Protein count</th><th width="15%">Avg. identity</th></tr></thead>',
+                    '<thead><tr><<th width="55%">Definition</th><th width="15%">Norm. abundance</th><th width="15%">Prot. count</th><th width="15%">Avg. identity</th></tr></thead>',
                     '<tbody>']
     for function in sorted(func_stats.keys()):
         table_rows.append('<tr><td>' + function 
@@ -381,7 +381,7 @@ def generate_protein_pdf_report(parser):
         func_identity[function] = func_identity[function]/func_hit_counts[function]
 
     table_rows = ['<font size="8"><table border="1" align="center" width="100%">',
-                    '<thead><tr><th width="12%">ID</th><th width="61%">Definition</th><th width="9%">Coverage</th><th width="9%">Protein count</th><th width="9%">Avg. identity</th></tr></thead>',
+                    '<thead><tr><th width="12%">ID</th><th width="61%">Definition</th><th width="9%">Norm. abundance</th><th width="9%">Prot. count</th><th width="9%">Avg. identity</th></tr></thead>',
                     '<tbody>']
     for function in sorted(func_stats.keys()):
         table_rows.append('<tr><td>' + function 
@@ -434,7 +434,7 @@ def generate_protein_pdf_report(parser):
         pdf.cell(50, 10, '*top 100 entries are shown')
 
         table_rows = ['<table border="0" align="center" width="100%">',
-                    '<thead><tr><<th width="60%">Taxon</th><th width="15%">Coverage</th><th width="15%">Protein count</th><th width="15%">Avg. identity</th></tr></thead>',
+                    '<thead><tr><<th width="60%">Taxon</th><th width="15%">Norm. abundance</th><th width="15%">Prot. count</th><th width="15%">Avg. identity</th></tr></thead>',
                     '<tbody>']
         for tax in OrderedDict(Counter(rpkm_per_rank[rank]).most_common(100)):
             table_rows.append('<tr><td>' + tax 

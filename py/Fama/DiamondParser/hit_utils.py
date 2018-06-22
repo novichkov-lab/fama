@@ -9,17 +9,17 @@ def cleanup_protein_id(protein):
     #    return protein
     return protein
 
-def get_rpkm_score(hit, function_fraction, total_readcount):
+def get_rpkm_score(hit, function_fraction, total_readcount, length_cutoff):
     ret_val = None
-    if (hit.get_subject_length() - hit.get_length()) > 0:
-        ret_val = function_fraction*1000000000.0/((hit.get_subject_length() - hit.get_length())*3*total_readcount)
+    if (hit.get_subject_length() - length_cutoff) > 0:
+        ret_val = function_fraction*1000000000.0/((hit.get_subject_length() - length_cutoff)*3*total_readcount)
     else:
         print(hit)
         print(function_fraction, str(total_readcount))
         ret_val = function_fraction*1000000000.0/(3*total_readcount)
     return ret_val
 
-def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, fastq_readcount):
+def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, fastq_readcount):
     # This functions compares hits assigned to an annotated read with functions
     # from a Diamond hit list
     #
@@ -61,7 +61,7 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                     read.set_status('function,besthit')                    
                     total_count = len(new_hits[0].get_functions())
                     for function in new_hits[0].get_functions():
-                        new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount)
+                        new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount, length_cutoff)
                 elif '' in functions:
                     # function unknown
 #                    print ('case 1.3')
@@ -73,7 +73,7 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                     read.set_status('function')
                     total_count = sum(functions.values())
                     for function in functions:
-                        new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount)
+                        new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount, length_cutoff)
                 read.set_functions(new_functions)
                 
             else:
@@ -117,7 +117,7 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                         read.set_status('function')
                         total_count = sum(functions.values())
                         for function in functions:
-                            new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount)
+                            new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount, length_cutoff)
                     read.set_functions(new_functions)
                 else:
 #                    for hit1 in new_hits:
@@ -131,13 +131,13 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                     elif cleanup_protein_id(new_hits[0].get_subject_id()) == cleanup_protein_id(hit.get_subject_id()):
 #                        print ('case 2.1')
                         read.set_status('function,besthit')
-                        total_count = len(new_hits[0].get_functions())
+                        total_count = sum(functions.values())
                         for function in functions:
                             if function in new_hits[0].get_functions():
-                                new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount)
+                                new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount, length_cutoff)
                         if not new_functions:
                             for function in functions:
-                                new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount)
+                                new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount, length_cutoff)
 #                        print(hit)
 #                        print(new_functions)
                     else:
@@ -146,7 +146,7 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                         read.set_status('function')
                         total_count = sum(functions.values())
                         for function in functions:
-                            new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount)
+                            new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount, length_cutoff)
                     read.set_functions(new_functions)
         else:
 #            print('Skipping hit',hit.get_query_id())
