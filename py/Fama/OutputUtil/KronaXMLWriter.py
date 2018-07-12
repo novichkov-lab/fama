@@ -151,3 +151,119 @@ def generate_taxonomy_chart(tax_profile, sample, outfile):
     if p.returncode != 0:
         raise CalledProcessError(p.returncode, p.args)
 
+def generate_taxonomy_series_chart(tax_profile, sample_list, outfile):
+    with open(outfile, 'w') as of:
+        # Write header
+        of.write('<krona key="false">\n')
+        of.write('\t<attributes magnitude="rpkm">\n')
+        of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
+        of.write('\t\t<attribute display="RPKM">rpkm</attribute>\n')
+        of.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
+        of.write('\t</attributes>\n')
+        of.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" hueEnd="240" default="true"></color>\n')
+        
+        # Write dataset
+        of.write('\t<datasets>\n')
+        for sample in sample_list:
+            of.write('\t\t<dataset>' + sample + '</dataset>\n')
+        of.write('\t</datasets>\n')
+
+        
+        # Write nodes
+        root_id = '1'
+        offset = 1
+        of.write(print_dataseries_tax_xml(tax_profile, sample_list, root_id, offset))
+        
+        # Close XML
+        of.write('</krona>')
+        of.closed
+
+    # Run Krona
+    html_file = outfile + '.html'
+    krona_cmd = ['ktImportXML', '-o', html_file, outfile]
+
+    with Popen(krona_cmd, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
+        for line in p.stdout:
+            print(line, end='')
+    if p.returncode != 0:
+        raise CalledProcessError(p.returncode, p.args)
+
+def print_dataseries_tax_xml(tax_profile, dataseries, taxid, offset):
+    #print(taxid)
+    if taxid not in tax_profile.tree.data:
+        raise Exception (taxid,'not found in the tree!!!')
+    ret_val = '\t'*offset + '<node name="' + tax_profile.tree.data[taxid].name + '">\n'
+    offset += 1
+    if tax_profile.tree.data[taxid].attributes:
+        ret_val += '\t'*offset + '<readcount>'
+        for datapoint in dataseries:
+            if datapoint in tax_profile.tree.data[taxid].attributes:
+                ret_val += '<val>' + format(tax_profile.tree.data[taxid].attributes[datapoint]['count'], "0.0f") + '</val>'
+            else:
+                ret_val += '<val>0</val>'
+        ret_val += '</readcount>\n' + '\t'*offset + '<rpkm>'
+        for datapoint in dataseries:
+            if datapoint in tax_profile.tree.data[taxid].attributes:
+                ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint]['rpkm']), "0.2f") + '</val>'
+            else:
+                ret_val += '<val>0.0</val>'
+        ret_val += '</rpkm>\n' + '\t'*offset + '<identity>'
+        for datapoint in dataseries:
+            if datapoint in tax_profile.tree.data[taxid].attributes:
+                ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint]['identity']/tax_profile.tree.data[taxid].attributes[datapoint]['count']), "0.1f") + '</val>'
+            else:
+                ret_val += '<val>0.0</val>'
+        ret_val += '</identity>\n'
+    else:
+        ret_val += '\t'*offset + '<readcount>'
+        ret_val += '<val>0</val>'*len(dataseries)
+        ret_val += '</readcount>\n' + '\t'*offset + '<rpkm>'
+        ret_val += '<val>0.0</val>'*len(dataseries)
+        ret_val += '</rpkm>\n' + '\t'*offset + '<identity>'
+        ret_val += '<val>0.0</val>'*len(dataseries)
+        ret_val += '</identity>\n'
+        
+    if tax_profile.tree.data[taxid].children:
+        for child_taxid in tax_profile.tree.data[taxid].children:
+            #print('Called print_tax_xml', child_taxid, offset)
+            ret_val += print_dataseries_tax_xml(tax_profile, dataseries, child_taxid, offset)
+    offset -= 1
+    ret_val += '\t'*offset + '</node>\n'
+    return ret_val
+
+def generate_functional_taxonomy_chart(tax_profile, function_list, outfile):
+    with open(outfile, 'w') as of:
+        # Write header
+        of.write('<krona key="false">\n')
+        of.write('\t<attributes magnitude="rpkm">\n')
+        of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
+        of.write('\t\t<attribute display="RPKM">rpkm</attribute>\n')
+        of.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
+        of.write('\t</attributes>\n')
+        of.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" hueEnd="240" default="true"></color>\n')
+        
+        # Write dataset
+        of.write('\t<datasets>\n')
+        for function in function_list:
+            of.write('\t\t<dataset>' + function + '</dataset>\n')
+        of.write('\t</datasets>\n')
+        
+        # Write nodes
+        root_id = '1'
+        offset = 1
+        of.write(print_dataseries_tax_xml(tax_profile, function_list, root_id, offset))
+        
+        # Close XML
+        of.write('</krona>')
+        of.closed
+
+    # Run Krona
+    html_file = outfile + '.html'
+    krona_cmd = ['ktImportXML', '-o', html_file, outfile]
+
+    with Popen(krona_cmd, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
+        for line in p.stdout:
+            print(line, end='')
+    if p.returncode != 0:
+        raise CalledProcessError(p.returncode, p.args)
+

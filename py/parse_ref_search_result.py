@@ -1,6 +1,6 @@
 #!/usr/bin/python
 import sys,argparse
-from lib.DiamondParser.DiamondParser import DiamondParser
+from Fama.DiamondParser.DiamondParser import DiamondParser
 
 def get_args():
     desc = '''This script parses DIAMOND tabular output of sequence reads

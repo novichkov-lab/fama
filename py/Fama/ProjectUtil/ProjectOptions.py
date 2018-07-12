@@ -22,6 +22,12 @@ class ProjectOptions:
                 return self.project['DEFAULT']['collection']
         else:
             return self.project['DEFAULT']['collection']
+
+    def get_name(self):
+        return self.project['DEFAULT']['project_name']
+
+    def get_work_dir(self):
+        return self.project['DEFAULT']['work_dir']
     
     def get_sample_id(self, sample):
         return self.project[sample]['sample_id']

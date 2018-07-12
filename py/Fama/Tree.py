@@ -1,4 +1,5 @@
 import queue
+from collections import defaultdict
 RANKS = set(['norank','superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'])
 
 class Node(object):
@@ -39,10 +40,23 @@ class Node(object):
         self.attributes[k] = v
 
     def add_attribute(self, k, v):
+        if isinstance(v,dict) and not self.attributes:
+            self.attributes = defaultdict(lambda : defaultdict(dict))
         if k in self.attributes:
-            self.attributes[k] += v
+            if isinstance(v,dict):
+                for k2 in v:
+                    if k2 in self.attributes[k]:
+                        self.attributes[k][k2] += v[k2]
+                    else:
+                        self.attributes[k][k2] = v[k2]
+            else:
+                self.attributes[k] += v
         else:
-            self.attributes[k] = v
+            if isinstance(v,dict):
+                for k2 in v:
+                    self.attributes[k][k2] = v[k2]
+            else:
+                self.attributes[k] = v
 
     def get_attribute(self, k):
         if k in self.attributes:
@@ -131,7 +145,6 @@ class Tree(object):
                 break
             taxid = parent_taxid
             parent_taxid = self.data[taxid].parent
-            
 
     def print_tree(self):
         print(self.data['1'].taxid)
