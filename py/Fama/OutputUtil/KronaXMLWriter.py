@@ -204,13 +204,14 @@ def print_dataseries_tax_xml(tax_profile, dataseries, taxid, offset):
         ret_val += '</readcount>\n' + '\t'*offset + '<rpkm>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
-                ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint]['rpkm']), "0.2f") + '</val>'
+                ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint]['rpkm']), "0.5f") + '</val>'
+                #ret_val += '<val>' + str(tax_profile.tree.data[taxid].attributes[datapoint]['rpkm']) + '</val>'
             else:
                 ret_val += '<val>0.0</val>'
         ret_val += '</rpkm>\n' + '\t'*offset + '<identity>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
-                ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint]['identity']/tax_profile.tree.data[taxid].attributes[datapoint]['count']), "0.1f") + '</val>'
+                ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint]['identity']/tax_profile.tree.data[taxid].attributes[datapoint]['hit_count']), "0.1f") + '</val>'
             else:
                 ret_val += '<val>0.0</val>'
         ret_val += '</identity>\n'

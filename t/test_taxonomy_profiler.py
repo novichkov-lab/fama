@@ -11,6 +11,7 @@ from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
 from Fama.OutputUtil.Report import generate_report
 from Fama.TaxonomyProfile import TaxonomyProfile
 from Fama.OutputUtil.KronaXMLWriter import generate_taxonomy_chart
+from Fama.OutputUtil.KronaXMLWriter import generate_taxonomy_series_chart
 from Fama.Project import Project
 
 data_dir = 'data'
@@ -19,8 +20,9 @@ config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__
 #sample = 'test_sample'
 end = 'pe1'
 
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_Hans_sulfate_t.ini')
-sample = 'HL1A'
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_Hans_sulfate_t.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_EB271_nitrogen_t.ini')
+sample = 'HL1G'
 
 class DiamondParserTest(unittest.TestCase):
 
@@ -122,6 +124,7 @@ class DiamondParserTest(unittest.TestCase):
         #self.assertEqual(len(tax_profile.tree.data), 47)
         self.assertTrue(tax_profile.tree.data)
     
+    @unittest.skip("for faster testing")
     def test_4_build_taxonomy_profile(self):
         tax_data = TaxonomyData(self.parser.config)
         tax_data.load_taxdata(self.parser.config)
@@ -169,6 +172,85 @@ class DiamondParserTest(unittest.TestCase):
                 #print(tax_profile.print_taxonomy_profile())
                 generate_taxonomy_chart(tax_profile, sample, outfile)
                 self.assertTrue(tax_profile.tree.data)
+
+    def test_5_build_multifile_taxonomy_profile(self):
+        tax_data = TaxonomyData(self.parser.config)
+        tax_data.load_taxdata(self.parser.config)
+        
+        project = Project(config_file=config_path, project_file=project_path)
+        project.load_functional_profile()
+        
+        scores = defaultdict(lambda : defaultdict(dict))
+        
+        for sample in sorted(project.samples.keys()):
+            for end in sorted(project.samples[sample].keys()):
+                scaling_factor = 1.0
+                if end == 'pe1':
+                    scaling_factor = project.options.get_fastq1_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
+                elif end == 'pe2':
+                    scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
+                else:
+                    raise Exception('Unknown end identifier')
+
+                reads = project.samples[sample][end]
+                multiple_hits = 0
+                read_count = 0
+                
+                for read in reads:
+                    if reads[read].get_status() == 'function,besthit' or reads[read].get_status() == 'function':
+                        
+                        read_functions = reads[read].get_functions()
+                        hits = reads[read].get_hit_list().get_hits()
+                        if len(hits) >1:
+                            multiple_hits += 1
+                        read_count += 1
+                        # Count hits and identity
+                        for hit in hits:
+                            hit_taxid = project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
+                            if sample in scores[hit_taxid]:
+                                scores[hit_taxid][sample]['count'] += 1.0/len(hits)
+                                scores[hit_taxid][sample]['hit_count'] += 1.0
+                                scores[hit_taxid][sample]['identity'] += hit.get_identity()
+                            else:
+                                scores[hit_taxid][sample]['count'] = 1.0/len(hits)
+                                scores[hit_taxid][sample]['hit_count'] = 1.0 # we need hit count to calculate average identity
+                                scores[hit_taxid][sample]['identity'] = hit.get_identity()
+                                # Initialize 'rpkm' here
+                                scores[hit_taxid][sample]['rpkm'] = 0.0
+
+                            
+                        # Count RPKM
+                        # If we have only one hit, all RPKM scores of the read would be assigned to the tax id of the hit
+                        # If we have more than one hit, RPKM scores would be equally divided between tax ids of the hits, with regard to functional assignments of the hits
+                        function_taxids = defaultdict(list)
+                        # First, collect all taxonomy IDs for each function assigned to the hit
+                        for function in read_functions:
+                            for hit in hits:
+                                hit_taxid = project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
+                                hit_functions = hit.get_functions()
+                                for hit_function in hit.get_functions():
+                                    if hit_function == function:
+                                        function_taxids[function].append(hit_taxid)
+                        # Second, for each tax ID add its share of the RPKM score assigned to hit's function
+                        for function in function_taxids:
+                            tax_count = len(function_taxids[function])
+                            for hit_taxid in function_taxids[function]:
+                                scores[hit_taxid][sample]['rpkm'] += read_functions[function] * scaling_factor/tax_count
+                print(sample, end, 'read count', str(read_count))
+                print ('Reads with multiple hits: ', multiple_hits)
+                
+        # Now, we have all taxonomy ids, from each samples, in a single nested dictionary. 
+        print('tax id count', str(len(scores)))
+
+        tax_profile = TaxonomyProfile()
+        outfile = os.path.join(project.options.get_work_dir(), project.options.get_name() + '_taxonomy_profile.xml')
+        outfile = outfile.replace(' ', '_')
+        outfile = outfile.replace("'", "")
+
+        tax_profile.build_functional_taxonomy_profile(tax_data, scores)
+
+        generate_taxonomy_series_chart(tax_profile, sorted(project.samples.keys()), outfile)
+        self.assertTrue(tax_profile.tree.data)
 
 
     def tearDown(self):

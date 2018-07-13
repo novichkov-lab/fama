@@ -290,7 +290,8 @@ class DiamondParser:
                 end = end[0]
                 return (line_tokens[0],end)
             else:
-                return (line, '')
+                # SRA or unknown format
+                return (line_tokens[0], '')
             # return (line.split('\s')[0], line.split('\s')[1][0])
         elif line.endswith('/1') or line.endswith('/2'):
             # Old Ilumina format

@@ -152,41 +152,47 @@ def generate_report(parser):
         of.closed
 
 def generate_functions_scores_table(project):
-    functions = defaultdict(dict)
-    protein_counts = defaultdict(dict)
+    functions_list = set()
+    scores = defaultdict(lambda : defaultdict(float))
+    read_counts = defaultdict(lambda : defaultdict(float))
+    
     # initialize list of functions
     for sample in project.samples:
         for end in project.samples[sample]:
+            scaling_factor = 1.0
+            if end == 'pe1':
+                scaling_factor = project.options.get_fastq1_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
+            elif end == 'pe2':
+                scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
+            else:
+                raise Exception('Unknown identifier of read end: ' + end)
             reads = project.samples[sample][end]
             for read in reads:
                 for function in reads[read].functions:
-                    protein_counts
-                    if sample in functions[function]:
-                        functions[function][sample] += reads[read].functions[function]
-                        protein_counts[function][sample] += 1
-                    else:
-                        functions[function][sample] = reads[read].functions[function]
-                        protein_counts[function][sample] = 1
+                    functions_list.add(function)
+                    scores[function][sample] += scaling_factor * reads[read].functions[function]
+                    read_counts[function][sample] += 1.0/len(reads[read].functions)
+
     # fill table of functions
     
     samples_list = sorted(project.samples.keys())
     lines = ['Function\t' + '\t'.join(samples_list) + '\tDefinition',]
-    for function in sorted(functions.keys()):
+    for function in sorted(functions_list):
         line = function
         for sample in samples_list:
-            if sample in functions[function]:
-                line += '\t' + '{0:.2f}'.format(functions[function][sample])
+            if sample in scores[function]:
+                line += '\t' + '{0:.2f}'.format(scores[function][sample])
             else:
                 line += '\t0.00'
         line += '\t' + project.ref_data.lookup_function_name(function)
         lines.append(line)
     
     lines.append('\nFunction\t' + '\t'.join(samples_list) + '\tDefinition')
-    for function in sorted(functions.keys()):
+    for function in sorted(functions_list):
         line = function
         for sample in samples_list:
-            if sample in functions[function]:
-                line += '\t' + str(protein_counts[function][sample])
+            if sample in read_counts[function]:
+                line += '\t' + str(read_counts[function][sample])
             else:
                 line += '\t0'
         line += '\t' + project.ref_data.lookup_function_name(function)

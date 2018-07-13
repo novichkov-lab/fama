@@ -126,6 +126,7 @@ class DiamondParserTest(unittest.TestCase):
         #self.assertEqual(len(tax_profile.tree.data), 47)
         self.assertTrue(tax_profile.tree.data)
     
+    
     def test_4_build_functional_taxonomy_profile(self):
         tax_data = TaxonomyData(self.parser.config)
         tax_data.load_taxdata(self.parser.config)
@@ -133,85 +134,161 @@ class DiamondParserTest(unittest.TestCase):
         project = Project(config_file=config_path, project_file=project_path)
         project.load_functional_profile()
         outfile = project.options.get_name() + '_functions_taxonomy.xlsx'
+        #outfile = 'test_functions_taxonomy.xlsx'
         outfile = outfile.replace(' ', '_')
         outfile = outfile.replace("'", "")
 
         writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
 
         for sample in sorted(project.samples.keys()):
-            for end in sorted(project.samples[sample].keys()):
-                reads = project.samples[sample][end]
-        #self.parser.reads = import_annotated_reads(os.path.join(self.parser.project.get_project_dir(self.parser.sample), self.parser.sample + '_' + self.parser.end + '_' + self.parser.project.get_reads_json_name()))
-        #reads = self.parser.reads
+            scores = defaultdict(lambda : defaultdict(dict))
+            function_list = set()
 
-                scores = defaultdict(lambda : defaultdict(dict))
-                function_list = set()
+
+            for end in sorted(project.samples[sample].keys()):
+
+                scaling_factor = 1.0
+                if end == 'pe1':
+                    scaling_factor = project.options.get_fastq1_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
+                elif end == 'pe2':
+                    scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
+                else:
+                    raise Exception('Unknown end identifier')
+
+                reads = project.samples[sample][end]
+#        self.parser.reads = import_annotated_reads(os.path.join(self.parser.project.get_project_dir(self.parser.sample), self.parser.sample + '_' + self.parser.end + '_' + self.parser.project.get_reads_json_name()))
+#        reads = self.parser.reads
+
+
+                multiple_hits = 0
+                read_count = 0
+                
                 for read in reads:
                     if reads[read].get_status() == 'function,besthit' or reads[read].get_status() == 'function':
+                        
                         read_functions = reads[read].get_functions()
+
                         hits = reads[read].get_hit_list().get_hits()
-                        for function in read_functions:
+                        if len(hits) >1:
+                            multiple_hits += 1
+                        read_count += 1
+
+                        # Count RPKM
+                        # If we have only one hit, all RPKM scores of the read would be assigned to the tax id of the hit
+                        # If we have more than one hit, RPKM scores would be equally divided between tax ids of the hits, with regard to functional assignments of the hits
+                        function_taxids = defaultdict(lambda : defaultdict(float))
+                        # First, collect all taxonomy IDs for each function assigned to the hit
+                        tax_functions_count = 0.0
+                        
+                        for read_function in read_functions:
                             for hit in hits:
-                                protein_taxid = self.parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
-                                for hit_function in hit.get_functions():
-                                    if hit_function == function:
-                                        function_list.add(function)
-                                        if function in scores[protein_taxid]:
-                                            scores[protein_taxid][function]['count'] += 1.0
-                                            scores[protein_taxid][function]['identity'] += hit.get_identity()
-                                            scores[protein_taxid][function]['rpkm'] += read_functions[function]
+                                hit_taxid = self.parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
+
+                                hit_functions = hit.get_functions()
+                                for hit_function in hit_functions:
+                                    if hit_function == read_function:
+                                        tax_functions_count += 1.0
+                                        # Add function to non-redundant list of functions
+                                        function_list.add(read_function)
+                                        
+                                        function_taxids[read_function][hit_taxid] += 1.0
+                                        # Count identity and hits (per function) here
+                                        if read_function in scores[hit_taxid]:
+                                            scores[hit_taxid][read_function]['hit_count'] += 1.0
+                                            scores[hit_taxid][read_function]['identity'] += hit.get_identity()
                                         else:
-                                            scores[protein_taxid][function]['count'] = 1.0
-                                            scores[protein_taxid][function]['identity'] = hit.get_identity()
-                                            scores[protein_taxid][function]['rpkm'] = read_functions[function]
+                                            scores[hit_taxid][read_function]['hit_count'] = 1.0 # hit count required for average identity calculation
+                                            scores[hit_taxid][read_function]['identity'] = hit.get_identity()
+                                            # Initialize 'count' and 'rpkm' here
+                                            scores[hit_taxid][read_function]['count'] = 0.0
+                                            scores[hit_taxid][read_function]['rpkm'] = 0.0
 
-                #print(scores)
-                tax_profile = TaxonomyProfile()
-                outfile = os.path.join(self.parser.project.get_project_dir(sample), self.parser.project.get_output_subdir(sample), sample + '_' + end + '_' + 'functional_taxonomy_profile.xml')
-                tax_profile.build_functional_taxonomy_profile(tax_data, scores)
-                #print(tax_profile.print_functional_taxonomy_profile())
-                #generate_functional_taxonomy_chart(tax_profile, sorted(function_list), outfile)
-                #print(tax_profile.print_functional_taxonomy_table())
-                df = tax_profile.convert_function_taxonomic_profile_into_df()
+                                        
+                        # Second, for each tax ID add its share of read count and RPKM score assigned to hit's function
+                        for function in function_taxids:
+                            tax_count = len(function_taxids[function])
+                            for hit_taxid in function_taxids[function]:
+                                if hit_taxid in scores and function in scores[hit_taxid]:
+                                    scores[hit_taxid][function]['rpkm'] += read_functions[function] * scaling_factor / tax_count
+                                    scores[hit_taxid][function]['count'] += function_taxids[function][hit_taxid] / tax_functions_count
+
+
+#                print(sample, end, 'read count', str(read_count))
+#                print ('Reads with multiple hits: ', multiple_hits)
+
+
+        #for read in reads:
+            #if reads[read].get_status() == 'function,besthit' or reads[read].get_status() == 'function':
+                #read_functions = reads[read].get_functions()
+                #hits = reads[read].get_hit_list().get_hits()
+                #for function in read_functions:
+                    #for hit in hits:
+                        #protein_taxid = self.parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
+                        #for hit_function in hit.get_functions():
+                            #if hit_function == function:
+                                #function_list.add(function)
+                                #if function in scores[protein_taxid]:
+                                    #scores[protein_taxid][function]['count'] += 1.0
+                                    #scores[protein_taxid][function]['identity'] += hit.get_identity()
+                                    #scores[protein_taxid][function]['rpkm'] += read_functions[function]
+                                #else:
+                                    #scores[protein_taxid][function]['count'] = 1.0
+                                    #scores[protein_taxid][function]['identity'] = hit.get_identity()
+                                    #scores[protein_taxid][function]['rpkm'] = read_functions[function]
+
+            tax_profile = TaxonomyProfile()
             
-                #print(df)
-                df.to_excel(writer, sheet_name=sample+'_'+end)
-                workbook  = writer.book
-                worksheet = writer.sheets[sample+'_'+end]
-                superkingdom_format = workbook.add_format({'bg_color': '#FF6666'})
-                phylum_format = workbook.add_format({'bg_color': '#FF9900'})
-                class_format = workbook.add_format({'bg_color': '#FFCC99'})
-                order_format = workbook.add_format({'bg_color': '#FFFFCC'})
-                family_format = workbook.add_format({'bg_color': '#99FFCC'})
-                genus_format = workbook.add_format({'bg_color': '#99FFFF'})
-                worksheet.conditional_format('C4:C1048560', {'type':     'text',
-                                       'criteria': 'containing',
-                                       'value':    'superkingdom',
-                                       'format':   superkingdom_format})
-                worksheet.conditional_format('C4:C1048560', {'type':     'text',
-                                       'criteria': 'containing',
-                                       'value':    'phylum',
-                                       'format':   phylum_format})
-                worksheet.conditional_format('C4:C1048560', {'type':     'text',
-                                       'criteria': 'containing',
-                                       'value':    'class',
-                                       'format':   class_format})
-                worksheet.conditional_format('C4:C1048560', {'type':     'text',
-                                       'criteria': 'containing',
-                                       'value':    'order',
-                                       'format':   order_format})
-                worksheet.conditional_format('C4:C1048560', {'type':     'text',
-                                       'criteria': 'containing',
-                                       'value':    'family',
-                                       'format':   family_format})
-                worksheet.conditional_format('C4:C1048560', {'type':     'text',
-                                       'criteria': 'containing',
-                                       'value':    'genus',
-                                       'format':   genus_format})
+            #outfile = os.path.join(self.parser.project.get_project_dir(sample), self.parser.project.get_output_subdir(sample), sample + '_' + end + '_' + 'functional_taxonomy_profile.xml')
+            outfile = os.path.join(sample + '_' + 'functional_taxonomy_profile.xml')
+            tax_profile.build_functional_taxonomy_profile(tax_data, scores)
+            #print(tax_profile.print_functional_taxonomy_profile())
+            generate_functional_taxonomy_chart(tax_profile, sorted(function_list), outfile)
+            #print(tax_profile.print_functional_taxonomy_table())
+            df = tax_profile.convert_function_taxonomic_profile_into_df()
+        
+            #print(df)
+            df.to_excel(writer, sheet_name=sample)
+            workbook  = writer.book
+            worksheet = writer.sheets[sample]
+            superkingdom_format = workbook.add_format({'bg_color': '#FF6666'})
+            phylum_format = workbook.add_format({'bg_color': '#FF9900'})
+            class_format = workbook.add_format({'bg_color': '#FFCC99'})
+            order_format = workbook.add_format({'bg_color': '#FFFFCC'})
+            family_format = workbook.add_format({'bg_color': '#99FFCC'})
+            genus_format = workbook.add_format({'bg_color': '#99FFFF'})
+            worksheet.conditional_format('C4:C1048560', {'type':     'text',
+                                   'criteria': 'containing',
+                                   'value':    'superkingdom',
+                                   'format':   superkingdom_format})
+            worksheet.conditional_format('C4:C1048560', {'type':     'text',
+                                   'criteria': 'containing',
+                                   'value':    'phylum',
+                                   'format':   phylum_format})
+            worksheet.conditional_format('C4:C1048560', {'type':     'text',
+                                   'criteria': 'containing',
+                                   'value':    'class',
+                                   'format':   class_format})
+            worksheet.conditional_format('C4:C1048560', {'type':     'text',
+                                   'criteria': 'containing',
+                                   'value':    'order',
+                                   'format':   order_format})
+            worksheet.conditional_format('C4:C1048560', {'type':     'text',
+                                   'criteria': 'containing',
+                                   'value':    'family',
+                                   'format':   family_format})
+            worksheet.conditional_format('C4:C1048560', {'type':     'text',
+                                   'criteria': 'containing',
+                                   'value':    'genus',
+                                   'format':   genus_format})
 
-                
-                worksheet.set_column(1, 1, 30)
-                worksheet.set_column(2, 2, 15)
+            
+            worksheet.set_column(1, 1, 30)
+            worksheet.set_column(2, 2, 15)
+
+
+
+
+
         writer.save()
         
         self.assertTrue(tax_profile.tree.data)
