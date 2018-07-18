@@ -6,9 +6,12 @@ from fpdf import FPDF
 
 from context import Fama
 from Fama.DiamondParser.DiamondParser import DiamondParser
+from Fama.Project import Project
 from Fama.OutputUtil.PdfReport import generate_pdf_report
 from Fama.OutputUtil.KronaXMLWriter import generate_functions_chart
-
+from Fama.OutputUtil.PdfReport import generate_pdf_report
+from Fama.OutputUtil.Report import create_functions_xlsx
+from Fama.OutputUtil.Report import create_functions_markdown_document
 
 
 data_dir = 'data'
@@ -58,6 +61,18 @@ class DiamondParserTest(unittest.TestCase):
     def test_4_generate_functions_chart(self):
         self.parser.parse_background_output()
         generate_functions_chart(self.parser)
+
+    def test_5_generate_functions_xlsx(self):
+        project = Project(config_file=config_path, project_file=project_path)
+        project.load_functional_profile()
+        create_functions_xlsx(project)
+
+#    @unittest.skip("for faster testing")
+    def test_6_generate_functions_markdown(self):
+        project = Project(config_file=config_path, project_file=project_path)
+        project.load_functional_profile()
+        create_functions_markdown_document(project)
+
 
     def tearDown(self):
         self.parser = None

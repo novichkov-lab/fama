@@ -23,8 +23,8 @@ config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__
 end = 'pe1'
 
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_Hans_nitrogen_t.ini')
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_EB271_nitrogen_t.ini')
-sample = 'HL1G'
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_fw106_fw301_sulfate.ini')
+sample = 'fw106'
 
 class DiamondParserTest(unittest.TestCase):
 

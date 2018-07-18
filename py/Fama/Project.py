@@ -38,8 +38,9 @@ class Project(object):
         for sample in self.list_samples():
             for end in ENDS:
                 if not os.path.exists(os.path.join(self.options.get_project_dir(sample), sample + '_' + end + '_' + self.options.get_reads_json_name())):
-                    raise Exception('Annotated reads missing for sample ' + sample + ' and end ' + end)
-                    pass
+                    if end == 'pe2' and self.options.get_fastq2_readcount(sample) > 0:
+                        raise Exception('Annotated reads missing for sample ' + sample + ' and end ' + end)
+                        pass
                 else:
                     self.load_annotated_reads(sample, end)
                     

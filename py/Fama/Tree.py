@@ -104,9 +104,15 @@ class Tree(object):
             nodes_stack = queue.LifoQueue()
             current_taxid = node.taxid
             nodes_stack.put((current_taxid,True))
-            parent_taxid = tax_data.nodes[current_taxid]['parent']
+            parent_taxid = '0'
+            if current_taxid in tax_data.nodes:
+                parent_taxid = tax_data.nodes[current_taxid]['parent']
             while True:
-                current_taxid = tax_data.nodes[current_taxid]['parent']
+                if current_taxid in tax_data.nodes:
+                    current_taxid = tax_data.nodes[current_taxid]['parent']
+                else:
+                    current_taxid = '0'
+                    
                 if tax_data.nodes[current_taxid]['rank'] in RANKS:
                     nodes_stack.put((current_taxid,True))
                 else:
@@ -127,12 +133,19 @@ class Tree(object):
             while not nodes_stack.empty():
                 node_id = nodes_stack.get()
                 if node_id[1]:
-                    node = Node(rank = tax_data.nodes[node_id[0]]['rank'], 
-                                name = tax_data.names[node_id[0]]['name'], 
-                                taxid = node_id[0], 
-                                parent = parent_taxid, 
-                                children = set())
-                    #print ('\tCall add_node for ', node_id[0], tax_data.nodes[node_id[0]]['rank'], parent_taxid, tax_data.names[node_id[0]]['name'])
+                    if node_id[0] in tax_data.nodes:
+                        node = Node(rank = tax_data.nodes[node_id[0]]['rank'], 
+                                    name = tax_data.names[node_id[0]]['name'], 
+                                    taxid = node_id[0], 
+                                    parent = parent_taxid, 
+                                    children = set())
+                    else:
+                        node = Node(rank = 'norank', 
+                                    name = 'taxId ' + node_id[0], 
+                                    taxid = node_id[0], 
+                                    parent = parent_taxid, 
+                                    children = set())
+                        
                     self.add_node(node)
                     parent_taxid = node_id[0]
                     

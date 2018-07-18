@@ -146,9 +146,9 @@ def create_functional_taxonomic_profile(project,tax_data,sample,writer):
                             scores[hit_taxid][function]['count'] += function_taxids[function][hit_taxid] / tax_functions_count
 
     tax_profile = TaxonomyProfile()
-    outfile = os.path.join(project.options.get_project_dir(sample), project.options.get_output_subdir(sample), sample + '_' + 'functional_taxonomy_profile.xml')
+    outfile = os.path.join(project.options.get_project_dir(sample), project.options.get_output_subdir(sample), sample + '_functional_taxonomy_profile.xml')
     tax_profile.build_functional_taxonomy_profile(tax_data, scores)
-    #generate_functional_taxonomy_chart(tax_profile, sorted(function_list), outfile)
+    generate_functional_taxonomy_chart(tax_profile, sorted(function_list), outfile)
     df = tax_profile.convert_function_taxonomic_profile_into_df()
 
     #print(df)
