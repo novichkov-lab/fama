@@ -1,5 +1,5 @@
 import operator
-from collections import Counter
+from collections import defaultdict,Counter
 
 def cleanup_protein_id(protein):
     # for compatibility with old format of protein IDs uncomment next 4 lines 
@@ -11,16 +11,58 @@ def cleanup_protein_id(protein):
 
 def get_rpkm_score(hit, function_fraction, total_readcount, length_cutoff):
     ret_val = None
+#    print ('Subject length', hit.get_subject_length())
     if (hit.get_subject_length() - length_cutoff) > 0:
         ret_val = function_fraction*1000000000.0/((hit.get_subject_length() - length_cutoff)*3*total_readcount)
     else:
-        print(hit)
-        print(function_fraction, str(total_readcount))
+#        print(hit)
+#        print(function_fraction, str(total_readcount))
         ret_val = function_fraction*1000000000.0/(3*total_readcount)
     return ret_val
 
+def compare_hits_naive(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, fastq_readcount):
+    # This function compares hits assigned to an annotated read with functions
+    # from a Diamond hit list. It looks through the hit list, finds a hit with highest bitscore and takes its functions
+    #
+    # hit_start and hit_end parameters are used for identification of hit for
+    # comparison, since multiple hits can be associated with a read 
+    #
+    # This function does not return anything. It sets status of read and 
+    # function counter of the read through read methods
+    #
+    # Find best hit
+    for hit in read.get_hit_list().get_hits():
+        #print(str(hit))
+        #print (str(hit.get_query_start()), str(hit_start), str(hit.get_query_end()), str(hit_end))
+        #print (type(hit.get_query_start()), type(hit_start), type(hit.get_query_end()), type(hit_end))
+        if hit.get_query_start() == hit_start and hit.get_query_end() == hit_end:
+            best_bitscore = 0.0
+            best_hit = None
+            bitscore = hit.get_bitscore()
+            if bitscore > best_bitscore:
+                best_hit = hit
+            # Set status of read
+            if best_hit != None:
+                if '' in best_hit.get_functions():
+                    read.set_status('nofunction')
+                    return
+                else:
+                    read.set_status('function')
+            else:
+                read.set_status('nofunction')
+                return
+            bitscore_lower_cutoff = best_bitscore * (1 - bitscore_range_cutoff)
+            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() > bitscore_lower_cutoff]
+            if len(new_hits) == 1:
+                read.set_status('function,besthit')
+            # Set functions of read
+            new_functions = {}
+            for function in best_hit.get_functions():
+                new_functions[function] = get_rpkm_score(best_hit, 1.0, fastq_readcount, length_cutoff)
+            read.set_functions(new_functions)
+
 def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, fastq_readcount):
-    # This functions compares hits assigned to an annotated read with functions
+    # This function compares hits assigned to an annotated read with functions
     # from a Diamond hit list
     #
     # hit_start and hit_end parameters are used for identification of hit for
@@ -38,13 +80,13 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
             bitscore = hit.get_bitscore()
             bitscore_lower_cutoff = bitscore * (1 - bitscore_range_cutoff)
             bitscore_upper_cutoff = bitscore * (1 + bitscore_range_cutoff)
-#            print('Cutoffs:',bitscore_lower_cutoff,bitscore_upper_cutoff)
+#           print('Cutoffs:',bitscore_lower_cutoff,bitscore_upper_cutoff)
             # first, make a list of hits with acceptable bitscore values (i.e. within given range):
-            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if hit.get_bitscore() > bitscore_lower_cutoff]
+            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() > bitscore_lower_cutoff]
 #            print ('Hits found: ', len(new_hits) or 0)
             if not new_hits:
-                print ('case 0')
-                print (hit)
+#                print ('case 0')
+#                print (hit)
                 read.set_status('nofunction')
                 # nothing to do here
                 
@@ -61,6 +103,7 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                     read.set_status('function,besthit')                    
                     total_count = len(new_hits[0].get_functions())
                     for function in new_hits[0].get_functions():
+#                        print (new_hits[0], functions[function]/total_count, fastq_readcount, length_cutoff)
                         new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount, length_cutoff)
                 elif '' in functions:
                     # function unknown
@@ -77,22 +120,29 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                 read.set_functions(new_functions)
                 
             else:
- #               print ('case 2: multiple hits')
+#                print ('case 2: multiple hits')
+                # If top hit in background DB search is the same as top hit in reference DB search, this is case 2.1.
+                #
                 # But what if top hit in background DB search is different from the top hit in reference DB search?
                 #
                 # Basically, several cases are possible:
-                # 1. True best hits are not in reference DB, i.e. read function is different.
+                # 1. True best hits are not in reference DB, i.e. read function is different (cases 2.4 and 2.5).
                 #       We must check if a function of top refDB hit is present in list of functions of new_hits list.
                 #       If most of proteins are not in the reference database, this read must have no function assigned.
-                # 2. There are two close proteins in reference DB, and they switched places in background DB search.
+                # 2. There are two close proteins in reference DB, and they switched places in background DB search (case 2.2).
                 #       In this case, function of top hits would remain the same. Compare two lists of functions.
-                # 3. Hit sequence is nearly equally distant from proteins of interesting function and proteins with other functions.
+                # 3. Hit sequence is nearly equally distant from proteins of interesting function and proteins with other functions (case 2.3).
                 #       Compare lists of functions. If most of proteins are not in the reference database, this read must have no function assigned.
-                # 4. Top hit in background DB was misannotated. In this case, next hits close to top will have good function.
+                # 4. Top hit in background DB was misannotated. In this case, next hits close to top would have good function (case 2.3).
                 #       Compare lists of functions. If most of proteins ARE in the reference database, this read must have right function assigned.
                 # 
 
-                functions = compare_functions(hit, new_hits)
+                #functions = compare_functions(hit, new_hits)
+                major_function, major_count, functions = compare_function_combinations(hit, new_hits)
+                #print (major_function, major_count, functions)
+                if major_function is not None:
+                    functions[major_function] = major_count
+#                print('Functions:',functions)
                 if '' in functions and functions[''] == 0:
 #                        print ('case 2.0')
                         read.set_status('nofunction')
@@ -103,7 +153,10 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                     new_bitscore_lower_cutoff = new_hits[0].get_bitscore() * (1 - bitscore_range_cutoff)
                     new_hits = [hit for hit in new_hits if hit.get_bitscore() > new_bitscore_lower_cutoff]
                     new_functions = {}
-                    functions = compare_functions(hit, new_hits)
+                    #functions = compare_functions(hit, new_hits)
+                    major_function, major_count, functions = compare_function_combinations(hit, new_hits)
+                    if major_function  is not None:
+                        functions[major_function] = major_count
                     if '' in functions and functions[''] == 0: 
 #                        print ('case 2.0') # very unlikely
                         read.set_status('nofunction')
@@ -113,11 +166,15 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                         read.set_status('nofunction')
                         return
                     else:
-#                        print ('case 2.3')
+#                        print ('case 2.3') # more than one top hit
                         read.set_status('function')
                         total_count = sum(functions.values())
-                        for function in functions:
-                            new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount, length_cutoff)
+                        if '' in functions and functions['']/total_count > 0.5:
+                            read.set_status('nofunction')
+                            return
+                        else:
+                            for function in functions:
+                                new_functions[function] = get_rpkm_score(new_hits[0], functions[function]/total_count, fastq_readcount, length_cutoff)
                     read.set_functions(new_functions)
                 else:
 #                    for hit1 in new_hits:
@@ -193,6 +250,65 @@ def compare_functions(hit, new_hits):
             ret_val[top_function] = new_functions[top_function]
         return ret_val
 
+def compare_function_combinations(hit, new_hits):
+    # This function compares two lists of functions: one list assigned to a single hit
+    # and other list of functions assigned to a list of hits. 
+    # It returns most common function, count for this function and dictionary of minor functions with counts for each function
+
+    old_functions = hit.get_functions()
+    new_functions_counter = Counter()
+    function_combinations_counter = Counter()
+    for hit in new_hits:
+        function_combinations_counter['|'.join(hit.get_functions())] += 1
+    if '|' in function_combinations_counter.most_common(1)[0][0]: # combination is the most common
+        print ('Most common combination', function_combinations_counter.most_common(1))
+        functions = {}
+        for function in function_combinations_counter.most_common(1)[0][0].split('|'):
+            functions[function] = function_combinations_counter.most_common(1)[0][1]
+        return None, None, functions
+        
+         
+        
+    for hit in new_hits:
+        for function in hit.get_functions():
+            new_functions_counter[function] += 1
+
+    # first, find one function with highest number of occurrencies (most common function). 
+    # second, search for hits that has the most common function in combination with any other functions and count of such combinations
+    
+    # find highest number of occurrencies for function
+    max_count = new_functions_counter.most_common(1)[0][1]
+    # find all functions with maximal counts
+    most_common_functions = {i[0]:i[1] for i in new_functions_counter.most_common() if i[1] == max_count}
+
+    if '' in most_common_functions:
+        return '', 0, {}
+        
+    if len (most_common_functions) > 1:
+        # it is complicated. We have more than one most common function. 
+        print (hit.get_query_id(), ':Unable to choose most common function:', most_common_functions)
+        functions = {}
+        for function in new_hits[0].get_functions():
+            functions[function] = 1
+        print ('Use functions of best hit instead:', functions)
+        return '', 0, functions
+        
+    else:
+        minor_functions = {}
+        most_common_function = ''.join(most_common_functions.keys())
+        for hit in new_hits:
+            if most_common_function in hit.get_functions():
+                for function in hit.get_functions():
+                    if function != most_common_function:
+                        if function in minor_functions:
+                            minor_functions[function] += 1
+                        else:
+                            minor_functions[function] = 1
+        print (most_common_function, max_count, minor_functions)
+        return most_common_function, max_count, minor_functions
+        
+
+
 def get_paired_end(end):
     if end == 'pe1':
         return 'pe2'
@@ -201,15 +317,29 @@ def get_paired_end(end):
 
 def get_paired_read_id(read_id):
     if ' ' in read_id:
-        # For Casava 1.8+ format, read_id should not contain end number
-        return read_id
+        line_tokens = read_id.split(' ')
+        if len(line_tokens) == 2:
+            # For Casava 1.8+ format, read_id should not contain end number
+            return read_id
+        else:
+            # unknown format
+            return read_id
     elif read_id.endswith('/1'):
         # old Illumina format
             return read_id[:-1] + '2'
     elif read_id.endswith('/2'):
         # old Illumina format
             return read_id[:-1] + '1'
+    elif read_id.endswith('.1'):
+        # SRA format
+            return read_id[:-1] + '2'
+    elif read_id.endswith('.2'):
+        # SRA format
+            return read_id[:-1] + '1'
     else:
         return read_id
 
 
+def autovivify(levels=1, final=dict):
+    return (defaultdict(final) if levels < 2 else
+            defaultdict(lambda: autovivify(levels - 1, final)))

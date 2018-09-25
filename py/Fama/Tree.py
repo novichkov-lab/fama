@@ -149,8 +149,19 @@ class Tree(object):
                     self.add_node(node)
                     parent_taxid = node_id[0]
                     
+    def add_attribute(self, taxid, k, v, tax_data):
+        while True:
+            if taxid in self.data or taxid == '1':
+                break
+            taxid = tax_data.nodes[taxid]['parent']
+        self.data[taxid].add_attribute(k,v)
 
-    def add_attribute_recursively(self, taxid, k, v):
+    def add_attribute_recursively(self, taxid, k, v, tax_data):
+        while True:
+            if taxid in self.data or taxid == '1':
+                break
+            taxid = tax_data.nodes[taxid]['parent']
+        
         parent_taxid = self.data[taxid].parent
         while True:
             self.data[taxid].add_attribute(k,v)

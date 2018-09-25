@@ -133,24 +133,26 @@ def calculate_protein_coverage(parser, infile):
         proteins[contig_id][read]['start'] = int(protein_id_tokens[1])
         proteins[contig_id][read]['end'] = int(protein_id_tokens[2])
    
-    print ('Reading coverage file...')
-    fh = None
-    if infile.endswith('.gz'):
-        fh = gzip.open(infile, 'rb')
-    else:
-        fh = open(infile, 'rb')
-    if fh:
-        for line in fh:
-            line = line.decode('utf8').rstrip('\n\r')
-            contig_cov, position, coverage = line.split('\t')
-            if contig_cov in proteins.keys():
-                for protein_id in proteins[contig_cov].keys():
-                    start = proteins[contig_cov][protein_id]['start']
-                    end = proteins[contig_cov][protein_id]['end']
-                    if (int(position) > start -1) and int(position) <= end:
-                        coverage_values[contig_cov][int(position)] = int(coverage)
-        fh.close()
-    print ('Calculating average coverage ...')
+    if infile:
+        print ('Reading coverage file...')
+        fh = None
+        if infile.endswith('.gz'):
+            fh = gzip.open(infile, 'rb')
+        else:
+            fh = open(infile, 'rb')
+        if fh:
+            for line in fh:
+                line = line.decode('utf8').rstrip('\n\r')
+                contig_cov, position, coverage = line.split('\t')
+                if contig_cov in proteins.keys():
+                    for protein_id in proteins[contig_cov].keys():
+                        start = proteins[contig_cov][protein_id]['start']
+                        end = proteins[contig_cov][protein_id]['end']
+                        if (int(position) > start -1) and int(position) <= end:
+                            coverage_values[contig_cov][int(position)] = int(coverage)
+            fh.close()
+
+        print ('Calculating average coverage ...')
     
     for read in parser.reads:
         # first, calculate average count for protein
@@ -184,19 +186,20 @@ def calculate_protein_coverage_smooth(parser, infile):
         contig_id = contig_id[1:]
         coverage_values[contig_id] = None
    
-    print ('Reading coverage file...')
-    fh = None
-    if infile.endswith('.gz'):
-        fh = gzip.open(infile, 'rb')
-    else:
-        fh = open(infile, 'rb')
-    if fh:
-        for line in fh:
-            line = line.decode('utf8').rstrip('\n\r')
-            contig, coverage = line.split('\t')
-            if contig in coverage_values.keys():
-                coverage_values[contig] = int(coverage)
-        fh.close()
+    if infile:
+        print ('Reading coverage file...')
+        fh = None
+        if infile.endswith('.gz'):
+            fh = gzip.open(infile, 'rb')
+        else:
+            fh = open(infile, 'rb')
+        if fh:
+            for line in fh:
+                line = line.decode('utf8').rstrip('\n\r')
+                contig, coverage = line.split('\t')
+                if contig in coverage_values.keys():
+                    coverage_values[contig] = int(coverage)
+            fh.close()
     
     for read in parser.reads:
         # first, calculate average count for protein
@@ -213,6 +216,9 @@ def load_coverage_data(parser):
     ret_val = {}
     infile = parser.project.get_coverage_path(parser.sample)
     
+    if not infile:
+        return
+        
     print ('Reading coverage file...')
     fh = None
     if infile.endswith('.gz'):
@@ -222,8 +228,12 @@ def load_coverage_data(parser):
     if fh:
         for line in fh:
             line = line.decode('utf8').rstrip('\n\r')
-            contig, coverage = line.split('\t')
-            ret_val[contig] = int(coverage)
+            if line.startswith('#'):
+                continue
+            line_tokens = line.split('\t')
+            contig = line_tokens[0]
+            coverage = line_tokens[1]
+            ret_val[contig] = float(coverage)
         fh.close()
     return ret_val
 
@@ -268,7 +278,9 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
     protein_id = read.get_read_id_line()
     protein_id_tokens = protein_id.split(' # ')
     contig_id = '_'.join(protein_id_tokens[0].split('_')[:-1])[1:]
-    coverage = coverage_data[contig_id]
+    coverage = 1.0
+    if coverage_data:
+        coverage = coverage_data[contig_id]
     
     for hit in read.get_hit_list().get_hits():
         #print(str(hit))
@@ -281,7 +293,7 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
             bitscore_upper_cutoff = bitscore * (1 + bitscore_range_cutoff)
 #            print('Cutoffs:',bitscore_lower_cutoff,bitscore_upper_cutoff)
             # first, make a list of hits with acceptable bitscore values (i.e. within given range):
-            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if hit.get_bitscore() > bitscore_lower_cutoff]
+            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() > bitscore_lower_cutoff]
 #            print ('Hits found: ', len(new_hits) or 0)
             if not new_hits:
                 print ('case 0')
@@ -343,7 +355,7 @@ def compare_hits(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                 if new_hits[0].get_bitscore() > bitscore_upper_cutoff:
                     # we need to refine new_hits list
                     new_bitscore_lower_cutoff = new_hits[0].get_bitscore() * (1 - bitscore_range_cutoff)
-                    new_hits = [hit for hit in new_hits if hit.get_bitscore() > new_bitscore_lower_cutoff]
+                    new_hits = [new_hit for new_hit in new_hits if new_hit.get_bitscore() > new_bitscore_lower_cutoff]
                     new_functions = {}
                     functions = compare_functions(hit, new_hits)
                     if '' in functions and functions[''] == 0: 
@@ -466,7 +478,11 @@ def parse_background_output(parser):
             if hit.get_query_id() != current_query_id:
                 _hit_list.annotate_hits(parser.ref_data)
                 # compare list of hits from search in background DB with existing hit from search in reference DB
-                (read_id, hit_start, hit_end) = current_query_id.split('|')
+                #(read_id, hit_start, hit_end) = current_query_id.split('|')
+                current_query_id_tokens = current_query_id.split('|')
+                hit_end = current_query_id_tokens[-1]
+                hit_start = current_query_id_tokens[-2]
+                read_id = '|'.join(current_query_id_tokens[:-2])
                 hit_start= int(hit_start)
                 hit_end = int(hit_end)
                 #print (read_id, hit_start, hit_end, biscore_range_cutoff)
@@ -480,7 +496,11 @@ def parse_background_output(parser):
                 _hit_list = DiamondHitList(current_query_id)
             _hit_list.add_hit(hit)
         _hit_list.annotate_hits(parser.ref_data)
-        (read_id, hit_start, hit_end) = current_query_id.split('|')
+        #(read_id, hit_start, hit_end) = current_query_id.split('|')
+        current_query_id_tokens = current_query_id.split('|')
+        hit_end = current_query_id_tokens[-1]
+        hit_start = current_query_id_tokens[-2]
+        read_id = '|'.join(current_query_id_tokens[:-2])
         hit_start= int(hit_start)
         hit_end = int(hit_end)
         if read_id in parser.reads.keys():

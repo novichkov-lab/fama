@@ -27,7 +27,7 @@ def main():
     args = get_args()
     
     project = Project(config_file=args.config, project_file=args.project)
-    project.load_functional_profile()
+    #project.load_functional_profile()
     with open(args.outfile, 'w') as of:
         of.write(generate_functions_scores_table(project))
         of.close()

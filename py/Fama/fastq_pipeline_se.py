@@ -117,6 +117,7 @@ def functional_profiling_pipeline(config_file, project_file, sample, end):
 
     parser.export_read_fastq()
     export_annotated_reads(parser)
+
     
     # Generate output
     generate_report(parser)

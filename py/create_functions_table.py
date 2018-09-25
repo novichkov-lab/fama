@@ -3,7 +3,7 @@ import os,sys,argparse
 from subprocess import Popen, PIPE, CalledProcessError
 from collections import Counter
 from Fama.Project import Project
-from Fama.OutputUtil.Report import create_functions_xlsx
+from Fama.OutputUtil.Report import create_functions_rpkm_xlsx
 from Fama.OutputUtil.Report import create_functions_markdown_document
 
 
@@ -26,9 +26,9 @@ def main():
     args = get_args()
     # load data
     project = Project(config_file=args.config, project_file=args.project)
-    project.load_functional_profile()
+    #project.load_functional_profile()
     # generate output
-    create_functions_xlsx(project)
+    create_functions_rpkm_xlsx(project)
     create_functions_markdown_document(project)
 
 if __name__=='__main__':

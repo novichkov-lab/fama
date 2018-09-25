@@ -131,7 +131,7 @@ def generate_pdf_report(parser):
                     '<thead><tr><<th width="55%">Definition</th><th width="15%">RPKM Score</th><th width="15%">Read count</th><th width="15%">Avg. identity</th></tr></thead>',
                     '<tbody>']
     for function in sorted(func_stats.keys()):
-        table_rows.append('<tr><td>' + function 
+        table_rows.append('<tr><td>' + function
                         + '</td><td>' + '{0:.2f}'.format(func_stats[function])
                         + '</td><td>' + '{0:g}'.format(func_counts[function])
                         + '</td><td>' + '{0:.1f}'.format(func_identity[function])
@@ -166,8 +166,11 @@ def generate_pdf_report(parser):
                     '<thead><tr><th width="12%">ID</th><th width="61%">Definition</th><th width="9%">RPKM Score</th><th width="9%">Read count</th><th width="9%">Avg. identity</th></tr></thead>',
                     '<tbody>']
     for function in sorted(func_stats.keys()):
+        function_definition = parser.ref_data.lookup_function_name(function)
+        if len(function_definition) > 80:
+            function_definition = function_definition[:81] + '...'
         table_rows.append('<tr><td>' + function 
-                        + '</td><td>' + parser.ref_data.lookup_function_name(function)
+                        + '</td><td>' + function_definition
                         + '</td><td>' + '{0:.2f}'.format(func_stats[function])
                         + '</td><td>' + '{0:g}'.format(func_counts[function])
                         + '</td><td>' + '{0:.1f}'.format(func_identity[function])
@@ -384,8 +387,11 @@ def generate_protein_pdf_report(parser):
                     '<thead><tr><th width="12%">ID</th><th width="61%">Definition</th><th width="9%">Norm. abundance</th><th width="9%">Prot. count</th><th width="9%">Avg. identity</th></tr></thead>',
                     '<tbody>']
     for function in sorted(func_stats.keys()):
+        function_definition = parser.ref_data.lookup_function_name(function)
+        if len(function_definition) > 80:
+            function_definition = function_definition[:81] + '...'
         table_rows.append('<tr><td>' + function 
-                        + '</td><td>' + parser.ref_data.lookup_function_name(function)
+                        + '</td><td>' + function_definition
                         + '</td><td>' + '{0:.2f}'.format(func_stats[function])
                         + '</td><td>' + '{0:g}'.format(func_counts[function])
                         + '</td><td>' + '{0:.1f}'.format(func_identity[function])

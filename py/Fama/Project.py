@@ -4,13 +4,13 @@ from Fama.ProjectUtil.ProgramConfig import ProgramConfig
 from Fama.ProjectUtil.ProjectOptions import ProjectOptions
 from Fama.ReferenceLibrary.ReferenceData import ReferenceData
 from Fama.DiamondParser.DiamondParser import DiamondParser
+from Fama.GeneAssembler.GeneAssembler import GeneAssembler
 
 from Fama.OutputUtil.Report import generate_report
 from Fama.OutputUtil.PdfReport import generate_pdf_report
 from Fama.OutputUtil.KronaXMLWriter import generate_functions_chart
 from Fama.OutputUtil.JSONUtil import export_annotated_reads
 from Fama.OutputUtil.JSONUtil import import_annotated_reads
-
 
 ENDS = ['pe1','pe2']
 class Project(object):
@@ -30,7 +30,7 @@ class Project(object):
         for sample in self.list_samples():
             for end in ENDS:
                 if not os.path.exists(os.path.join(self.options.get_project_dir(sample), sample + '_' + end + '_' + self.options.get_reads_json_name())):
-                    run_functional_profiling_sample(self, sample, end)
+                    self.run_functional_profiling(sample, end)
                 else:
                     self.load_annotated_reads(sample, end)
 

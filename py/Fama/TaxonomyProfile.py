@@ -23,7 +23,7 @@ class TaxonomyProfile:
                 unknown_organisms = Node(rank = 'norank',name = 'Unknown', taxid = '0', parent = '1',children = set())
                 self.tree.add_node(unknown_organisms)
                 for attribute_key in scores[taxid]:
-                    self.tree.add_attribute_recursively(unknown_organism_id,attribute_key,scores[taxid][attribute_key])
+                    self.tree.add_attribute_recursively(unknown_organism_id,attribute_key,scores[taxid][attribute_key],taxonomy_data)
             elif taxid in taxonomy_data.names:
                 #print('3:', len(scores))
                 current_id = taxid
@@ -39,7 +39,7 @@ class TaxonomyProfile:
                 if self.tree.is_in_tree(current_id):
                     for attribute_key in scores[taxid]:
                         #print('Call add_attribute_recursively', current_id,attribute_key,scores[taxid][attribute_key] )
-                        self.tree.add_attribute_recursively(current_id,attribute_key,scores[taxid][attribute_key])
+                        self.tree.add_attribute_recursively(current_id,attribute_key,scores[taxid][attribute_key],taxonomy_data)
                 else:
                     parent_taxid = taxonomy_data.nodes[current_id]['parent']
                     label = taxonomy_data.names[current_id]['name']
@@ -48,7 +48,7 @@ class TaxonomyProfile:
                     self.tree.add_node_recursively(node, taxonomy_data)
                     for attribute_key in scores[taxid]:
                         #print('Call add_attribute_recursively', current_id,attribute_key,scores[taxid][attribute_key] )
-                        self.tree.add_attribute_recursively(current_id,attribute_key,scores[taxid][attribute_key])
+                        self.tree.add_attribute_recursively(current_id,attribute_key,scores[taxid][attribute_key],taxonomy_data)
 
             else:
                 # Tax ID not in NCBI database
@@ -57,7 +57,7 @@ class TaxonomyProfile:
                 self.tree.add_node_recursively(node, taxonomy_data)
                 for attribute_key in scores[taxid]:
                     #print('Call add_attribute_recursively',taxid,attribute_key,scores[taxid][attribute_key] )
-                    self.tree.add_attribute_recursively(taxid,attribute_key,scores[taxid][attribute_key])
+                    self.tree.add_attribute_recursively(taxid,attribute_key,scores[taxid][attribute_key],taxonomy_data)
 
     def build_functional_taxonomy_profile(self, taxonomy_data, scores):
         # scores is a dict of dicts of dicts of floats, like scores[taxonomy_id][function_id][attribute_name] = attribute_value
@@ -70,7 +70,7 @@ class TaxonomyProfile:
                 unknown_organisms = Node(rank = 'norank',name = 'Unknown', taxid = unknown_organism_id, parent = '1',children = set())
                 self.tree.add_node(unknown_organisms)
                 for function in scores[taxid]:
-                    self.tree.add_attribute_recursively(taxid,function, scores[taxid][function])
+                    self.tree.add_attribute_recursively(taxid,function, scores[taxid][function],taxonomy_data)
             elif taxid in taxonomy_data.names:
                 #print('3:', len(scores))
                 current_id = taxid
@@ -85,7 +85,7 @@ class TaxonomyProfile:
                         
                 if self.tree.is_in_tree(current_id):
                     for function in scores[taxid]:
-                        self.tree.add_attribute_recursively(current_id,function,scores[taxid][function])
+                        self.tree.add_attribute_recursively(current_id,function,scores[taxid][function],taxonomy_data)
                 else:
                     parent_taxid = taxonomy_data.nodes[current_id]['parent']
                     label = taxonomy_data.names[current_id]['name']
@@ -94,7 +94,7 @@ class TaxonomyProfile:
                     self.tree.add_node_recursively(node, taxonomy_data)
                     for function in scores[taxid]:
                         #print('Calling add_attribute_recursively', current_id,function,scores[taxid][function] )
-                        self.tree.add_attribute_recursively(current_id,function,scores[taxid][function])
+                        self.tree.add_attribute_recursively(current_id,function,scores[taxid][function],taxonomy_data)
 
             else:
                 # Tax ID not in NCBI database
@@ -103,8 +103,84 @@ class TaxonomyProfile:
                 self.tree.add_node_recursively(node, taxonomy_data)
                 for function in scores[taxid]:
                     #print('Call add_attribute_recursively',taxid,attribute_key,scores[taxid][attribute_key] )
-                    self.tree.add_attribute_recursively(taxid,function,scores[taxid][function])
+                    self.tree.add_attribute_recursively(taxid,function,scores[taxid][function],taxonomy_data)
 
+    def build_assembly_taxonomic_profile(self, taxonomy_data, scores):
+        # scores is a dict of dicts of dicts of floats, like scores[taxonomy_id][function_id][attribute_name] = attribute_value
+        
+        unknown_organism_id = '0'
+        for taxid in sorted(scores.keys()):
+#            print('1:', len(scores))
+            if taxid == '0':
+#                print('2:', len(scores))
+                unknown_organisms = Node(rank = 'norank',name = 'Unknown', taxid = unknown_organism_id, parent = '1',children = set())
+                self.tree.add_node(unknown_organisms)
+                for function in scores[taxid]:
+                    if 'genes' in scores[taxid][function]:
+                        self.tree.add_attribute(taxid,function, {'genes':scores[taxid][function]['genes']}, taxonomy_data)
+#                        print('Call add_attribute',taxid,function,scores[taxid][function]['genes'] )
+                        attributes = {k:v for k,v in scores[taxid][function].items() if k != 'genes'}
+                        self.tree.add_attribute_recursively(taxid,function,attributes,taxonomy_data)
+                    else:
+                        self.tree.add_attribute_recursively(taxid,function, scores[taxid][function],taxonomy_data)
+#                    print('Call add_attribute_recursively',taxid,function,scores[taxid][function] )
+            elif taxid in taxonomy_data.names:
+#                print('3:', len(scores))
+                current_id = taxid
+                rank = taxonomy_data.nodes[current_id]['rank']
+                while True:
+                    if rank in RANKS:
+                        break
+                    elif current_id == '1':
+                        break
+                    else:
+#                        print(rank, ' not in RANKS ', taxid)
+                        current_id = taxonomy_data.nodes[current_id]['parent']
+                        rank = taxonomy_data.nodes[current_id]['rank']
+                        
+                if self.tree.is_in_tree(current_id):
+                    for function in scores[taxid]:
+                        if 'genes' in scores[taxid][function]:
+                            self.tree.add_attribute(taxid,function, {'genes':scores[taxid][function]['genes']}, taxonomy_data)
+#                            print('Call add_attribute',taxid,function,scores[taxid][function]['genes'] )
+                            attributes = {k:v for k,v in scores[taxid][function].items() if k != 'genes'}
+                            self.tree.add_attribute_recursively(taxid,function,attributes,taxonomy_data)
+                        else:
+                            self.tree.add_attribute_recursively(taxid,function, scores[taxid][function],taxonomy_data)
+#                        print('Call add_attribute_recursively',taxid,function,scores[taxid][function] )
+
+                else:
+                    parent_taxid = taxonomy_data.nodes[current_id]['parent']
+                    label = taxonomy_data.names[current_id]['name']
+                    node = Node(rank = rank, name = label, taxid = current_id, parent = parent_taxid, children = set())
+#                    print ('Call add_node_recursively for ', taxid, current_id, parent_taxid, label)
+                    self.tree.add_node_recursively(node, taxonomy_data)
+                    for function in scores[taxid]:
+                        if 'genes' in scores[taxid][function]:
+                            self.tree.add_attribute(taxid,function, {'genes':scores[taxid][function]['genes']}, taxonomy_data)
+#                            print('Call add_attribute',taxid,function,scores[taxid][function]['genes'] )
+                            attributes = {k:v for k,v in scores[taxid][function].items() if k != 'genes'}
+                            self.tree.add_attribute_recursively(taxid,function,attributes,taxonomy_data)
+                        else:
+                            self.tree.add_attribute_recursively(taxid,function, scores[taxid][function],taxonomy_data)
+#                        print('Call add_attribute_recursively',taxid,function,scores[taxid][function] )
+
+            else:
+                # Tax ID not in NCBI database
+                print('TaxID not found in DB:', taxid)
+                node = Node(rank = 'norank', name = taxid, taxid = taxid, parent = unknown_organism_id, children = set())
+                self.tree.add_node_recursively(node, taxonomy_data)
+                for function in scores[taxid]:
+                    if 'genes' in scores[taxid][function]:
+                        self.tree.add_attribute(taxid,function, {'genes':scores[taxid][function]['genes']}, taxonomy_data)
+#                        print('Call add_attribute',taxid,function,scores[taxid][function]['genes'] )
+                        attributes = {k:v for k,v in scores[taxid][function].items() if k != 'genes'}
+                        self.tree.add_attribute_recursively(taxid,function,attributes,taxonomy_data)
+                    else:
+                        self.tree.add_attribute_recursively(taxid,function, scores[taxid][function],taxonomy_data)
+
+#                    print('Call add_attribute_recursively',taxid,function,scores[taxid][function] )
+                    #self.tree.add_attribute_recursively(taxid,function,scores[taxid][function],taxonomy_data)
 
     def get_taxonomy_profile(self,counts,identity,scores):
         unknown_label = 'Unknown'
@@ -178,7 +254,10 @@ class TaxonomyProfile:
         if taxid in self.tree.data:
             ret_val = '\t'*offset + taxid + '\t' + self.tree.data[taxid].rank + '\t' + self.tree.data[taxid].name + '\tParent:' + (self.tree.data[taxid].parent or 'None') + '\tChildren:'+(','.join(self.tree.data[taxid].children) or 'None')
             if self.tree.data[taxid].attributes:
-                ret_val += '\tScore:' + format((self.tree.data[taxid].attributes['rpkm']), "0.3f") + '\tIdentity:' + format((self.tree.data[taxid].attributes['identity']/self.tree.data[taxid].attributes['count']), "0.1f") + '%\tRead count:' + format(self.tree.data[taxid].attributes['count'], "0.0f") + '\n'
+                for attribute in self.tree.data[taxid].attributes:
+                    ret_val += '\t'+attribute+':'+str(self.tree.data[taxid].attributes[attribute])
+                ret_val += '\n'
+                #ret_val += '\tScore:' + format((self.tree.data[taxid].attributes['rpkm']), "0.3f") + '\tIdentity:' + format((self.tree.data[taxid].attributes['identity']/self.tree.data[taxid].attributes['count']), "0.1f") + '%\tRead count:' + format(self.tree.data[taxid].attributes['count'], "0.0f") + '\n'
             else:
                 ret_val += '\tScore:N/A\tIdentity:N/A\tRead count:N/A\n'
             offset += 1
@@ -261,17 +340,17 @@ class TaxonomyProfile:
             print('Node not found:',taxid)
             return ret_val
 
-    def convert_function_taxonomic_profile_into_df(self):
+    def convert_function_taxonomic_profile_into_df(self, score='rpkm'):
         function_list = set()
         for taxid in self.tree.data:
             for function in self.tree.data[taxid].attributes.keys():
                 function_list.add(function) 
         root_id = '1'
         line_number = 1
-        df = pd.DataFrame(self.convert_node_into_dict(root_id, function_list, line_number))
+        df = pd.DataFrame(self.convert_node_into_dict(root_id, function_list, line_number, score))
         return df.transpose()
 
-    def convert_node_into_dict(self, taxid, function_list, line_number):
+    def convert_node_into_dict(self, taxid, function_list, line_number, score='rpkm'):
         ret_val = {}
         line_dict = {}
         if taxid in self.tree.data:
@@ -280,7 +359,7 @@ class TaxonomyProfile:
             line_dict[('', 'Name')] = self.tree.data[taxid].name
             for function in function_list:
                 if function in self.tree.data[taxid].attributes:
-                    line_dict[(function, '1.Score')] = format((self.tree.data[taxid].attributes[function]['rpkm']), "0.3f")
+                    line_dict[(function, '1.Score')] = format((self.tree.data[taxid].attributes[function][score]), "0.3f")
                     line_dict[(function, '2.Identity')] = format((self.tree.data[taxid].attributes[function]['identity']/self.tree.data[taxid].attributes[function]['count']), "0.1f") + '%'
                     line_dict[(function, '3.Read count')] = format(self.tree.data[taxid].attributes[function]['count'], "0.0f")
                 else:
@@ -291,7 +370,7 @@ class TaxonomyProfile:
             line_number += 1
             if self.tree.data[taxid].children:
                 for child_id in sorted(self.tree.data[taxid].children):
-                    children_lines = self.convert_node_into_dict(child_id, function_list, line_number)
+                    children_lines = self.convert_node_into_dict(child_id, function_list, line_number, score)
                     for child_line_number in children_lines:
                         ret_val[child_line_number] = children_lines[child_line_number]
                     line_number += len(children_lines)

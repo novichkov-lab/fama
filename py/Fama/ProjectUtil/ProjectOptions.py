@@ -16,7 +16,7 @@ class ProjectOptions:
 
     def get_collection (self, sample=None):
         if sample:
-            if self.project[sample]['collection']:
+            if 'collection' in self.project[sample]:
                 return self.project[sample]['collection']
             else:
                 return self.project['DEFAULT']['collection']

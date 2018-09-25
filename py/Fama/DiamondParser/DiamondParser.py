@@ -6,7 +6,7 @@ from Fama.ReferenceLibrary.ReferenceData import ReferenceData
 from Fama.DiamondParser.DiamondHit import DiamondHit
 from Fama.DiamondParser.DiamondHitList import DiamondHitList
 from Fama.ReadUtil.AnnotatedRead import AnnotatedRead
-from Fama.DiamondParser.hit_utils import cleanup_protein_id,get_rpkm_score,compare_hits,get_paired_end,get_paired_read_id
+from Fama.DiamondParser.hit_utils import cleanup_protein_id,get_rpkm_score,compare_hits,get_paired_end,get_paired_read_id,compare_hits_naive
 
 class DiamondParser:
 
@@ -112,7 +112,8 @@ class DiamondParser:
                     #print (read_id, hit_start, hit_end, biscore_range_cutoff)
                     #print (_hit_list.print_hits())
                     if read_id in self.reads.keys():
-                        compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
+                        #compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
+                        compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                     else:
                         print ('Read not found: ', read_id)
 #                        raise TypeError
@@ -124,7 +125,8 @@ class DiamondParser:
             hit_start= int(hit_start)
             hit_end = int(hit_end)
             if read_id in self.reads.keys():
-                compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
+                #compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
+                compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
             else:
                 print ('Read not found: ', read_id)
 
@@ -283,18 +285,29 @@ class DiamondParser:
         if line.startswith('@'):
             line = line[1:]
         if ' ' in line:
-            # Casava 1.8+ format
             line_tokens = line.split(' ')
             if len(line_tokens) == 2:
+                # Casava 1.8+ format
                 end = line_tokens[1]
                 end = end[0]
                 return (line_tokens[0],end)
+            elif len(line_tokens) == 3:
+                # SRA format?
+                if line_tokens[0].endswith('.1') or line_tokens[0].endswith('.2'):
+                    # SRA format
+                    return (line_tokens[0][:-2], line_tokens[0][-1])
+                else:
+                    # unknown format
+                    return (line_tokens[0], '')
             else:
-                # SRA or unknown format
+                # unknown format
                 return (line_tokens[0], '')
             # return (line.split('\s')[0], line.split('\s')[1][0])
         elif line.endswith('/1') or line.endswith('/2'):
             # Old Ilumina format
+            return (line[:-2], line[-1])
+        elif line.endswith('.1') or line.endswith('.2'):
+            # Converted SRA
             return (line[:-2], line[-1])
         else:
             return (line, '')
@@ -305,7 +318,8 @@ class DiamondParser:
         outdir = self.project.get_project_dir(self.sample)
         read_ids = {}
         for read_id in sorted(self.reads.keys()):
-            read_ids[get_paired_read_id(read_id)] = read_id
+            #read_ids[get_paired_read_id(read_id)] = read_id
+            read_ids[read_id] = read_id
         line_counter = 0
         with open(os.path.join(outdir, self.sample + '_' + self.end + '_' + self.project.get_pe_reads_fastq_name()), 'w') as of:
             current_read = None
@@ -340,8 +354,6 @@ class DiamondParser:
                 fh.close()
             of.closed
                 
-
-
 
     def import_hit_list(self):
         infile = os.path.join(os.path.join(self.project.get_project_dir(self.sample), self.sample + '_' + self.end + '_'+ self.project.get_ref_hits_list_name()))
