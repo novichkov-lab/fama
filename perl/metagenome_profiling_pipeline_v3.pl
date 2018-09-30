@@ -7,7 +7,7 @@ use IO::Zlib qw(:gzip_external 1);
 ###  Create metagenome analysis pipeline  ###
 #############################################
 
-my $aligner = "blastx";
+my $aligner = "diamond";
 my $phyl_profiler_command = "python focus.py";
 my $work_dir = ".";
 my $fasta_subdir = "fasta";
@@ -47,9 +47,8 @@ unless (-e $sequence_file) {
 	exit(1);
 }
 
-if (($sequence_file =~ /\.gz$/) && ($aligner eq "blastx")){
-	print "BLAST is not supporting gzipped input.\n";
-	print "Uncompress your sequence file or use DIAMOND.\n";
+if ($aligner eq "blastx"){
+	print "BLASTX is no longer supported. Please use DIAMOND.\n";
 	exit(0);
 }
 
@@ -61,7 +60,7 @@ if ($work_dir eq ".") {
 	$work_dir = "";
 }
 
-if (($aligner ne "blastx")&&($aligner ne "diamond")) {
+if ($aligner ne "diamond") {
 	print "Unknown alignment program $aligner \n";
 	exit(1);
 }
@@ -91,16 +90,7 @@ unless (-e $work_dir) {
 }
 print OUTFILE "mkdir $work_dir/fasta\n";
 
-if ($aligner eq "blastx") {
-	print OUTFILE "echo \"blastx -db $subsystem_database -query $sequence_file -out $subsystems_blast_outfile -max_target_seqs 250 -soft_masking true -evalue $evalue -num_threads 6 -outfmt 7 qseqid sseqid pident length mismatch slen qstart qend sstart send evalue bitscore\" \n";
-	print OUTFILE "blastx -db $subsystem_database -query $sequence_file -out $subsystems_blast_outfile -max_target_seqs 250 -soft_masking true -evalue $evalue -num_threads 6 -outfmt \"7 qseqid sseqid pident length mismatch slen qstart qend sstart send evalue bitscore\" \n";
-	print OUTFILE "echo \"perl parse_sybsystem_blastx.pl $subsystems_blast_outfile $sequence_file $subsystems_blast_hitlist $proteomes_blast_infile\"\n";
-	print OUTFILE "perl parse_sybsystem_blastx.pl $subsystems_blast_outfile $sequence_file $subsystems_blast_hitlist $proteomes_blast_infile\n";
-	print OUTFILE "echo \"blastx -db $proteome_database -query $proteomes_blast_infile -out $proteomes_blast_outfile -max_target_seqs 50 -soft_masking true -evalue $evalue -num_threads 6 -outfmt 7 qseqid sseqid pident length mismatch slen qstart qend sstart send evalue bitscore\" \n";
-	print OUTFILE "blastx -db $proteome_database -query $proteomes_blast_infile -out $proteomes_blast_outfile -max_target_seqs 150 -soft_masking true -evalue $evalue -num_threads 6 -outfmt \"7 qseqid sseqid pident length mismatch slen qstart qend sstart send evalue bitscore\" \n";
-	print OUTFILE "echo \"perl parse_proteomes_blastx.pl $subsystems_blast_hitlist $proteomes_blast_outfile $subsystem_database" . ".fna $proteomes_blast_infile $report_file $fasta_subdir $reads_total\"\n";
-	print OUTFILE "perl parse_proteomes_blastx.pl $subsystems_blast_hitlist $proteomes_blast_outfile $subsystem_database" . ".fna $proteomes_blast_infile $report_file $fasta_subdir $reads_total\n";
-} elsif ($aligner eq "diamond") {
+if ($aligner eq "diamond") {
 	print OUTFILE "echo \"diamond blastx --db $subsystem_database.dmnd --query $sequence_file --out $subsystems_blast_outfile --max-target-seqs 10 --evalue $evalue --threads 12 --outfmt 6 qseqid sseqid pident length mismatch slen qstart qend sstart send evalue bitscore\" \n";
 	print OUTFILE "diamond blastx --db $subsystem_database.dmnd --query $sequence_file --out $subsystems_blast_outfile --max-target-seqs 10 --evalue $evalue --threads 12 --outfmt 6 qseqid sseqid pident length mismatch slen qstart qend sstart send evalue bitscore \n";
 	print OUTFILE "echo \"perl parse_sybsystem_diamond_output.pl $subsystems_blast_outfile $sequence_file $subsystems_blast_hitlist $proteomes_blast_infile\"\n";
