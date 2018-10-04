@@ -335,13 +335,13 @@ class DiamondParser:
                         line_counter = 1
                     line = line.decode('utf8').rstrip('\n\r')
                     if line_counter == 1:
+                        current_read = None
                         (read_id, end) = self.parse_fastq_seqid(line)
                         if read_id in read_ids:
-                            current_read = read_id
-                            self.reads[current_read].set_pe_id(line)
-                            of.write(line + '\n')
-                        else: 
-                            current_read = None
+                            if self.reads[read_id].get_status() == 'function' or self.reads[read_id].get_status() == 'function,besthit':
+                                current_read = read_id
+                                self.reads[current_read].set_pe_id(line)
+                                of.write(line + '\n')
                     elif current_read:
                         of.write(line + '\n')
                         if line_counter == 2:

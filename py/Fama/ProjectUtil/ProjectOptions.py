@@ -1,4 +1,4 @@
-import configparser
+import os,configparser
 
 class ProjectOptions:
 
@@ -54,7 +54,10 @@ class ProjectOptions:
             return self.project[sample]['output_subdir']
         else:
             return self.project['DEFAULT']['output_subdir']
-      
+    
+    def get_assembly_dir(self):
+        return os.path.join(self.get_work_dir(), self.project['DEFAULT']['assembly_subdir'])
+    
     # File paths
     
     def get_fastq_path(self, sample, end):

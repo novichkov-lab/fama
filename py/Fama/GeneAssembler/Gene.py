@@ -9,6 +9,7 @@ class Gene:
         self.tax_id = None
         self.functions = defaultdict(float)     # functions dictionary key is function ID and value is RPKM score
         self.hit_list = None
+        self.uniref_hit = None
         self.status = 'unaccounted'
 
 
@@ -22,6 +23,9 @@ class Gene:
 
     def set_hit_list(self,hit_list):
         self.hit_list = hit_list
+
+    def set_uniref_hit(self,hit):
+        self.uniref_hit = hit
 
     def set_status(self, status):
         if self.status == 'unaccounted' or self.status == 'nofunction':

@@ -23,12 +23,17 @@ def get_rpkm_score(hit, function_fraction, total_readcount, length_cutoff):
 def compare_hits_naive(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, fastq_readcount):
     # This function compares hits assigned to an annotated read with functions
     # from a Diamond hit list. It looks through the hit list, finds a hit with highest bitscore and takes its functions
+    # If there are several hits with highest bitscore, this function takes function from the first hit.
+    #
+    # If there is one hit with the highest bit-score, read gets status 'function,besthit'
+    # If there are several hits with the highest bit-score, read gets status 'function'
+    # Otherwise, read gets status 'nofunction'
     #
     # hit_start and hit_end parameters are used for identification of hit for
     # comparison, since multiple hits can be associated with a read 
     #
     # This function does not return anything. It sets status of read and 
-    # function counter of the read through read methods
+    # assigns RPKM score to each function of the read
     #
     # Find best hit
     for hit in read.get_hit_list().get_hits():
@@ -38,9 +43,11 @@ def compare_hits_naive(read, hit_start, hit_end, new_hit_list, bitscore_range_cu
         if hit.get_query_start() == hit_start and hit.get_query_end() == hit_end:
             best_bitscore = 0.0
             best_hit = None
-            bitscore = hit.get_bitscore()
-            if bitscore > best_bitscore:
-                best_hit = hit
+            for new_hit in new_hit_list.get_hits():
+                bitscore = new_hit.get_bitscore()
+                if bitscore > best_bitscore:
+                    best_hit = new_hit
+                    best_bitscore = bitscore
             # Set status of read
             if best_hit != None:
                 if '' in best_hit.get_functions():
@@ -51,8 +58,16 @@ def compare_hits_naive(read, hit_start, hit_end, new_hit_list, bitscore_range_cu
             else:
                 read.set_status('nofunction')
                 return
-            bitscore_lower_cutoff = best_bitscore * (1 - bitscore_range_cutoff)
-            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() > bitscore_lower_cutoff]
+            #print('Best hit:', str(new_hit))
+            #print('Best bit score:', str(best_bitscore))
+            #bitscore_lower_cutoff = best_bitscore * (1 - bitscore_range_cutoff)
+            #print('Bit score cutoff:', str(bitscore_lower_cutoff))
+            #new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() > bitscore_lower_cutoff]
+            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() == best_bitscore]
+            if not [new_hit for new_hit in new_hits if new_hit.get_subject_id() == hit.get_subject_id()]:
+                if hit.get_bitscore() >= best_bitscore:
+                    new_hits.append(hit)
+            #print([str(new_hit) for new_hit in new_hits])
             if len(new_hits) == 1:
                 read.set_status('function,besthit')
             # Set functions of read

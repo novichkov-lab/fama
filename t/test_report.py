@@ -31,10 +31,12 @@ class DiamondParserTest(unittest.TestCase):
             os.remove(outfile)
         pdf = FPDF('P', 'mm', 'Letter')
         pdf.add_page()
-        pdf.set_font('Arial', 'B', 16)
+        pdf.add_font('DejaVu', '', '/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed.ttf', uni=True)
+        pdf.add_font('DejaVu', 'B', '/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf', uni=True)
+        pdf.set_font('DejaVu', 'B', 16)
         pdf.cell(40, 10, 'List of functions in collection ' + self.parser.collection)
         pdf.ln(h = '')
-        pdf.set_font('Arial', '', 10)
+        pdf.set_font('DejaVu', '', 10)
         
         v_limit = 40
         for function in self.parser.ref_data.functions_dict:
@@ -48,7 +50,6 @@ class DiamondParserTest(unittest.TestCase):
         self.assertTrue(os.path.exists(outfile))
         # if this test fails, function names may contain 'bad' symbols 
 
-    @unittest.skip("for faster testing")
     def test_3_generate_pdf_report(self):
         self.parser.parse_background_output()
         generate_pdf_report(self.parser)
@@ -58,16 +59,18 @@ class DiamondParserTest(unittest.TestCase):
         self.assertEqual(len(urease_list), 4)
         self.assertEqual(sorted(urease_list)[0], 'UreA')
         
+    @unittest.skip("for faster testing")
     def test_4_generate_functions_chart(self):
         self.parser.parse_background_output()
         generate_functions_chart(self.parser)
 
+    @unittest.skip("for faster testing")
     def test_5_generate_functions_xlsx(self):
         project = Project(config_file=config_path, project_file=project_path)
         project.load_functional_profile()
         create_functions_xlsx(project)
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_6_generate_functions_markdown(self):
         project = Project(config_file=config_path, project_file=project_path)
         project.load_functional_profile()

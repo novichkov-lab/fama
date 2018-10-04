@@ -79,7 +79,6 @@ def export_annotated_reads(parser):
         of.closed
 
 def export_gene_assembly(assembly,outfile):
-    
     #print pretty JSON: print(json.dumps(assembly,indent=4, cls=CustomEncoder))
     with open (outfile, 'w') as of:
         json.dump(assembly,of,indent=4,cls=CustomEncoder)

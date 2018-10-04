@@ -24,3 +24,10 @@ class UniprotData:
         self.cursor.execute('SELECT tax_id FROM uniref_proteins WHERE uniref_id = ?', (protein_id,))
         return self.cursor.fetchone()[0]
 
+    def get_uniprot_taxon(self, protein_id):
+        self.cursor.execute('SELECT tax FROM uniref_proteins WHERE uniref_id = ?', (protein_id,))
+        return self.cursor.fetchone()[0]
+
+    def get_uniprot_description(self, protein_id):
+        self.cursor.execute('SELECT function FROM uniref_proteins WHERE uniref_id = ?', (protein_id,))
+        return self.cursor.fetchone()[0]

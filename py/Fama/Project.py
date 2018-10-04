@@ -1,5 +1,7 @@
 import os
 from collections import defaultdict
+from subprocess import Popen, PIPE, CalledProcessError
+
 from Fama.ProjectUtil.ProgramConfig import ProgramConfig
 from Fama.ProjectUtil.ProjectOptions import ProjectOptions
 from Fama.ReferenceLibrary.ReferenceData import ReferenceData
@@ -51,7 +53,15 @@ class Project(object):
         pass
 
     def run_functional_profiling(self, sample, end):
-        parser = DiamondParser(self, sample, end, config=self.config, project=self.options, ref_data=self.ref_data)
+
+        print ('Starting functional profiling for', sample, end)
+        parser = DiamondParser(sample, end, config=self.config, project=self.options, ref_data=self.ref_data)
+
+        if not os.path.isdir(parser.project.get_project_dir(parser.sample)):
+            os.mkdir(parser.project.get_project_dir(parser.sample))
+        if not os.path.isdir(os.path.join(parser.project.get_project_dir(parser.sample),parser.project.get_output_subdir(parser.sample))):
+            os.mkdir(os.path.join(parser.project.get_project_dir(parser.sample),parser.project.get_output_subdir(parser.sample)))
+
         # Search in reference database
         run_ref_search(parser)
         
@@ -205,4 +215,4 @@ def run_bgr_search(parser):
 def write_output(parser):
     generate_report(parser)
     generate_pdf_report(parser)
-    generate_xml(parser)
+    generate_functions_chart(parser)

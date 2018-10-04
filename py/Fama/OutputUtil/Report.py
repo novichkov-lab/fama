@@ -5,6 +5,7 @@ import xlsxwriter
 
 from Fama.DiamondParser.hit_utils import cleanup_protein_id,autovivify
 from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
+from Fama.ReferenceLibrary.UniprotData import UniprotData
 
 ENDS = ['pe1','pe2']
 def generate_report(parser):
@@ -209,7 +210,7 @@ def generate_functions_scores_list(project):
     functions = defaultdict(dict)
     protein_counts = defaultdict(dict)
     # initialize list of functions
-    for sample in project.samples:
+    for sample in project.list_samples():
         for end in project.samples[sample]:
             reads = project.samples[sample][end]
             for read in reads:
@@ -690,12 +691,14 @@ def generate_assembly_report(assembler):
         of.closed
 
 def create_assembly_xlsx(assembler, taxonomy_data):
-    xlsxfile = sanitize_file_name(os.path.join(assembler.project.options.get_work_dir(), 'assembly', assembler.project.options.get_name() + '_assembly.xlsx'))    
+    xlsxfile = sanitize_file_name(os.path.join(assembler.project.options.get_assembly_dir(), assembler.project.options.get_name() + '_assembly.xlsx'))    
     xlsxfile = xlsxfile.replace(' ', '_')
     xlsxfile = xlsxfile.replace("'", "")
     xlsxfile = xlsxfile.replace('"', '')
     workbook = xlsxwriter.Workbook(xlsxfile)
     bold = workbook.add_format({'bold': True})
+    cell_numformat0 = workbook.add_format()
+    cell_numformat0.set_num_format('0')
     cell_numformat1 = workbook.add_format()
     cell_numformat1.set_num_format('0.0')
     cell_numformat5 = workbook.add_format()
@@ -752,19 +755,19 @@ def create_assembly_xlsx(assembler, taxonomy_data):
         for sample in samples_list:
                 col += 1
                 if sample in function_read_counts[function]:
-                    reads_worksheet.write(row, col, '{0:.0f}'.format(function_read_counts[function][sample]))
+                    reads_worksheet.write(row, col, function_read_counts[function][sample]*2, cell_numformat0)
                 else:
-                    reads_worksheet.write(row, col, '0')
+                    reads_worksheet.write(row, col, 0, cell_numformat0)
         col += 1
-        all_reads = sum(function_read_counts[function].values())
-        reads_worksheet.write(row, col, '{0:.0f}'.format(all_reads), bold)
+        all_reads = sum(function_read_counts[function].values())*2
+        reads_worksheet.write(row, col, all_reads, cell_numformat0)
         col += 1
         assembled_reads = 0
         if function in assembler.assembly.contigs:
-            assembled_reads = sum([len(c.reads) for c in assembler.assembly.contigs[function].values()]) / 2
-        reads_worksheet.write(row, col, '{0:.0f}'.format(assembled_reads), bold)
+            assembled_reads = sum([len(c.reads) for c in assembler.assembly.contigs[function].values()])
+        reads_worksheet.write(row, col, assembled_reads, cell_numformat0)
         col += 1
-        reads_worksheet.write(row, col, '{0:.0f}'.format(all_reads - assembled_reads), bold)
+        reads_worksheet.write(row, col, all_reads - assembled_reads, cell_numformat0)
         col += 1
         reads_worksheet.write(row, col, assembler.project.ref_data.lookup_function_name(function))
 
@@ -866,19 +869,27 @@ def create_assembly_xlsx(assembler, taxonomy_data):
     col += 1
     genes_worksheet.write(row, col, 'Coverage', bold)
     col += 1
-    genes_worksheet.write(row, col, 'Gene status', bold)
+    genes_worksheet.write(row, col, 'FAMA gene status', bold)
     col += 1
-    genes_worksheet.write(row, col, 'Uniref best hit taxonomy ID', bold)
+    genes_worksheet.write(row, col, 'FAMA function', bold)
+    col += 1
+    genes_worksheet.write(row, col, 'FAMA identity', bold)
+    col += 1
+    genes_worksheet.write(row, col, 'CDS completeness', bold)
+    col += 1
+    genes_worksheet.write(row, col, 'FAMA best hit', bold)
+    col += 1
+    genes_worksheet.write(row, col, 'FAMA best hit taxonomy ID', bold)
     col += 1
     genes_worksheet.write(row, col, 'Uniref best hit organism', bold)
     col += 1
-    genes_worksheet.write(row, col, 'Function best hit taxonomy IDs', bold)
+    genes_worksheet.write(row, col, 'Uniref best hit taxonomy ID', bold)
     col += 1
-    genes_worksheet.write(row, col, 'Protein functions', bold)
+    genes_worksheet.write(row, col, 'Uniref best hit ID', bold)
     col += 1
-    genes_worksheet.write(row, col, 'Identity', bold)
+    genes_worksheet.write(row, col, 'Uniref best hit identity', bold)
     col += 1
-    genes_worksheet.write(row, col, 'CDS completeness', bold)
+    genes_worksheet.write(row, col, 'Uniref best hit description', bold)
 
     for sample in samples_list:
         col += 1
@@ -892,7 +903,7 @@ def create_assembly_xlsx(assembler, taxonomy_data):
     genes_worksheet.write(row, col, 'Definition', bold)
 
     row += 1
-    col = 13
+    col = 17
     for sample in samples_list:
         col += 1
         genes_worksheet.write(row, col, 'Read count', bold)
@@ -908,48 +919,53 @@ def create_assembly_xlsx(assembler, taxonomy_data):
                     gene = assembler.assembly.contigs[function][contig].genes[gene_id]
                     row += 1
                     col = 0
+                    # Write Gene ID
                     genes_worksheet.write(row, col, gene_id)
                     col += 1
+                    # Write Gene function from read mapping
                     genes_worksheet.write(row, col, function)
                     col += 1
+                    # Write Contig ID
                     genes_worksheet.write(row, col, contig)
                     col += 1
+                    # Write gene length
                     genes_worksheet.write(row, col, len(gene.protein_sequence) * 3)
                     col += 1
+                    # Write read count (calculated from read count of contig, adjusted by gene length)
                     gene_read_count = assembler.assembly.contigs[function][contig].get_read_count() * len(gene.protein_sequence) * 3 / len(assembler.assembly.contigs[function][contig].sequence)
                     genes_worksheet.write(row, col, gene_read_count, cell_numformat1)
                     col += 1
+                    # Write RPKM
                     gene_rpkm = assembler.assembly.contigs[function][contig].get_rpkm(total_read_count) * len(gene.protein_sequence) * 3 / len(assembler.assembly.contigs[function][contig].sequence)
                     genes_worksheet.write(row, col, gene_rpkm, cell_numformat5)
                     col += 1
+                    # Write coverage
                     genes_worksheet.write(row, col, assembler.assembly.contigs[function][contig].get_coverage(), cell_numformat1)
                     col += 1
+                    # Write FAMA gene status
                     genes_worksheet.write(row, col, gene.get_status())
-                    taxonomy_id = gene.get_taxonomy_id()
                     col += 1
-                    if taxonomy_id:
-                        genes_worksheet.write(row, col, taxonomy_id)
-                    else:
-                        genes_worksheet.write(row, col, 'Not found')
-                    col += 1
-                    if taxonomy_id in taxonomy_data.names:
-                        genes_worksheet.write(row, col, taxonomy_data.names[taxonomy_id]['name'])
-                    else:
-                        genes_worksheet.write(row, col, 'Not found')
-                    col += 1
-
                     if gene.get_status() == 'function,besthit' or gene.get_status() == 'function':
-                        gene_taxonomy = [assembler.project.ref_data.lookup_protein_tax(cleanup_protein_id(x.get_subject_id())) for x in gene.hit_list.get_hits()]
-                        genes_worksheet.write(row, col, ','.join(gene_taxonomy))
-                        col += 1
+                        # Write FAMA predicted functions
                         gene_functions = [y for x in gene.hit_list.get_hits() for y in x.functions]
                         genes_worksheet.write(row, col, ','.join(gene_functions))
                         col += 1
+                        # Write FAMA identity
                         gene_identity = [x.get_identity() for x in gene.hit_list.get_hits()]
                         genes_worksheet.write(row, col, sum (gene_identity) / len (gene_identity), cell_numformat1)
                         col += 1
+                        # Write CDS completeness
                         ref_length = [x.get_subject_length() for x in gene.hit_list.get_hits()]
                         genes_worksheet.write(row, col, len (gene.protein_sequence) * 100 / sum (ref_length), cell_numformat1)
+                        col += 1
+                        # Write FAMA best hits
+                        fama_hits = [cleanup_protein_id(x.get_subject_id()) for x in gene.hit_list.get_hits()]
+                        genes_worksheet.write(row, col, ','.join(fama_hits))
+                        col += 1
+                        # Write FAMA taxonomy ID
+                        gene_taxonomy = [assembler.project.ref_data.lookup_protein_tax(cleanup_protein_id(x.get_subject_id())) for x in gene.hit_list.get_hits()]
+                        genes_worksheet.write(row, col, ','.join(gene_taxonomy))
+                        col += 1
                     else:
                         genes_worksheet.write(row, col, 'N/A')
                         col += 1
@@ -958,6 +974,43 @@ def create_assembly_xlsx(assembler, taxonomy_data):
                         genes_worksheet.write(row, col, 'N/A')
                         col += 1
                         genes_worksheet.write(row, col, 'N/A')
+                        col += 1
+                        genes_worksheet.write(row, col, 'N/A')
+                        col += 1
+
+                    # Write UniRef taxon name
+                    taxonomy_id = gene.get_taxonomy_id()
+                    if taxonomy_id in taxonomy_data.names:
+                        genes_worksheet.write(row, col, taxonomy_data.names[taxonomy_id]['name'])
+                    else:
+                        genes_worksheet.write(row, col, 'N/A')
+                    col += 1
+
+                    # Write UniRef taxonomy ID
+                    if taxonomy_id:
+                        genes_worksheet.write(row, col, taxonomy_id)
+                    else:
+                        genes_worksheet.write(row, col, 'N/A')
+                    col += 1
+                    
+                    if gene.uniref_hit:
+                        uniref_id = gene.uniref_hit.get_subject_id()
+                        if uniref_id:
+                            # Write Uniref best hit ID
+                            genes_worksheet.write(row, col, uniref_id)
+                            col += 1
+                            # Write Uniref best hit identity
+                            genes_worksheet.write(row, col, gene.uniref_hit.get_identity())
+                            col += 1
+                            # Write Uniref best hit description
+                            genes_worksheet.write(row, col, assembler.uniprot.get_uniprot_description(uniref_id))
+                    else:
+                        genes_worksheet.write(row, col, 'N/A')
+                        col += 1
+                        genes_worksheet.write(row, col, 'N/A')
+                        col += 1
+                        genes_worksheet.write(row, col, 'N/A')
+
 
                     for sample in samples_list:
                         col += 1

@@ -19,7 +19,7 @@ class GeneAssembler:
     def __init__(self, project):
         self.project = project
         self.assembly = GeneAssembly()
-        self.assembly_dir = os.path.join(self.project.options.get_work_dir(),'assembly')
+        self.assembly_dir = os.path.join(self.project.options.get_assembly_dir())
         if not os.path.isdir(self.assembly_dir):
             os.mkdir(self.assembly_dir)
         if not os.path.isdir(os.path.join(self.assembly_dir,'out')):
@@ -28,7 +28,7 @@ class GeneAssembler:
 
 
     def assemble_contigs(self):
-        # Export reads in FASTQ formats
+        # Export reads in FASTQ format
         for sample in sorted(self.project.list_samples()):
             for end in ('pe1','pe2'):
                 print ('Loading mapped reads: ', sample, end)
@@ -60,6 +60,92 @@ class GeneAssembler:
                                 of2.write(read.pe_line3 + '\n')
                                 of2.write(read.pe_quality + '\n')
                                 of2.closed
+                # Delete reads from memory
+                self.project.samples[sample][end] = None
+        
+        # Run Assembler ('megahit' for Megahit or 'metaSPAdes' for metaSPAdes)
+        #run_assembler(sorted(self.assembly.reads.keys()), 'megahit', self.assembly_dir)
+        run_assembler(sorted(self.assembly.reads.keys()), 'metaSPAdes', self.assembly_dir)
+        self.filter_contigs_by_length()
+
+        # Run Bowtie
+        
+        run_mapper_indexing(sorted(self.assembly.reads.keys()), self.assembly_dir)
+        run_mapper(sorted(self.assembly.reads.keys()), self.assembly_dir)
+
+        # Import contig sequences
+        for function in sorted(self.assembly.reads.keys()):
+            contig_file = os.path.join(self.assembly_dir,function,'final.contigs.filtered.fa')
+            if os.path.exists(contig_file):
+                with open (contig_file, 'r') as f:
+                    current_id = None
+                    sequence = ''
+                    for line in f:
+                        line = line.rstrip('\n\r')
+                        if line.startswith('>'):
+                            if current_id:
+                                contig = Contig(contig_id=current_id,sequence=sequence)
+                                self.assembly.contigs[function][current_id] = contig
+                            line_tokens = line.split(' ')
+                            current_id = line_tokens[0][1:]
+                            sequence = ''
+                        else:
+                            sequence += line
+                    f.closed
+            else:
+                print('File ' + contig_file + ' does not exist.')
+
+        # Import contig mapping data
+        for function in sorted(self.assembly.reads.keys()):
+            sam_file = os.path.join(self.assembly_dir,function,'contigs.sam')
+            if os.path.exists(sam_file):
+                with open (sam_file, 'r') as f:
+                    for line in f:
+                        if line.startswith('@'):
+                            continue
+                        line_tokens = line.split('\t')
+                        if len(line_tokens) > 9:
+                            read_id = line_tokens[0]
+                            contig_id = line_tokens[2]
+                            alignment_length = len(line_tokens[9])
+                            if contig_id in self.assembly.contigs[function]:
+                                self.assembly.contigs[function][contig_id].update_coverage(self.assembly.reads[function][read_id],alignment_length)
+                                self.assembly.contigs[function][contig_id].reads.append(read_id)
+                    f.closed
+            else:
+                print('File ' + sam_file + ' does not exist.')
+
+    def coassemble_contigs(self):
+        # Export reads in FASTQ format
+        for sample in sorted(self.project.list_samples()):
+            for end in ('pe1','pe2'):
+                print ('Loading mapped reads: ', sample, end)
+                self.project.load_annotated_reads(sample, end) # Lazy load
+                for read_id in self.project.samples[sample][end]:
+                    read = self.project.samples[sample][end][read_id]
+#                    print(read_id)
+                    if read.get_status() == 'function,besthit' or read.get_status() == 'function':
+                        if read_id in self.assembly.reads['Coassembly']:
+                            continue
+                        self.assembly.reads['Coassembly'][read_id] = sample
+                        outfile1 = os.path.join(self.assembly_dir,'Coassembly_pe1.fastq')
+                        outfile2 = os.path.join(self.assembly_dir,'Coassembly_pe2.fastq')
+                        if end == 'pe2':
+                            outfile1 = os.path.join(self.assembly_dir,'Coassembly_pe2.fastq')
+                            outfile2 = os.path.join(self.assembly_dir,'Coassembly_pe1.fastq')
+                        
+                        with open(outfile1, 'a') as of1:
+                            of1.write(read.read_id_line + '\n')
+                            of1.write(read.sequence + '\n')
+                            of1.write(read.line3 + '\n')
+                            of1.write(read.quality + '\n')
+                            of1.closed
+                        with open(outfile2, 'a') as of2:
+                            of2.write(read.pe_id + '\n')
+                            of2.write(read.pe_sequence + '\n')
+                            of2.write(read.pe_line3 + '\n')
+                            of2.write(read.pe_quality + '\n')
+                            of2.closed
                 # Delete reads from memory
                 self.project.samples[sample][end] = None
         
@@ -171,8 +257,8 @@ class GeneAssembler:
                         # annotate_hits
                         _hit_list.annotate_hits(self.project.ref_data)
                         function_id,contig_id,gene_id = parse_gene_id(current_id)
-                        print(current_id,function_id,contig_id,gene_id)
-                        print('Genes:',self.assembly.contigs[function_id][contig_id].genes.keys())
+                        #print(current_id,function_id,contig_id,gene_id)
+                        #print('Genes:',self.assembly.contigs[function_id][contig_id].genes.keys())
                         self.assembly.contigs[function_id][contig_id].genes[current_id].set_hit_list(_hit_list)
 
                     current_id = hit.get_query_id()
@@ -250,7 +336,8 @@ class GeneAssembler:
                     #print (_hit_list.print_hits())
                     if gene_id in self.assembly.contigs[function_id][contig_id].genes:
                         coverage = self.assembly.contigs[function_id][contig_id].get_coverage()
-                        compare_hits(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, mean_coverage, coverage) # here should be all the magic
+                        #compare_hits(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, mean_coverage, coverage) # here should be all the magic
+                        compare_hits_naive(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, mean_coverage, coverage) # here should be all the magic
                     else:
                         print ('Gene not found: ', gene_id, ' in ', function_id, contig_id)
                         raise TypeError
@@ -265,7 +352,8 @@ class GeneAssembler:
             hit_start= int(hit_start)
             hit_end = int(hit_end)
             if gene_id in self.assembly.contigs[function_id][contig_id].genes:
-                compare_hits(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, mean_coverage, coverage) # here should be all the magic
+                #compare_hits(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, mean_coverage, coverage) # here should be all the magic
+                compare_hits_naive(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, mean_coverage, coverage) # here should be all the magic
             else:
                 print ('Gene not found: ', gene_id)
                 raise TypeError
@@ -293,8 +381,10 @@ class GeneAssembler:
                 gene_id = hit.get_query_id()
                 function_id, contig_id, _ = parse_gene_id(gene_id)
                 
-                if gene_id in self.assembly.contigs[function_id][contig_id].genes and taxonomy_id:
-                    self.assembly.contigs[function_id][contig_id].genes[gene_id].set_taxonomy_id(taxonomy_id)
+                if gene_id in self.assembly.contigs[function_id][contig_id].genes:
+                    self.assembly.contigs[function_id][contig_id].genes[gene_id].set_uniref_hit(hit)
+                    if taxonomy_id:
+                        self.assembly.contigs[function_id][contig_id].genes[gene_id].set_taxonomy_id(taxonomy_id)
                 else:
                     print ('Gene not found ', gene_id)
                 
@@ -413,6 +503,7 @@ class GeneAssembler:
 #                                print ('Taxonomy ID for gene ', gene_id, ' is ', taxonomy_id)
                             hit_functions = hit.get_functions()
                             for hit_function in hit_functions:
+                                functions_list.add(hit_function)
                                 if 'rpkm' in scores[taxonomy_id][hit_function]:
                                     scores[taxonomy_id][hit_function]['rpkm'] += self.assembly.contigs[function][contig].get_rpkm(total_read_count) * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[function][contig].sequence)
                                 else:
@@ -452,7 +543,7 @@ class GeneAssembler:
         taxonomy_data.load_taxdata(self.project.config)
 
         create_assembly_xlsx(self, taxonomy_data)
-        #self.generate_taxonomy_chart(taxonomy_data)
+        self.generate_taxonomy_chart(taxonomy_data)
 
 def run_assembler(functions, assembler, output_dir):
     if assembler == 'megahit':
@@ -591,9 +682,9 @@ def run_ref_search(project):
                     '--db',
                     project.config.get_reference_diamond_db(project.options.get_collection()),
                     '--query',
-                    os.path.join(project.options.get_work_dir(), 'assembly', 'all_contigs.prodigal.out.faa'),
+                    os.path.join(project.options.get_assembly_dir(), 'all_contigs.prodigal.out.faa'),
                     '--out',
-                    os.path.join(project.options.get_work_dir(), 'assembly', 'all_contigs_' + project.options.get_ref_output_name()),
+                    os.path.join(project.options.get_assembly_dir(), 'all_contigs_' + project.options.get_ref_output_name()),
                     '--max-target-seqs',
                     '50',
                     '--evalue',
@@ -618,9 +709,9 @@ def run_bgr_search(project):
                     '--db',
                     project.config.get_background_diamond_db(project.options.get_collection()),
                     '--query',
-                    os.path.join(project.options.get_work_dir(), 'assembly', 'all_contigs_'+ project.options.get_ref_hits_fastq_name()),
+                    os.path.join(project.options.get_assembly_dir(), 'all_contigs_'+ project.options.get_ref_hits_fastq_name()),
                     '--out',
-                    os.path.join(project.options.get_work_dir(), 'assembly', 'all_contigs_'+ project.options.get_background_output_name()),
+                    os.path.join(project.options.get_assembly_dir(), 'all_contigs_'+ project.options.get_background_output_name()),
                     '--max-target-seqs',
                     '50',
                     '--evalue',
@@ -643,14 +734,14 @@ def run_bgr_search(project):
 def run_uniprot_search(project):
     print ('Starting DIAMOND')
     uniprot_db_path = '/mnt/data2/Databases/UniRef/uniref100.20171108.dmnd'
-    outfile = os.path.join(project.options.get_work_dir(), 'assembly', 'all_contigs_proteins.uniprot.diamondout.txt')
+    outfile = os.path.join(project.options.get_assembly_dir(), 'all_contigs_proteins.uniprot.diamondout.txt')
     
     diamond_args = ['/usr/bin/diamond',
                     'blastp',
                     '--db',
                     uniprot_db_path,
                     '--query',
-                    os.path.join(project.options.get_work_dir(), 'assembly', 'all_contigs.prodigal.out.faa'),
+                    os.path.join(project.options.get_assembly_dir(), 'all_contigs.prodigal.out.faa'),
                     '--out',
                     outfile,
                     '--max-target-seqs',
@@ -680,16 +771,70 @@ def parse_gene_id(gene_id):
     contig_id = '_'.join(gene_id_tokens[:-1])
     return function_id, contig_id, gene_id
 
-
-
 def get_abundance(function_fraction, mean_coverage, coverage):
     if function_fraction > 1.0:
         print('FUNCTION FRACTION TOO BIG!', function_fraction)
-    else:
-        print('FUNCTION FRACTION ', function_fraction)
+    #else:
+    #    print('FUNCTION FRACTION ', function_fraction)
     ret_val = coverage * function_fraction/mean_coverage
     return ret_val
 
+
+def compare_hits_naive(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, mean_coverage, coverage):
+    # This function compares hits assigned to a predicted gene with functions
+    # from a Diamond hit list. It looks through the hit list, finds a hit with highest bitscore and takes its functions
+    # If there are several hits with highest bitscore, this function takes function from the first hit.
+    #
+    # If there is one hit with the highest bit-score, gene gets status 'function,besthit'
+    # If there are several hits with the highest bit-score, gene gets status 'function'
+    # Otherwise, gene gets status 'nofunction' (which means no function assigned)
+    #
+    # hit_start and hit_end parameters are used for identification of hit for
+    # comparison, since multiple hits can be associated with the gene 
+    #
+    # This function does not return anything. It sets status of gene and 
+    # assigns RPKM score to each function of the gene, if any
+    #
+    # Find best hit
+    for hit in gene.hit_list.get_hits():
+        #print(str(hit))
+        #print (str(hit.get_query_start()), str(hit_start), str(hit.get_query_end()), str(hit_end))
+        #print (type(hit.get_query_start()), type(hit_start), type(hit.get_query_end()), type(hit_end))
+        if hit.get_query_start() == hit_start and hit.get_query_end() == hit_end:
+            best_bitscore = 0.0
+            best_hit = None
+            for new_hit in new_hit_list.get_hits():
+                bitscore = new_hit.get_bitscore()
+                if bitscore > best_bitscore:
+                    best_hit = new_hit
+                    best_bitscore = bitscore
+            # Set status of gene
+            if best_hit != None:
+                if '' in best_hit.get_functions():
+                    gene.set_status('nofunction')
+                    return
+                else:
+                    gene.set_status('function')
+            else:
+                gene.set_status('nofunction')
+                return
+            #print('Best hit:', str(new_hit))
+            #print('Best bit score:', str(best_bitscore))
+            #bitscore_lower_cutoff = best_bitscore * (1 - bitscore_range_cutoff)
+            #print('Bit score cutoff:', str(bitscore_lower_cutoff))
+            #new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() > bitscore_lower_cutoff]
+            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() == best_bitscore]
+            if not [new_hit for new_hit in new_hits if new_hit.get_subject_id() == hit.get_subject_id()]:
+                if hit.get_bitscore() >= best_bitscore:
+                    new_hits.append(hit)
+            #print([str(new_hit) for new_hit in new_hits])
+            if len(new_hits) == 1:
+                gene.set_status('function,besthit')
+            # Set functions of gene
+            new_functions = {}
+            for function in best_hit.get_functions():
+                new_functions[function] = get_abundance(1.0, mean_coverage, coverage)
+            gene.set_functions(new_functions)
 
 def compare_hits(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, mean_coverage, coverage):
     # This functions compares hits assigned to an annotated read with functions
@@ -731,7 +876,7 @@ def compare_hits(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                     # this is the same top hit as before
 #                    print ('case 1.1')
                     gene.set_status('function,besthit')                    
-                    print(functions)
+                    #print(functions)
                     total_count = sum(functions.values())#len(new_hits[0].get_functions())
                     for function in new_hits[0].get_functions():
                         new_functions[function] = get_abundance(functions[function]/total_count, mean_coverage, coverage)
