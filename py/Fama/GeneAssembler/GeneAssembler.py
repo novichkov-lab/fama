@@ -471,22 +471,21 @@ class GeneAssembler:
         #generate_assembly_report(self, taxonomy_data)
         
     def generate_taxonomy_chart(self, taxonomy_data):
-
-
+        '''
+        Collects data about functional genes in assembly and 
+        creates one Krona chart for all functions
+        '''
         functions_list = set()
         samples_list = sorted(self.project.list_samples())
         genes = autovivify(2) # genes[gene][function][parameter] = parameter_value 
         scores = autovivify(2) # scores[taxonomy ID][function][parameter] = parameter_value 
         
-#        functions_of_interest = ['GH5_4','GH10','GH55', 'GH1', 'GH6', 'GH9']
 
         total_read_count = 0
         for sample in self.project.list_samples():
             total_read_count += self.project.options.get_fastq1_readcount(sample)
 
         for function in self.assembly.contigs:
-#            if function not in functions_of_interest:
-#                continue
             functions_list.add(function)
             for contig in self.assembly.contigs[function]:
                 for gene_id in self.assembly.contigs[function][contig].genes:
@@ -496,6 +495,7 @@ class GeneAssembler:
                             identity = hit.get_identity()
                             taxonomy_id = gene.get_taxonomy_id()
                             if not taxonomy_id:
+                                # If UniRef-based taxonomy ID was not set, guess it from Fama hit
 #                                print ('Taxonomy ID is missing for gene ', gene_id)
                                 taxonomy_id = self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
                                 gene.set_taxonomy_id(taxonomy_id)
@@ -516,10 +516,16 @@ class GeneAssembler:
                                     scores[taxonomy_id][hit_function]['hit_count'] += 1
                                 else:
                                     scores[taxonomy_id][hit_function]['hit_count'] = 1
-                                if 'identity' in scores[taxonomy_id][hit_function]:
-                                    scores[taxonomy_id][hit_function]['identity'] += identity
+                                if gene.uniref_hit:
+                                    if 'identity' in scores[taxonomy_id][hit_function]:
+                                        scores[taxonomy_id][hit_function]['identity'] += gene.uniref_hit.identity
+                                    else:
+                                        scores[taxonomy_id][hit_function]['identity'] = gene.uniref_hit.identity
                                 else:
-                                    scores[taxonomy_id][hit_function]['identity'] = identity
+                                    if 'identity' in scores[taxonomy_id][hit_function]:
+                                        scores[taxonomy_id][hit_function]['identity'] += identity
+                                    else:
+                                        scores[taxonomy_id][hit_function]['identity'] = identity
                                 if 'genes' in scores[taxonomy_id][hit_function]:
                                     scores[taxonomy_id][hit_function]['genes'] += gene_id + ' ' #+= gene_id + ', ' + str(len(gene.protein_sequence)) + ' aa(' + '{0:.0f}'.format(len(gene.protein_sequence) * 100 / hit.get_subject_length())+ '%)<br>'
                                 else:
@@ -527,7 +533,11 @@ class GeneAssembler:
                                     
                                 genes[gene_id][hit_function]['Length'] = str(len(gene.protein_sequence)) + 'aa'
                                 genes[gene_id][hit_function]['Completeness'] = '{0:.0f}'.format(len(gene.protein_sequence) * 100 / hit.get_subject_length())
-                                genes[gene_id][hit_function]['identity'] = '{0:.1f}'.format(identity)
+                                if gene.uniref_hit:
+                                    genes[gene_id][hit_function]['Best hit'] = gene.uniref_hit.subject_id
+                                    genes[gene_id][hit_function]['identity'] = '{0:.1f}'.format(gene.uniref_hit.identity)
+                                else:
+                                    genes[gene_id][hit_function]['identity'] = '{0:.1f}'.format(identity)
                                 genes[gene_id][hit_function]['rpkm'] = '{0:.6f}'.format(self.assembly.contigs[function][contig].get_rpkm(total_read_count) * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[function][contig].sequence))
                                 genes[gene_id][hit_function]['count'] = '{0:.0f}'.format(self.assembly.contigs[function][contig].get_read_count() * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[function][contig].sequence))
                                 genes[gene_id][hit_function]['coverage'] = '{0:.1f}'.format(self.assembly.contigs[function][contig].get_coverage())
@@ -537,6 +547,132 @@ class GeneAssembler:
 #        taxonomic_profile.print_taxonomy_profile()
         outfile = os.path.join(self.assembly_dir, 'assembly_taxonomic_profile.xml')
         generate_assembly_taxonomy_chart(taxonomic_profile, genes, sorted(functions_list), outfile, score='rpkm')
+
+    def generate_function_taxonomy_charts(self, taxonomy_data):
+        '''
+        Generates series of Krona charts visualizing functions in assembly: 
+        one function per file, separate stats for each sample
+        '''
+        functions_list = set()
+        samples_list = sorted(self.project.list_samples())
+        
+        total_read_count = 0
+        for sample in self.project.list_samples():
+            total_read_count += self.project.options.get_fastq1_readcount(sample)
+
+        # Make list of functions
+        for function in self.assembly.contigs:
+            for contig in self.assembly.contigs[function]:
+                for gene_id in self.assembly.contigs[function][contig].genes:
+                    gene_status = self.assembly.contigs[function][contig].genes[gene_id].get_status()
+                    if gene_status == 'function,besthit' or gene_status == 'function':
+                        for f in self.assembly.contigs[function][contig].genes[gene_id].functions.keys():
+                            functions_list.add(f)
+        
+        for function in sorted(functions_list):
+            genes = autovivify(2) # genes[gene][sample][parameter] = parameter_value 
+            scores = autovivify(2) # scores[taxonomy ID][sample][parameter] = parameter_value 
+            outfile = os.path.join(self.assembly_dir, function + '_taxonomic_profile.xml')
+            for f in self.assembly.contigs:
+                for contig in self.assembly.contigs[f]:
+                    for gene_id in self.assembly.contigs[f][contig].genes:
+                        gene = self.assembly.contigs[f][contig].genes[gene_id]
+                        if gene.get_status() == 'function,besthit' or gene.get_status() == 'function' and function in gene.functions:
+                            for hit in gene.hit_list.get_hits():
+                                identity = hit.get_identity()
+                                taxonomy_id = gene.get_taxonomy_id()
+                                if not taxonomy_id:
+    #                                print ('Taxonomy ID is missing for gene ', gene_id)
+                                    taxonomy_id = self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
+                                    gene.set_taxonomy_id(taxonomy_id)
+    #                            else:
+    #                                print ('Taxonomy ID for gene ', gene_id, ' is ', taxonomy_id)
+                                if function in hit.get_functions():
+                                    for sample in samples_list:
+                                        if sample in self.assembly.contigs[f][contig].read_count:
+                                            if 'rpkm' in scores[taxonomy_id][sample]:
+                                                scores[taxonomy_id][sample]['rpkm'] += self.assembly.contigs[f][contig].get_rpkm(self.project.options.get_fastq1_readcount(sample), sample) * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[f][contig].sequence)
+                                            else:
+                                                scores[taxonomy_id][sample]['rpkm'] = self.assembly.contigs[f][contig].get_rpkm(self.project.options.get_fastq1_readcount(sample), sample) * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[f][contig].sequence)
+                                            if 'count' in scores[taxonomy_id][sample]:
+                                                scores[taxonomy_id][sample]['count'] += self.assembly.contigs[f][contig].get_read_count(sample) * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[f][contig].sequence)
+                                            else:
+                                                scores[taxonomy_id][sample]['count'] = self.assembly.contigs[f][contig].get_read_count(sample) * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[f][contig].sequence)
+                                            if 'hit_count' in scores[taxonomy_id][sample]:
+                                                scores[taxonomy_id][sample]['hit_count'] += 1
+                                            else:
+                                                scores[taxonomy_id][sample]['hit_count'] = 1
+                                            if gene.uniref_hit:
+                                                if 'identity' in scores[taxonomy_id][sample]:
+                                                    scores[taxonomy_id][sample]['identity'] += gene.uniref_hit.identity
+                                                else:
+                                                    scores[taxonomy_id][sample]['identity'] = gene.uniref_hit.identity
+                                            else:
+                                                if 'identity' in scores[taxonomy_id][sample]:
+                                                    scores[taxonomy_id][sample]['identity'] += identity
+                                                else:
+                                                    scores[taxonomy_id][sample]['identity'] = identity
+                                            if 'genes' in scores[taxonomy_id][sample]:
+                                                scores[taxonomy_id][sample]['genes'] += gene_id + ' ' #+= gene_id + ', ' + str(len(gene.protein_sequence)) + ' aa(' + '{0:.0f}'.format(len(gene.protein_sequence) * 100 / hit.get_subject_length())+ '%)<br>'
+                                            else:
+                                                scores[taxonomy_id][sample]['genes'] = gene_id + ' '# + ', ' + str(len(gene.protein_sequence)) + ' aa(' + '{0:.0f}'.format(len(gene.protein_sequence) * 100 / hit.get_subject_length())+ '%)<br>'
+
+                                            genes[gene_id][sample]['Length'] = str(len(gene.protein_sequence)) + 'aa'
+                                            genes[gene_id][sample]['Completeness'] = '{0:.0f}'.format(len(gene.protein_sequence) * 100 / hit.get_subject_length())
+                                            if gene.uniref_hit:
+                                                genes[gene_id][sample]['Best hit'] = gene.uniref_hit.subject_id
+                                                genes[gene_id][sample]['identity'] = '{0:.1f}'.format(gene.uniref_hit.identity)
+                                            else:
+                                                genes[gene_id][sample]['identity'] = '{0:.1f}'.format(identity)
+                                            genes[gene_id][sample]['rpkm'] = '{0:.7f}'.format(self.assembly.contigs[f][contig].get_rpkm(self.project.options.get_fastq1_readcount(sample), sample) * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[f][contig].sequence))
+                                            genes[gene_id][sample]['count'] = '{0:.0f}'.format(self.assembly.contigs[f][contig].get_read_count(sample) * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[f][contig].sequence))
+                                            genes[gene_id][sample]['coverage'] = '{0:.1f}'.format(self.assembly.contigs[f][contig].get_coverage(sample))
+
+                                    if 'rpkm' in scores[taxonomy_id]['All samples']:
+                                        scores[taxonomy_id]['All samples']['rpkm'] += self.assembly.contigs[f][contig].get_rpkm(total_read_count) * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[f][contig].sequence)
+                                    else:
+                                        scores[taxonomy_id]['All samples']['rpkm'] = self.assembly.contigs[f][contig].get_rpkm(total_read_count) * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[f][contig].sequence)
+                                    if 'count' in scores[taxonomy_id]['All samples']:
+                                        scores[taxonomy_id]['All samples']['count'] += self.assembly.contigs[f][contig].get_read_count() * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[f][contig].sequence)
+                                    else:
+                                        scores[taxonomy_id]['All samples']['count'] = self.assembly.contigs[f][contig].get_read_count() * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[f][contig].sequence)
+                                    if 'hit_count' in scores[taxonomy_id]['All samples']:
+                                        scores[taxonomy_id]['All samples']['hit_count'] += 1
+                                    else:
+                                        scores[taxonomy_id]['All samples']['hit_count'] = 1
+                                    if gene.uniref_hit:
+                                        if 'identity' in scores[taxonomy_id]['All samples']:
+                                            scores[taxonomy_id]['All samples']['identity'] += gene.uniref_hit.identity
+                                        else:
+                                            scores[taxonomy_id]['All samples']['identity'] = gene.uniref_hit.identity
+                                    else:
+                                        if 'identity' in scores[taxonomy_id]['All samples']:
+                                            scores[taxonomy_id]['All samples']['identity'] += identity
+                                        else:
+                                            scores[taxonomy_id]['All samples']['identity'] = identity
+                                    if 'genes' in scores[taxonomy_id]['All samples']:
+                                        scores[taxonomy_id]['All samples']['genes'] += gene_id + ' ' #+= gene_id + ', ' + str(len(gene.protein_sequence)) + ' aa(' + '{0:.0f}'.format(len(gene.protein_sequence) * 100 / hit.get_subject_length())+ '%)<br>'
+                                    else:
+                                        scores[taxonomy_id]['All samples']['genes'] = gene_id + ' '# + ', ' + str(len(gene.protein_sequence)) + ' aa(' + '{0:.0f}'.format(len(gene.protein_sequence) * 100 / hit.get_subject_length())+ '%)<br>'
+                                    
+                                    genes[gene_id]['All samples']['Length'] = str(len(gene.protein_sequence)) + 'aa'
+                                    genes[gene_id]['All samples']['Completeness'] = '{0:.0f}'.format(len(gene.protein_sequence) * 100 / hit.get_subject_length())
+                                    if gene.uniref_hit:
+                                        genes[gene_id]['All samples']['identity'] = '{0:.1f}'.format(gene.uniref_hit.identity)
+                                        genes[gene_id]['All samples']['Best hit'] = gene.uniref_hit.subject_id
+                                    else:
+                                        genes[gene_id]['All samples']['identity'] = '{0:.1f}'.format(identity)
+                                    genes[gene_id]['All samples']['rpkm'] = '{0:.7f}'.format(self.assembly.contigs[f][contig].get_rpkm(total_read_count) * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[f][contig].sequence))
+                                    genes[gene_id]['All samples']['count'] = '{0:.0f}'.format(self.assembly.contigs[f][contig].get_read_count() * len(gene.protein_sequence) * 3 / len(self.assembly.contigs[f][contig].sequence))
+                                    genes[gene_id]['All samples']['coverage'] = '{0:.1f}'.format(self.assembly.contigs[f][contig].get_coverage())
+            
+            taxonomic_profile = TaxonomyProfile()
+            taxonomic_profile.build_assembly_taxonomic_profile(taxonomy_data, scores)
+    #        taxonomic_profile.print_taxonomy_profile()
+            output_sample_ids = sorted(self.project.list_samples())
+            output_sample_ids.append('All samples')
+            
+            generate_assembly_taxonomy_chart(taxonomic_profile, genes, output_sample_ids, outfile, score='rpkm')
     
     def generate_output(self):
         taxonomy_data = TaxonomyData(self.project.config)
@@ -544,6 +680,7 @@ class GeneAssembler:
 
         create_assembly_xlsx(self, taxonomy_data)
         self.generate_taxonomy_chart(taxonomy_data)
+        self.generate_function_taxonomy_charts(taxonomy_data)
 
 def run_assembler(functions, assembler, output_dir):
     if assembler == 'megahit':

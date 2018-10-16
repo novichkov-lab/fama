@@ -20,6 +20,7 @@ def get_args():
     desc = '''This program  parses DIAMOND tabular output of sequence reads
     search against reference protein library.'''
     parser = argparse.ArgumentParser(description=desc)
+    parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('--config', help='Path to config.ini')
     parser.add_argument('--project', help='Path to project.ini')
     parser.add_argument('--sample', help='Sample ID')
@@ -518,7 +519,7 @@ def functional_profiling_pipeline(config_file, project_file, sample):
         os.mkdir(os.path.join(parser.project.get_project_dir(parser.sample),parser.project.get_output_subdir(parser.sample)))
 
     # Search in reference database
-    #run_ref_search(parser)
+    run_ref_search(parser)
     
     # Process output of reference DB search
     parser.parse_reference_output()
@@ -533,14 +534,14 @@ def functional_profiling_pipeline(config_file, project_file, sample):
     parser.export_hit_list()
     
     # Search in background database
-    #run_bgr_search(parser)
+    run_bgr_search(parser)
 
     # Process output of reference DB search
     parse_background_output(parser)
     
     if not parser.reads:
         print ('Import JSON file')
-        parser.reads = import_annotated_reads(os.path.join(parser.project.get_project_dir(sample), sample + '_' + end + '_' + parser.project.get_reads_json_name()))
+        parser.reads = import_annotated_reads(os.path.join(parser.project.get_project_dir(sample), sample + '_pe1_' + parser.project.get_reads_json_name()))
         
     #calculate_protein_coverage(parser, coverage_file)
     #calculate_protein_coverage_smooth(parser, coverage_file)

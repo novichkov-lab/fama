@@ -146,10 +146,12 @@ def generate_report(parser):
         of.write('\nList of reads\n')
         # Write list of reads
         for read in sorted(parser.reads.keys()):
-            of.write(read + '\t' + parser.reads[read].get_status() + '\n')
-            of.write('\t' + str(parser.reads[read].get_functions()) + '\n')
-            for hit in parser.reads[read].get_hit_list().get_hits():
-                of.write('\t' + str(hit) + '\n')
+            if parser.reads[read].get_status() != 'nofunction':
+#                of.write(read + '\t' + parser.reads[read].get_status() + '\n')
+#                of.write('\t' + str(parser.reads[read].get_functions()) + '\n')
+                of.write(read + ': ' + parser.reads[read].get_status() + ': ' + ','.join(sorted(parser.reads[read].get_functions().keys())) + '\n')
+                for hit in parser.reads[read].get_hit_list().get_hits():
+                    of.write('\t' + str(hit) + '\n')
                 
         of.write('\n\n*** End of report ***\n')
         of.closed

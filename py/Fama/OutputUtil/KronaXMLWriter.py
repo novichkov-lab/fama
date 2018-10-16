@@ -322,6 +322,14 @@ def print_genes_xml(gene_data, gene_ids, dataseries, offset, score):
             else:
                 ret_val += '<val>0</val>'
         ret_val += '</Completeness>\n'
+        
+        ret_val += '\t'*offset + '<best_hit>'
+        for datapoint in dataseries:
+            if datapoint in gene_data[gene_id] and 'Best hit' in gene_data[gene_id][datapoint]:
+                ret_val += '<val href="' + gene_data[gene_id][datapoint]['Best hit'] + '">' + gene_data[gene_id][datapoint]['Best hit'] + '</val>'
+            else:
+                ret_val += '<val></val>'
+        ret_val += '</best_hit>\n'
 
         offset -= 1
         ret_val += '\t'*offset + '</node>\n'
@@ -346,7 +354,7 @@ def print_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score=
         ret_val += '</readcount>\n' + '\t'*offset + '<' + score + '>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
-                ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint][score]), "0.6f") + '</val>'
+                ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint][score]), "0.7f") + '</val>'
                 #ret_val += '<val>' + str(tax_profile.tree.data[taxid].attributes[datapoint]['rpkm']) + '</val>'
             else:
                 ret_val += '<val>0.0</val>'
@@ -397,8 +405,9 @@ def generate_assembly_taxonomy_chart(tax_profile, genes, function_list, outfile,
         of.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
         of.write('\t\t<attribute display="Coverage" mono="true">coverage</attribute>\n')
         of.write('\t\t<attribute display="Length" mono="true">Length</attribute>\n')
-        of.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
         of.write('\t\t<attribute display="CDS completeness %" mono="true">Completeness</attribute>\n')
+        of.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
+        of.write('\t\t<attribute display="UniRef hit" hrefbase="https://www.uniprot.org/uniref/" target="uniref" mono="true">best_hit</attribute>\n')
         of.write('\t</attributes>\n')
         of.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" hueEnd="240" default="true"></color>\n')
         
