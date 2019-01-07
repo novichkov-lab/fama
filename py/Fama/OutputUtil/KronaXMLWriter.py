@@ -2,7 +2,6 @@
 import os
 from collections import defaultdict,Counter,OrderedDict
 from subprocess import Popen, PIPE, CalledProcessError
-from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
 
 
 def generate_functions_chart(parser, score='rpkm'):

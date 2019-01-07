@@ -1,5 +1,6 @@
-#!/usr/bin/python
-import sys,argparse
+#!/usr/bin/python3
+import os,sys,argparse
+import pandas as pd
 from Fama.Project import Project
 from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
 from Fama.OutputUtil.Report import create_functions_xlsx
@@ -22,11 +23,13 @@ def main():
     project = Project(config_file=args.config, project_file=args.project)
     project.generate_functional_profile()
 
-    create_functions_xlsx(project)
-    create_functions_markdown_document(project)
+    if not os.path.isdir(project.options.get_work_dir()):
+        os.mkdir(project.options.get_work_dir())
+        
+    #create_functions_xlsx(project)
+    #create_functions_markdown_document(project)
 
-    tax_data = TaxonomyData(project.config)
-    tax_data.load_taxdata(project.config)
+    tax_data = project.taxonomy_data
 
     xlsxfile = os.path.join(project.options.get_work_dir(), project.options.get_name() + '_functions_taxonomy.xlsx')
     xlsxfile = xlsxfile.replace(' ', '_')
@@ -34,8 +37,15 @@ def main():
     xlsxfile = xlsxfile.replace('"', '')
     writer = pd.ExcelWriter(xlsxfile, engine='xlsxwriter')
 
-    for sample in sorted(project.samples):
+    ENDS = ['pe1','pe2']
+    for sample in sorted(project.list_samples()):
+        for end in ENDS:
+            project.load_annotated_reads(sample, end)
         create_functional_taxonomic_profile(project,tax_data,sample,writer)
+        for end in ENDS:
+            project.samples[sample][end] = None
+
+    writer.save()
 
     print('Done!')
 

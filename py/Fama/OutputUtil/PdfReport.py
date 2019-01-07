@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from fpdf import FPDF,HTMLMixin
 import os
 from collections import defaultdict,Counter,OrderedDict
@@ -94,9 +93,9 @@ def generate_pdf_report(parser):
         elif status == 'function':
             table_rows.append('<tr><td>Reads mapped to a function of interest</td><td>' 
                                 + str(read_stats[status]) + '</td></tr>')
-        elif status == 'function,besthit':
-            table_rows.append('<tr><td>Reads mapped to a function of interest AND functional protein</td><td>' 
-                                + str(read_stats[status]) + '</td></tr>')
+#        elif status == 'function,besthit':
+#            table_rows.append('<tr><td>Reads mapped to a function of interest AND functional protein</td><td>' 
+#                                + str(read_stats[status]) + '</td></tr>')
         else:
             table_rows.append('<tr><td>' + status + '</td><td>' 
                                 + str(read_stats[status]) + '</td></tr>')
@@ -205,8 +204,9 @@ def generate_pdf_report(parser):
                     if protein_taxids[taxid] in read_functions:
                         rpkm_stats[taxid] += read_functions[protein_taxids[taxid]]
                     
-    tax_data = TaxonomyData(parser.config)
-    tax_data.load_taxdata(parser.config)
+#    tax_data = TaxonomyData(parser.config)
+#    tax_data.load_taxdata(parser.config)
+    tax_data = parser.taxonomy_data
     counts_per_rank, identity_per_rank, rpkm_per_rank = tax_data.get_taxonomy_profile(counts=tax_stats, identity=identity_stats, scores = rpkm_stats)
     ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
     for rank in ranks:

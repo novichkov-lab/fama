@@ -1,0 +1,10 @@
+# Library dependencies for the python code.  You need to install these with
+# `pip3 install -r requirements.txt` before you can run this.
+
+pandas
+
+# PDF output
+fpdf
+
+# Excel output
+xlsxwriter

@@ -24,10 +24,10 @@ end = 'pe1'
 
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_EB271_nitrogen8_t.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_fw106_fw301_sulfate.ini')
-#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_cazy_t.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_cazy1_t.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_B1F_cazy_t.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'protein_project_EB271_assembly.ini')
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen8test_t.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen8test_t.ini')
 sample = 'sample1'
 
 ENDS = ('pe1', 'pe2')
@@ -898,7 +898,7 @@ class DiamondParserTest(unittest.TestCase):
         
         self.assertTrue(tax_profile.tree.data)
 
-    @unittest.skip("for faster testing")
+#    @unittest.skip("for faster testing")
     def test_7_lazy_build_fpkm_naive_functions_xslx(self):
         tax_data = TaxonomyData(self.parser.config)
         tax_data.load_taxdata(self.parser.config)

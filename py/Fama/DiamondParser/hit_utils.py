@@ -2,6 +2,7 @@ import operator
 from collections import defaultdict,Counter
 
 def cleanup_protein_id(protein):
+    # This is a function added for back compatibility with early versions of reference datasets
     # for compatibility with old format of protein IDs uncomment next 4 lines 
     #if len(protein.split('_')) > 1:
     #    return "_".join(protein.split('_')[1:])
@@ -20,9 +21,101 @@ def get_rpkm_score(hit, function_fraction, total_readcount, length_cutoff):
         ret_val = function_fraction*1000000000.0/(3*total_readcount)
     return ret_val
 
+def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, fastq_readcount, taxonomy_data, ref_data):
+    # This function compares hits assigned to an annotated read with functions
+    # from a Diamond hit list. It looks through the hit list, finds 
+    # hits with bitscore above cutoff and takes their functions.
+    #
+    # If there is one hit with the highest bit-score, read gets status 'function,besthit'
+    # If there are several hits with the highest bit-score, read gets status 'function'
+    # Otherwise, read gets status 'nofunction'
+    #
+    # hit_start and hit_end parameters are used for identification of hit for
+    # comparison, since multiple hits can be associated with a read 
+    #
+    # This function does not return anything. It sets status of read and 
+    # assigns RPKM score to each function of the read
+    #
+    # Find best hit
+    for hit in read.get_hit_list().get_hits():
+        #print(str(hit))
+        #print (str(hit.get_query_start()), str(hit_start), str(hit.get_query_end()), str(hit_end))
+        #print (type(hit.get_query_start()), type(hit_start), type(hit.get_query_end()), type(hit_end))
+        if hit.get_query_start() == hit_start and hit.get_query_end() == hit_end:
+            best_bitscore = 0.0
+            best_hit = None
+            for new_hit in new_hit_list.get_hits():
+                bitscore = new_hit.get_bitscore()
+                if bitscore > best_bitscore:
+                    best_hit = new_hit
+                    best_bitscore = bitscore
+            # Set status of read
+            if best_hit != None:
+                if '' in best_hit.get_functions():
+                    read.set_status('nofunction')
+                    return
+                else:
+                    read.set_status('function')
+            else:
+                read.set_status('nofunction')
+                return
+#            print('Best hit:', str(new_hit))
+#            print('Best bit score:', str(best_bitscore))
+            bitscore_lower_cutoff = best_bitscore * (1 - bitscore_range_cutoff)
+#            print('Bit score cutoff:', str(bitscore_lower_cutoff))
+            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() > bitscore_lower_cutoff]
+            #new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() == best_bitscore]
+            if not [new_hit for new_hit in new_hits if new_hit.get_subject_id() == hit.get_subject_id()]:
+                if hit.get_bitscore() >= best_bitscore:
+                    new_hits.append(hit)
+#            print([str(new_hit) for new_hit in new_hits])
+            if len(new_hits) == 1:
+#                read.set_status('function,besthit')
+                # Set functions of read
+                new_functions = {}
+                for function in new_hits[0].get_functions():
+                    new_functions[function] = get_rpkm_score(new_hits[0], 1.0, fastq_readcount, length_cutoff)
+                read.append_functions(new_functions)
+                # Set read taxonomy ID 
+                read.taxonomy = ref_data.lookup_protein_tax(new_hits[0].get_subject_id())
+
+            else:
+                taxonomy_ids = set([ref_data.lookup_protein_tax(h.get_subject_id()) for h in new_hits])
+                # Set functions of read
+                new_functions = {}
+                new_functions_counter = Counter()
+                new_functions_dict = defaultdict(dict)
+                for h in new_hits:
+                    for f in h.get_functions():
+                        new_functions_counter[f] += 1
+                        if f in new_functions_dict:
+                            if h.get_bitscore() > new_functions_dict[f]['bit_score']:
+                                new_functions_dict[f]['bit_score'] = h.get_bitscore()
+                                new_functions_dict[f]['hit'] = h
+                        else:
+                            new_functions_dict[f]['bit_score'] = h.get_bitscore()
+                            new_functions_dict[f]['hit'] = h
+                # If the most common function in new hits is zero, this read have no function
+ #               print ('Most common function is', new_functions_counter.most_common(1)[0][0])
+                if new_functions_counter.most_common(1)[0][0] == '':
+                    read.set_status('nofunction')
+                    return
+                # Calculate RPKM scores for functions:
+#                print('New functions dictionary', new_functions_dict)
+                for function in new_functions_dict:
+                    if function == '':
+                        continue
+                    new_functions[function] = get_rpkm_score(new_functions_dict[function]['hit'], 1.0, fastq_readcount, length_cutoff)
+#                print('New functions', new_functions)
+
+                read.append_functions(new_functions)
+                # Set read taxonomy ID 
+                read.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
+
 def compare_hits_naive(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, fastq_readcount):
     # This function compares hits assigned to an annotated read with functions
-    # from a Diamond hit list. It looks through the hit list, finds a hit with highest bitscore and takes its functions
+    # from a Diamond hit list. It looks through the hit list, finds a 
+    # hit with highest bitscore and takes its functions.
     # If there are several hits with highest bitscore, this function takes function from the first hit.
     #
     # If there is one hit with the highest bit-score, read gets status 'function,besthit'
@@ -234,7 +327,11 @@ def compare_functions(hit, new_hits):
     new_functions_counter = Counter()
     for hit in new_hits:
         for function in hit.get_functions():
+#            print(hit, function, hit.get_functions())
             new_functions_counter[function] += 1
+    if new_functions_counter.most_common(1)[0][0] == '':
+        return ret_val
+#    print(new_functions_counter)
     # first, choose minimal count of hit for a function. List of functions may be very long,
     # but we consider only top of the list. The size of the top depends on number of functions
     # assigned to the old hit (typically, one). But if we have more than one top function with equal 

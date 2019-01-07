@@ -3,14 +3,15 @@ import gzip
 from Fama.ProjectUtil.ProgramConfig import ProgramConfig
 from Fama.ProjectUtil.ProjectOptions import ProjectOptions
 from Fama.ReferenceLibrary.ReferenceData import ReferenceData
+from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
 from Fama.DiamondParser.DiamondHit import DiamondHit
 from Fama.DiamondParser.DiamondHitList import DiamondHitList
 from Fama.ReadUtil.AnnotatedRead import AnnotatedRead
-from Fama.DiamondParser.hit_utils import cleanup_protein_id,get_rpkm_score,compare_hits,get_paired_end,get_paired_read_id,compare_hits_naive
+from Fama.DiamondParser.hit_utils import cleanup_protein_id,get_rpkm_score,compare_hits,get_paired_end,get_paired_read_id,compare_hits_naive,compare_hits_lca
 
 class DiamondParser:
 
-    def __init__(self, sample, end, config_file=None, project_file=None, config=None, project=None, ref_data=None):
+    def __init__(self, sample, end, config_file=None, project_file=None, config=None, project=None, ref_data=None, taxonomy_data = None):
         self.reads = {}
         self.sample = sample
         self.end = end
@@ -25,9 +26,13 @@ class DiamondParser:
             raise Exception ('Collection ' + collection + ' not found. Available collections are: ' + (',').join(colelctions))
         self.collection = collection
         self.ref_data = ref_data
-        if not self.ref_data:
+        if self.ref_data == None:
             self.ref_data = ReferenceData(self.config)
             self.ref_data.load_reference_data(self.collection)
+        self.taxonomy_data = taxonomy_data
+        if self.taxonomy_data == None:
+            self.taxonomy_data = TaxonomyData(self.config)
+            self.taxonomy_data.load_taxdata(self.config)
 
     def parse_reference_output(self):
         
@@ -113,7 +118,8 @@ class DiamondParser:
                     #print (_hit_list.print_hits())
                     if read_id in self.reads.keys():
                         #compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
-                        compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
+                        #compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
+                        compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample), self.taxonomy_data, self.ref_data) # here should be all the magic
                     else:
                         print ('Read not found: ', read_id)
 #                        raise TypeError
@@ -126,7 +132,8 @@ class DiamondParser:
             hit_end = int(hit_end)
             if read_id in self.reads.keys():
                 #compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
-                compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
+                #compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
+                compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample), self.taxonomy_data, self.ref_data) # here should be all the magic
             else:
                 print ('Read not found: ', read_id)
 

@@ -1,11 +1,9 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import os
 from collections import defaultdict,Counter,OrderedDict
 import xlsxwriter
 
 from Fama.DiamondParser.hit_utils import cleanup_protein_id,autovivify
-from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
-from Fama.ReferenceLibrary.UniprotData import UniprotData
 
 ENDS = ['pe1','pe2']
 def generate_report(parser):
@@ -31,8 +29,8 @@ def generate_report(parser):
                 of.write('Reads not mapped to any function\t' + str(read_stats[status]) + '\n')
             elif status == 'function':
                 of.write('Reads mapped to a function of interest\t' + str(read_stats[status]) + '\n')
-            elif status == 'function,besthit':
-                of.write('Reads mapped to a function of interest and a taxon\t' + str(read_stats[status]) + '\n')
+#            elif status == 'function,besthit':
+#                of.write('Reads mapped to a function of interest and a taxon\t' + str(read_stats[status]) + '\n')
             else:
                 of.write(status + '\t' + str(read_stats[status]) + '\n')
 
@@ -98,8 +96,8 @@ def generate_report(parser):
         rpkm_stats = defaultdict(float)
         for read in parser.reads.keys():
 #            print (read, parser.reads[read].get_status())
-#            if parser.reads[read].get_status() == 'function,besthit' or parser.reads[read].get_status() == 'function':
-            if parser.reads[read].get_status() == 'function,besthit':
+            if parser.reads[read].get_status() == 'function,besthit' or parser.reads[read].get_status() == 'function':
+#            if parser.reads[read].get_status() == 'function':
 #                print ('\t',parser.reads[read].get_status())
                 hits = parser.reads[read].get_hit_list().get_hits()
                 for hit in hits:
@@ -125,8 +123,7 @@ def generate_report(parser):
                         if protein_taxids[taxid] in read_functions:
                             rpkm_stats[taxid] += read_functions[protein_taxids[taxid]]
                         
-        tax_data = TaxonomyData(parser.config)
-        tax_data.load_taxdata(parser.config)
+        tax_data = parser.taxonomy_data
         counts_per_rank, identity_per_rank, rpkm_per_rank = tax_data.get_taxonomy_profile(counts=tax_stats, identity=identity_stats, scores = rpkm_stats)
 
         ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
@@ -269,7 +266,10 @@ def create_functions_xlsx(project):
 
     for sample in project.list_samples():
         for end in ENDS:
+            if end not in project.samples[sample]:
+                project.samples[sample][end] = None
             if not project.samples[sample][end]:
+                print('Loading data:', sample, end)
                 project.load_annotated_reads(sample, end) 
             scaling_factor = 1.0
             if end == 'pe1':
@@ -520,6 +520,8 @@ def create_functions_markdown_document(project):
 
     for sample in project.list_samples():
         for end in ENDS:
+            if end not in project.samples[sample]:
+                project.samples[sample][end] = None
             if not project.samples[sample][end]:
                 project.load_annotated_reads(sample, end) 
             scaling_factor = 1.0
@@ -529,11 +531,11 @@ def create_functions_markdown_document(project):
                 scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
             else:
                 raise Exception('Unknown identifier of read end: ' + end)
-            reads = project.samples[sample][end]
+            #reads = project.samples[sample][end]
             for read_id in project.samples[sample][end]:
                 read = project.samples[sample][end][read_id]
                 if read.get_status() == 'function,besthit' or read.get_status() == 'function':
-                    for function in reads[read].functions:
+                    for function in read.functions:
                         functions_list.add(function)
                         scores[function][sample] += scaling_factor * read.functions[function]
                         category = project.ref_data.lookup_function_group(function)

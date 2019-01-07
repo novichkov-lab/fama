@@ -11,8 +11,14 @@ class Contig:
         self.genes = {}
 
     def update_coverage(self, sample, segment_length):
-        self.read_count[sample] += 1
-        self.read_segments[sample] += segment_length
+        if sample in self.read_count:
+            self.read_count[sample] += 1
+        else:
+            self.read_count[sample] = 1
+        if sample in self.read_segments:
+            self.read_segments[sample] += segment_length
+        else:
+            self.read_segments[sample] = segment_length
 
     def get_coverage(self, sample = None):
         if self.sequence == '':

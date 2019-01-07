@@ -53,6 +53,8 @@ def run_ref_search(parser):
         for line in p.stdout:
             print(line, end='')
     if p.returncode != 0:
+        for line in p.stderr:
+            print(line, end='')
         raise CalledProcessError(p.returncode, p.args)
 
     print ('DIAMOND finished')
@@ -519,22 +521,27 @@ def functional_profiling_pipeline(config_file, project_file, sample):
         os.mkdir(os.path.join(parser.project.get_project_dir(parser.sample),parser.project.get_output_subdir(parser.sample)))
 
     # Search in reference database
-    run_ref_search(parser)
+    if not os.path.exists(os.path.join(parser.project.get_project_dir(parser.sample), parser.sample + '_' + parser.end + '_'+ parser.project.get_ref_output_name())):
+        run_ref_search(parser)
     
     # Process output of reference DB search
     parser.parse_reference_output()
+    if len(parser.reads) == 0:
+        print('Hits not found in sample',sample)
+        return
     
     ##Import sequence data for selected sequence reads
-    print ('Reading FASTQ file')
+    print ('Reading FASTA file')
     import_protein_fasta(parser)
     
-    print ('Exporting FASTQ ')
+    print ('Exporting FASTA ')
     parser.export_hit_fasta()
     print ('Exporting hits')
     parser.export_hit_list()
     
     # Search in background database
-    run_bgr_search(parser)
+    if not os.path.exists(os.path.join(parser.project.get_project_dir(parser.sample), parser.sample + '_' + parser.end + '_'+ parser.project.get_background_output_name())):
+        run_bgr_search(parser)
 
     # Process output of reference DB search
     parse_background_output(parser)

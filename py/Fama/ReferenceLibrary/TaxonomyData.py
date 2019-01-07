@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import os
 from collections import defaultdict,Counter,OrderedDict
 
@@ -20,6 +20,7 @@ class TaxonomyData:
         merged_file = options.get_taxonomy_merged_file()
         
         #initialize self.names
+        print ('Loading names file', names_file)
         with open(names_file, 'r') as f:
             for line in f:
                 line = line.rstrip('\n\r')
@@ -34,6 +35,7 @@ class TaxonomyData:
         
 
         #initialize self.nodes
+        print ('Loading nodes file', nodes_file)
         with open(nodes_file, 'r') as f:
             for line in f:
                 line = line.rstrip('\n\r')
@@ -46,6 +48,7 @@ class TaxonomyData:
             f.closed
             
         #merge 
+        print ('Loading merged file', merged_file)
         with open(merged_file, 'r') as f:
             for line in f:
                 line = line.rstrip('\n\r')
@@ -62,6 +65,56 @@ class TaxonomyData:
         self.names['0']['name'] = 'Unknown'
         self.nodes['0']['parent'] = '1'
         self.nodes['0']['rank'] = 'norank'
+        
+    def get_lca(self, taxonomy_id_list):
+        # This function takes list of NCBI Taxonomy IDs and returns ID
+        # of the latest common ancestor node in NCBI Taxonomy
+        if len(taxonomy_id_list) == 1:
+            return taxonomy_id_list[0]
+
+        taxonomic_lineages = {}
+        # Calculate length of the shortest path in taxonomic subtree
+        min_depth = 1000
+        for taxonomy_id in taxonomy_id_list:
+            depth = 1
+            if taxonomy_id in self.nodes:
+                parent_id = self.nodes[taxonomy_id]['parent']
+            elif taxonomy_id == '':
+                continue
+            else: 
+                print('WARNING: taxonomy ID',taxonomy_id,'not found in NCBI Taxonomy: skipped')
+                continue
+            lineage = [parent_id,taxonomy_id]
+            while self.nodes[parent_id]['parent'] != '1':
+                if self.nodes[parent_id]['parent'] in self.names:
+                    parent_id = self.nodes[parent_id]['parent']
+                else:
+                    parent_id = '0'
+                lineage.insert(0,parent_id)
+                depth += 1
+            taxonomic_lineages[taxonomy_id] = lineage
+            if depth < min_depth:
+                min_depth = depth
+    #    print(taxonomic_lineages)
+        # Find the deepest common node for all leaves in taxonomic subtree
+        upper_level_taxids = set('0')
+        for  i in range(0,min_depth):
+            id_set = set()
+            # For each level of taxonomy, find non-redundant list of taxonomy IDs
+            for taxonomy_id in taxonomy_id_list:
+                if taxonomy_id in self.nodes:
+                    id_set.add(taxonomic_lineages[taxonomy_id][i])
+    #        print (id_set)
+            if len(id_set) > 1:
+                # If current level of taxonomy subtree has more than one node,
+                # return taxonomy ID of the upper level node. Otherwise, 
+                # go one level lower
+                return upper_level_taxids.pop()
+            else:
+                upper_level_taxids = id_set
+        if len(upper_level_taxids) == 1:
+            return upper_level_taxids.pop()
+        return '0'
         
     def get_taxonomy_profile(self,counts,identity,scores):
         unknown_label = 'Unknown'

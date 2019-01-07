@@ -67,7 +67,7 @@ def run_bgr_search(parser):
                     '--out',
                     os.path.join(parser.project.get_project_dir(parser.sample), parser.sample + '_' + parser.end + '_'+ parser.project.get_background_output_name()),
                     '--max-target-seqs',
-                    '50',
+                    '100',
                     '--evalue',
                     str(parser.config.get_background_db_size(parser.project.get_collection(parser.sample)) 
                         * parser.config.get_evalue_cutoff(parser.project.get_collection(parser.sample))

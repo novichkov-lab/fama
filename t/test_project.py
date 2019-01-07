@@ -14,8 +14,8 @@ config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_EB271_nitrogen_t.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_Hans_sulfate_t.ini')
-#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_cazy_t.ini')
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen_t.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_cazy_t.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen_t.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_EB271_sulfate_t.ini')
 
 def autovivify(levels=1, final=dict):
@@ -56,7 +56,7 @@ class ProjectTest(unittest.TestCase):
             of.close()
         self.assertEqual(len(self.project.samples), 8)
 
-    @unittest.skip("for faster testing")
+#    @unittest.skip("for faster testing")
     def test_collect_fragment_stats(self):
         print ('Load project from JSON')
         #self.project.load_functional_profile()
@@ -175,6 +175,7 @@ class ProjectTest(unittest.TestCase):
                 
         self.assertEqual(len(self.project.samples), 8)
 
+    @unittest.skip("for faster testing")
     def test_top_size(self):
         print ('Load reads from JSON')
         sample = 'sample3'

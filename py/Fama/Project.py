@@ -5,6 +5,7 @@ from subprocess import Popen, PIPE, CalledProcessError
 from Fama.ProjectUtil.ProgramConfig import ProgramConfig
 from Fama.ProjectUtil.ProjectOptions import ProjectOptions
 from Fama.ReferenceLibrary.ReferenceData import ReferenceData
+from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
 from Fama.DiamondParser.DiamondParser import DiamondParser
 from Fama.GeneAssembler.GeneAssembler import GeneAssembler
 
@@ -27,14 +28,16 @@ class Project(object):
         self.collection = collection
         self.ref_data = ReferenceData(self.config)
         self.ref_data.load_reference_data(self.collection)
+        self.taxonomy_data = TaxonomyData(self.config)
+        self.taxonomy_data.load_taxdata(self.config)
 
     def generate_functional_profile(self):
         for sample in self.list_samples():
             for end in ENDS:
                 if not os.path.exists(os.path.join(self.options.get_project_dir(sample), sample + '_' + end + '_' + self.options.get_reads_json_name())):
                     self.run_functional_profiling(sample, end)
-                else:
-                    self.load_annotated_reads(sample, end)
+#                else:
+#                    self.load_annotated_reads(sample, end)
 
     def load_functional_profile(self):
         for sample in self.list_samples():
@@ -55,7 +58,7 @@ class Project(object):
     def run_functional_profiling(self, sample, end):
 
         print ('Starting functional profiling for', sample, end)
-        parser = DiamondParser(sample, end, config=self.config, project=self.options, ref_data=self.ref_data)
+        parser = DiamondParser(sample, end, config=self.config, project=self.options, ref_data=self.ref_data, taxonomy_data=self.taxonomy_data)
 
         if not os.path.isdir(parser.project.get_project_dir(parser.sample)):
             os.mkdir(parser.project.get_project_dir(parser.sample))

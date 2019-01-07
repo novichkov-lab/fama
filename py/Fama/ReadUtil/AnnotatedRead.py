@@ -19,6 +19,7 @@ class AnnotatedRead:
         self.pe_sequence = None    # 2nd FASTQ line
         self.pe_quality = None     # 4th FASTQ line
         self.pe_line3 = None       # 3rd FASTQ line
+        self.taxonomy = None       # NCBI Taxonomy ID set by LCA algorithm
         
     def get_read_id(self):
         return self.read_id

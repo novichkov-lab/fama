@@ -15,6 +15,8 @@ from Fama.OutputUtil.Report import create_assembly_xlsx,generate_assembly_report
 from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
 from Fama.ReferenceLibrary.UniprotData import UniprotData
 
+from Fama.OutputUtil.JSONUtil import import_gene_assembly
+
 class GeneAssembler:
     def __init__(self, project):
         self.project = project
@@ -95,6 +97,8 @@ class GeneAssembler:
             else:
                 print('File ' + contig_file + ' does not exist.')
 
+        export_gene_assembly(self.assembly, os.path.join(self.assembly_dir, 'all_contigs_assembly.json'))
+
         # Import contig mapping data
         for function in sorted(self.assembly.reads.keys()):
             sam_file = os.path.join(self.assembly_dir,function,'contigs.sam')
@@ -116,6 +120,7 @@ class GeneAssembler:
                 print('File ' + sam_file + ' does not exist.')
 
     def coassemble_contigs(self):
+        
         # Export reads in FASTQ format
         for sample in sorted(self.project.list_samples()):
             for end in ('pe1','pe2'):
@@ -160,46 +165,44 @@ class GeneAssembler:
         run_mapper(sorted(self.assembly.reads.keys()), self.assembly_dir)
 
         # Import contig sequences
-        for function in sorted(self.assembly.reads.keys()):
-            contig_file = os.path.join(self.assembly_dir,function,'final.contigs.filtered.fa')
-            if os.path.exists(contig_file):
-                with open (contig_file, 'r') as f:
-                    current_id = None
-                    sequence = ''
-                    for line in f:
-                        line = line.rstrip('\n\r')
-                        if line.startswith('>'):
-                            if current_id:
-                                contig = Contig(contig_id=current_id,sequence=sequence)
-                                self.assembly.contigs[function][current_id] = contig
-                            line_tokens = line.split(' ')
-                            current_id = line_tokens[0][1:]
-                            sequence = ''
-                        else:
-                            sequence += line
-                    f.closed
-            else:
-                print('File ' + contig_file + ' does not exist.')
-
+        contig_file = os.path.join(self.assembly_dir,'Coassembly','final.contigs.filtered.fa')
+        if os.path.exists(contig_file):
+            with open (contig_file, 'r') as f:
+                current_id = None
+                sequence = ''
+                for line in f:
+                    line = line.rstrip('\n\r')
+                    if line.startswith('>'):
+                        if current_id:
+                            contig = Contig(contig_id=current_id,sequence=sequence)
+                            self.assembly.contigs['Coassembly'][current_id] = contig
+                        line_tokens = line.split(' ')
+                        current_id = line_tokens[0][1:]
+                        sequence = ''
+                    else:
+                        sequence += line
+                f.closed
+        else:
+            print('File ' + contig_file + ' does not exist.')
+        
         # Import contig mapping data
-        for function in sorted(self.assembly.reads.keys()):
-            sam_file = os.path.join(self.assembly_dir,function,'contigs.sam')
-            if os.path.exists(sam_file):
-                with open (sam_file, 'r') as f:
-                    for line in f:
-                        if line.startswith('@'):
-                            continue
-                        line_tokens = line.split('\t')
-                        if len(line_tokens) > 9:
-                            read_id = line_tokens[0]
-                            contig_id = line_tokens[2]
-                            alignment_length = len(line_tokens[9])
-                            if contig_id in self.assembly.contigs[function]:
-                                self.assembly.contigs[function][contig_id].update_coverage(self.assembly.reads[function][read_id],alignment_length)
-                                self.assembly.contigs[function][contig_id].reads.append(read_id)
-                    f.closed
-            else:
-                print('File ' + sam_file + ' does not exist.')
+        sam_file = os.path.join(self.assembly_dir,'Coassembly','contigs.sam')
+        if os.path.exists(sam_file):
+            with open (sam_file, 'r') as f:
+                for line in f:
+                    if line.startswith('@'):
+                        continue
+                    line_tokens = line.split('\t')
+                    if len(line_tokens) > 9:
+                        read_id = cleanup_read_id(line_tokens[0])
+                        contig_id = line_tokens[2]
+                        alignment_length = len(line_tokens[9])
+                        if contig_id in self.assembly.contigs['Coassembly']:
+                            self.assembly.contigs['Coassembly'][contig_id].update_coverage(self.assembly.reads['Coassembly'][read_id],alignment_length)
+                            self.assembly.contigs['Coassembly'][contig_id].reads.append(read_id)
+                f.closed
+        else:
+            print('File ' + sam_file + ' does not exist.')
 
     def filter_contigs_by_length(self):
         
@@ -1148,3 +1151,10 @@ def compare_functions(hit, new_hits):
             ret_val[top_function] = new_functions[top_function]
         return ret_val
 
+def cleanup_read_id(read_id):
+    if read_id.endswith('.1'):
+        return read_id[:-2]
+    elif read_id.endswith('.2'):
+        return read_id[:-2]
+    else:
+        return read_id
