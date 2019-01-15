@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 import os
 from collections import defaultdict,Counter,OrderedDict
 
@@ -70,7 +69,11 @@ class TaxonomyData:
         # This function takes list of NCBI Taxonomy IDs and returns ID
         # of the latest common ancestor node in NCBI Taxonomy
         if len(taxonomy_id_list) == 1:
-            return taxonomy_id_list[0]
+            taxonomy_id = taxonomy_id_list.pop()
+            if taxonomy_id == '':
+                return '0'
+            else:
+                return taxonomy_id
 
         taxonomic_lineages = {}
         # Calculate length of the shortest path in taxonomic subtree
@@ -177,6 +180,3 @@ class TaxonomyData:
                 identity_per_rank[rank][taxon] = identity_per_rank[rank][taxon]/counts_per_rank[rank][taxon]
         
         return counts_per_rank, identity_per_rank, rpkm_per_rank
-
-
-
