@@ -1,14 +1,6 @@
 import operator
 from collections import defaultdict,Counter
-
-def cleanup_protein_id(protein):
-    # This is a function added for back compatibility with early versions of reference datasets
-    # for compatibility with old format of protein IDs uncomment next 4 lines 
-    #if len(protein.split('_')) > 1:
-    #    return "_".join(protein.split('_')[1:])
-    #else:
-    #    return protein
-    return protein
+from Fama.utils import autovivify,cleanup_protein_id
 
 def get_rpkm_score(hit, function_fraction, total_readcount, length_cutoff):
     ret_val = None
@@ -19,6 +11,17 @@ def get_rpkm_score(hit, function_fraction, total_readcount, length_cutoff):
 #        print(hit)
 #        print(function_fraction, str(total_readcount))
         ret_val = function_fraction*1000000000.0/(3*total_readcount)
+    return ret_val
+
+def get_rpk_score(hit, function_fraction, length_cutoff):
+    ret_val = None
+#    print ('Subject length', hit.get_subject_length())
+    if (hit.get_subject_length() - length_cutoff) > 0:
+        ret_val = function_fraction*1000/((hit.get_subject_length() - length_cutoff)*3)
+    else:
+#        print(hit)
+#        print(function_fraction, str(total_readcount))
+        ret_val = function_fraction*1000/3
     return ret_val
 
 def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, fastq_readcount, taxonomy_data, ref_data):
@@ -59,7 +62,7 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
             else:
                 read.set_status('nofunction')
                 return
-#            print('Best hit:', str(new_hit))
+#            print('Best hit:', str(best_hit))
 #            print('Best bit score:', str(best_bitscore))
             bitscore_lower_cutoff = best_bitscore * (1 - bitscore_range_cutoff)
 #            print('Bit score cutoff:', str(bitscore_lower_cutoff))
@@ -75,6 +78,8 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                 new_functions = {}
                 for function in new_hits[0].get_functions():
                     new_functions[function] = get_rpkm_score(new_hits[0], 1.0, fastq_readcount, length_cutoff)
+                    #new_functions[function] = get_rpk_score(new_hits[0], 1.0, length_cutoff)
+#                print('New functions', new_functions)
                 read.append_functions(new_functions)
                 # Set read taxonomy ID 
                 read.taxonomy = ref_data.lookup_protein_tax(new_hits[0].get_subject_id())
@@ -96,7 +101,7 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                             new_functions_dict[f]['bit_score'] = h.get_bitscore()
                             new_functions_dict[f]['hit'] = h
                 # If the most common function in new hits is zero, this read have no function
- #               print ('Most common function is', new_functions_counter.most_common(1)[0][0])
+#                print ('Most common function is', new_functions_counter.most_common(1)[0][0])
                 if new_functions_counter.most_common(1)[0][0] == '':
                     read.set_status('nofunction')
                     return
@@ -105,6 +110,7 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                 for function in new_functions_dict:
                     if function == '':
                         continue
+                    #new_functions[function] = get_rpk_score(new_functions_dict[function]['hit'], 1.0, length_cutoff)
                     new_functions[function] = get_rpkm_score(new_functions_dict[function]['hit'], 1.0, fastq_readcount, length_cutoff)
 #                print('New functions', new_functions)
 
@@ -418,8 +424,6 @@ def compare_function_combinations(hit, new_hits):
                             minor_functions[function] = 1
         print (most_common_function, max_count, minor_functions)
         return most_common_function, max_count, minor_functions
-        
-
 
 def get_paired_end(end):
     if end == 'pe1':
@@ -451,7 +455,3 @@ def get_paired_read_id(read_id):
     else:
         return read_id
 
-
-def autovivify(levels=1, final=dict):
-    return (defaultdict(final) if levels < 2 else
-            defaultdict(lambda: autovivify(levels - 1, final)))

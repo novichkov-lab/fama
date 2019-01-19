@@ -4,22 +4,26 @@ from subprocess import Popen, PIPE, CalledProcessError
 
 from Fama.ProjectUtil.ProgramConfig import ProgramConfig
 from Fama.ProjectUtil.ProjectOptions import ProjectOptions
+from Fama.Sample import Sample
+
 from Fama.ReferenceLibrary.ReferenceData import ReferenceData
 from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
 from Fama.DiamondParser.DiamondParser import DiamondParser
 from Fama.GeneAssembler.GeneAssembler import GeneAssembler
 
-from Fama.OutputUtil.Report import generate_report
+#from Fama.OutputUtil.Report import generate_fastq_report
 from Fama.OutputUtil.PdfReport import generate_pdf_report
 from Fama.OutputUtil.KronaXMLWriter import generate_functions_chart
 from Fama.OutputUtil.JSONUtil import export_annotated_reads
+from Fama.OutputUtil.JSONUtil import import_sample
 from Fama.OutputUtil.JSONUtil import import_annotated_reads
 
-ENDS = ['pe1','pe2']
+
 class Project(object):
     
     def __init__(self, config_file, project_file):
-        self.samples = defaultdict(dict)
+        self.ENDS = ['pe1','pe2']
+        self.samples = {}
         self.config = ProgramConfig(config_file)
         self.options = ProjectOptions(project_file)
         collection = self.options.get_collection()
@@ -30,78 +34,51 @@ class Project(object):
         self.ref_data.load_reference_data(self.collection)
         self.taxonomy_data = TaxonomyData(self.config)
         self.taxonomy_data.load_taxdata(self.config)
+        if not os.path.exists(self.options.get_work_dir()) and not os.path.isdir(self.options.get_work_dir()):
+            os.makedirs(self.options.get_work_dir(), exist_ok=True)
 
-    def generate_functional_profile(self):
-        for sample in self.list_samples():
-            for end in ENDS:
-                if not os.path.exists(os.path.join(self.options.get_project_dir(sample), sample + '_' + end + '_' + self.options.get_reads_json_name())):
-                    self.run_functional_profiling(sample, end)
-#                else:
-#                    self.load_annotated_reads(sample, end)
-
-    def load_functional_profile(self):
-        for sample in self.list_samples():
-            for end in ENDS:
-                if not os.path.exists(os.path.join(self.options.get_project_dir(sample), sample + '_' + end + '_' + self.options.get_reads_json_name())):
-                    if end == 'pe2' and self.options.get_fastq2_readcount(sample) > 0:
-                        raise Exception('Annotated reads missing for sample ' + sample + ' and end ' + end)
-                        pass
-                else:
-                    self.load_annotated_reads(sample, end)
-                    
-    def load_annotated_reads(self, sample, end):
-        self.samples[sample][end] = import_annotated_reads(os.path.join(self.options.get_project_dir(sample), sample + '_' + end + '_' + self.options.get_reads_json_name()))
-        
-    def export_comparative_table(self):
-        pass
-
-    def run_functional_profiling(self, sample, end):
-
-        print ('Starting functional profiling for', sample, end)
-        parser = DiamondParser(sample, end, config=self.config, project=self.options, ref_data=self.ref_data, taxonomy_data=self.taxonomy_data)
-
-        if not os.path.isdir(parser.project.get_project_dir(parser.sample)):
-            os.mkdir(parser.project.get_project_dir(parser.sample))
-        if not os.path.isdir(os.path.join(parser.project.get_project_dir(parser.sample),parser.project.get_output_subdir(parser.sample))):
-            os.mkdir(os.path.join(parser.project.get_project_dir(parser.sample),parser.project.get_output_subdir(parser.sample)))
-
-        # Search in reference database
-        run_ref_search(parser)
-        
-        # Process output of reference DB search
-        parser.parse_reference_output()
-        
-        #Import sequence data for selected sequence reads
-        print ('Reading FASTQ file')
-        parser.import_fastq()
-        
-        print ('Exporting FASTQ ')
-        parser.export_hit_fastq()
-        print ('Exporting hits')
-        parser.export_hit_list()
-        
-        # Search in background database
-        run_bgr_search(parser)
-
-        # Process output of reference DB search
-        parser.parse_background_output()
-
-        parser.export_read_fastq()
-        parser.export_paired_end_reads_fastq()
-        export_annotated_reads(parser)
-        # Generate output
-        write_output(parser)
-
-        
     def list_samples(self):
         return self.options.list_samples()
+
+    def save_project_options(self, options_path):
+        for sample_id in self.samples:
+            self.options.set_sample_data(self.samples[sample_id])
+        self.options.save_options(options_path)
+
+    def load_project(self):
+        for sample_id in self.list_samples():
+            sample = Sample(sample_id=sample_id)
+            sample.load_sample(self.options)
+            self.samples[sample_id] = sample
+
+    def load_sample(self, sample):
+        self.samples[sample.sample_id] = import_sample(os.path.join(sample.work_directory, sample.sample_id + '_' + self.options.get_reads_json_name()))
+
+    def import_reads_json(self, sample_id, ends):
+        for end_id in ends:
+            if end_id == 'pe2' and not self.samples[sample_id].is_paired_end:
+                continue
+            self.samples[sample_id].reads[end_id] = import_annotated_reads(os.path.join(self.options.get_project_dir(sample_id), sample_id + '_' + end_id + '_' + self.options.get_reads_json_name()))
         
-    def check_health(self):
+    def export_comparative_table(self):
+        # TODO
+        pass
+
+    def generate_report(self):
+        # TODO
+        outfile = os.path.join(self.options.get_work_dir(), 'project_report.txt')
+        with open (outfile, 'w') as of:
+            of.write(self.options.get_name() + '\n\n')
+            for sample_id in self.list_samples():
+                of.write(sample_id + '\n')
+            of.closed
+
+    def check_project(self):
         problems = defaultdict(list)
-        print ('Checking project', self.options.project['DEFAULT']['project_name'])
+        print ('Checking project', self.options.get_name())
         for sample in self.list_samples():
             print ('Checking sample', sample)
-            for end in ENDS:
+            for end in self.ENDS:
                 skip_output_check = False
                 if not os.path.exists(self.options.get_fastq_path(sample,end)):
                     problems[sample].append('Input FASTQ file not found for sample', sample, ',end', end, ':', 
@@ -159,63 +136,5 @@ class Project(object):
                 print ('\n'.join(problems[sample]))
                 print ('*********************************\n\n')
 
-def run_ref_search(parser):
-    print ('Starting DIAMOND')
-    diamond_args = ['/usr/bin/diamond',
-                    'blastx',
-                    '--db',
-                    parser.config.get_reference_diamond_db(parser.project.get_collection(parser.sample)),
-                    '--query',
-                    parser.project.get_fastq_path(parser.sample,parser.end),
-                    '--out',
-                    os.path.join(parser.project.get_project_dir(parser.sample), parser.sample + '_' + parser.end + '_'+ parser.project.get_ref_output_name()),
-                    '--max-target-seqs',
-                    '50',
-                    '--evalue',
-                    str(parser.config.get_evalue_cutoff(parser.project.get_collection(parser.sample))),
-                    '--threads',
-                    parser.config.get_threads(),
-                    '--outfmt','6','qseqid','sseqid','pident','length','mismatch','slen','qstart','qend','sstart','send','evalue','bitscore'
-                    ]
-
-    with Popen(diamond_args, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
-        for line in p.stdout:
-            print(line, end='')
-    if p.returncode != 0:
-        raise CalledProcessError(p.returncode, p.args)
-
-    print ('DIAMOND finished')
-
-def run_bgr_search(parser):
-    print ('Starting DIAMOND')
-    diamond_args = ['/usr/bin/diamond',
-                    'blastx',
-                    '--db',
-                    parser.config.get_background_diamond_db(parser.project.get_collection(parser.sample)),
-                    '--query',
-                    os.path.join(parser.project.get_project_dir(parser.sample), parser.sample + '_' + parser.end + '_'+ parser.project.get_ref_hits_fastq_name()),
-                    '--out',
-                    os.path.join(parser.project.get_project_dir(parser.sample), parser.sample + '_' + parser.end + '_'+ parser.project.get_background_output_name()),
-                    '--max-target-seqs',
-                    '50',
-                    '--evalue',
-                    str(parser.config.get_background_db_size(parser.project.get_collection(parser.sample)) 
-                        * parser.config.get_evalue_cutoff(parser.project.get_collection(parser.sample))
-                        / parser.config.get_reference_db_size(parser.project.get_collection(parser.sample))),
-                    '--threads',
-                    parser.config.get_threads(),
-                    '--outfmt','6','qseqid','sseqid','pident','length','mismatch','slen','qstart','qend','sstart','send','evalue','bitscore'
-                    ]
-
-    with Popen(diamond_args, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
-        for line in p.stdout:
-            print(line, end='')
-    if p.returncode != 0:
-        raise CalledProcessError(p.returncode, p.args)
-
-    print ('DIAMOND finished')
-
-def write_output(parser):
-    generate_report(parser)
-    generate_pdf_report(parser)
-    generate_functions_chart(parser)
+        
+    

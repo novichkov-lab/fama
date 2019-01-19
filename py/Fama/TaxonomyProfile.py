@@ -4,15 +4,16 @@ from Fama.Tree import Node,Tree
 from collections import defaultdict,Counter,OrderedDict
 import pandas as pd
 
-RANKS = ['norank','superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
 
 class TaxonomyProfile:
     
     def __init__(self):
         self.tree = Tree()
+        self.RANKS = ['norank','superkingdom', 'phylum', 'class', 'order', 'family', 'genus']
 
     def build_taxonomy_profile(self, taxonomy_data, scores):
         # scores is a dict of dicts of floats, like scores[taxonomy_id][attribute_name] = attribute_value
+        # attribute_name can be read_count, identity, rpkm etc.
 
         unknown_organism_id = '0'
         
@@ -29,13 +30,11 @@ class TaxonomyProfile:
                 current_id = taxid
                 rank = taxonomy_data.nodes[current_id]['rank']
                 while True:
-                    if rank in RANKS:
+                    if rank in self.RANKS:
                         break
                     else:
-                        #print(rank, ' not in RANKS ', taxid)
                         current_id = taxonomy_data.nodes[current_id]['parent']
                         rank = taxonomy_data.nodes[current_id]['rank']
-                        
                 if self.tree.is_in_tree(current_id):
                     for attribute_key in scores[taxid]:
                         #print('Call add_attribute_recursively', current_id,attribute_key,scores[taxid][attribute_key] )
@@ -61,6 +60,7 @@ class TaxonomyProfile:
 
     def build_functional_taxonomy_profile(self, taxonomy_data, scores):
         # scores is a dict of dicts of dicts of floats, like scores[taxonomy_id][function_id][attribute_name] = attribute_value
+        # attribute_name can be read_count, identity, rpkm etc.
 
         unknown_organism_id = '0'
         for taxid in sorted(scores.keys()):
@@ -76,7 +76,7 @@ class TaxonomyProfile:
                 current_id = taxid
                 rank = taxonomy_data.nodes[current_id]['rank']
                 while True:
-                    if rank in RANKS:
+                    if rank in self.RANKS:
                         break
                     else:
                         #print(rank, ' not in RANKS ', taxid)
@@ -129,7 +129,7 @@ class TaxonomyProfile:
                 current_id = taxid
                 rank = taxonomy_data.nodes[current_id]['rank']
                 while True:
-                    if rank in RANKS:
+                    if rank in self.RANKS:
                         break
                     elif current_id == '1':
                         break
@@ -231,7 +231,7 @@ class TaxonomyProfile:
                     break
                 parent = self.nodes[current_id]['parent']
                 rank = self.nodes[current_id]['rank']
-                if rank in RANKS:
+                if rank in self.RANKS:
                     name = self.names[current_id]['name']
                     rpkm_per_rank[rank][name] += scores[taxid]
                     counts_per_rank[rank][name] += counts[taxid]
@@ -272,18 +272,21 @@ class TaxonomyProfile:
             print('Node not found:',taxid)
             return ''
 
-    def print_functional_taxonomy_profile(self):
+    def print_functional_taxonomy_profile(self, score='rpkm'):
         root_id = '1'
         offset = 0
-        ret_val = self.print_node_functions(root_id, offset)
+        ret_val = self.print_node_functions(root_id, offset, score)
         return ret_val
         
-    def print_node_functions(self, taxid, offset):
+    def print_node_functions(self, taxid, offset, score='rpkm'):
         if taxid in self.tree.data:
             ret_val = '\t'*offset + taxid + '\t' + self.tree.data[taxid].rank + '\t' + self.tree.data[taxid].name + '\tParent:' + (self.tree.data[taxid].parent or 'None') + '\tChildren:'+(','.join(self.tree.data[taxid].children) or 'None') + '\n'
             if self.tree.data[taxid].attributes:
                 for function in self.tree.data[taxid].attributes:
-                    ret_val += '\t'*(offset + 5) + function + '\tScore:' + format((self.tree.data[taxid].attributes[function]['rpkm']), "0.3f") + '\tIdentity:' + format((self.tree.data[taxid].attributes[function]['identity']/self.tree.data[taxid].attributes[function]['count']), "0.1f") + '%\tRead count:' + format(self.tree.data[taxid].attributes[function]['count'], "0.0f") + '\n'
+                    try:
+                        ret_val += '\t'*(offset + 5) + function + '\tScore:' + format((self.tree.data[taxid].attributes[function][score]), "0.3f") + '\tIdentity:' + format((self.tree.data[taxid].attributes[function]['identity']/self.tree.data[taxid].attributes[function]['hit_count']), "0.1f") + '%\tRead count:' + format(self.tree.data[taxid].attributes[function]['count'], "0.0f") + '\n'
+                    except TypeError:
+                        print(function, taxid, self.tree.data[taxid].attributes)
             else:
                 ret_val += '\t'*(offset + 6) + '\tScore:N/A\tIdentity:N/A\tRead count:N/A\n'
             offset += 1
@@ -347,7 +350,7 @@ class TaxonomyProfile:
                 function_list.add(function) 
         root_id = '1'
         line_number = 1
-        df = pd.DataFrame(self.convert_node_into_dict(root_id, function_list, line_number, score))
+        df = pd.DataFrame(self.convert_node_into_dict(root_id, function_list, line_number, score=score))
         return df.transpose()
 
     def convert_node_into_dict(self, taxid, function_list, line_number, score='rpkm'):
@@ -360,7 +363,10 @@ class TaxonomyProfile:
             for function in function_list:
                 if function in self.tree.data[taxid].attributes:
                     line_dict[(function, '1.Score')] = format((self.tree.data[taxid].attributes[function][score]), "0.3f")
-                    line_dict[(function, '2.Identity')] = format((self.tree.data[taxid].attributes[function]['identity']/self.tree.data[taxid].attributes[function]['count']), "0.1f") + '%'
+                    if 'identity' in self.tree.data[taxid].attributes[function]:
+                        line_dict[(function, '2.Identity')] = format((self.tree.data[taxid].attributes[function]['identity']/self.tree.data[taxid].attributes[function]['hit_count']), "0.1f") + '%'
+                    else:
+                        line_dict[(function, '2.Identity')] = ''
                     line_dict[(function, '3.Read count')] = format(self.tree.data[taxid].attributes[function]['count'], "0.0f")
                 else:
                     line_dict[(function, '1.Score')] = ''

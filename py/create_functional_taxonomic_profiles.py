@@ -4,7 +4,7 @@ from collections import defaultdict
 import xlsxwriter
 import pandas as pd
 
-from Fama.DiamondParser.hit_utils import cleanup_protein_id
+from Fama.utils import cleanup_protein_id
 from Fama.Project import Project
 from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
 from Fama.TaxonomyProfile import TaxonomyProfile

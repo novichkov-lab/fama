@@ -5,6 +5,8 @@ import json
 from context import Fama
 from collections import Counter
 
+from Fama.Project import Project
+from Fama.Sample import Sample
 from Fama.DiamondParser.DiamondHit import DiamondHit
 from Fama.DiamondParser.DiamondHitList import DiamondHitList
 from Fama.DiamondParser.DiamondParser import DiamondParser
@@ -16,14 +18,25 @@ from Fama.OutputUtil.JSONUtil import import_annotated_reads
 
 data_dir = 'data'
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
-sample = 'test_sample'
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
+sample_id = 'test_sample'
+sample_id = 'sample1'
 end = 'pe1'
+end = 'pe2'
 
 class DiamondParserTest(unittest.TestCase):
 
     def setUp(self):
-        self.parser = DiamondParser(config_file=config_path, project_file=project_path, sample=sample, end=end)
+        project = Project(config_file=config_path, project_file=project_path)
+        sample = Sample(sample_id=sample_id)
+        sample.load_sample(project.options)
+        self.parser = DiamondParser(config = project.config, 
+                            options=project.options, 
+                            taxonomy_data=project.taxonomy_data,
+                            ref_data=project.ref_data,
+                            sample=sample, 
+                            end=end)
         
     def test_6_annotate_hit(self):
         print ('Test hit annotation')
@@ -614,6 +627,37 @@ class DiamondParserTest(unittest.TestCase):
         self.assertEqual(read.get_functions()['UreA'], 193798.4496124031)
         self.assertEqual(read.taxonomy, '28211')
 
+    def test_2_compare_hits_12(self):
+        # test 20 hits, one function, case 2.5
+        hit = DiamondHit()
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11112:25043:18797#CTCTCT/2	kegg|nio:NITINOP_1721	58.5	41	17	311	3	125	271	311	4.2e-05	44.3	RP-L22'.split('\t'))
+        read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11112:25043:18797#CTCTCT/2')
+        old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11112:25043:18797#CTCTCT/2')
+        old_hit_list.add_hit(hit)
+        read.set_hit_list(old_hit_list)
+#        print ('* test2_10: 17 hits with 1 function, case 2.5*')
+        new_hits = ['NS500496_240_HYN75BGXX:1:11112:25043:18797#CTCTCT/2|3|125	kegg|nio:NITINOP_1721	58.5	41	17	311	1	123	271	311	1.0e-02	43.9',
+                    'NS500496_240_HYN75BGXX:1:11112:25043:18797#CTCTCT/2|3|125	kegg|mgot:MgSA37_03614	58.5	41	17	128	1	123	88	128	1.4e-02	43.5',
+                    'NS500496_240_HYN75BGXX:1:11112:25043:18797#CTCTCT/2|3|125	kegg|lfc:LFE_0874	58.5	41	17	127	1	123	87	127	1.4e-02	43.5',
+                    'NS500496_240_HYN75BGXX:1:11112:25043:18797#CTCTCT/2|3|125	fig|269799.8.peg.645	53.7	41	19	127	1	123	87	127	1.8e-02	43.1',
+                    'NS500496_240_HYN75BGXX:1:11112:25043:18797#CTCTCT/2|3|125	fig|653733.4.peg.1965	58.5	41	17	126	1	123	86	126	1.8e-02	43.1',
+                    'NS500496_240_HYN75BGXX:1:11112:25043:18797#CTCTCT/2|3|125	kegg|gbe:GbCGDNIH1_0546	56.1	41	18	125	1	123	85	125	1.8e-02	43.1'
+                     ]
+        hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11112:25043:18797#CTCTCT/2|3|125')
+        for new_hit in new_hits:
+            hit = DiamondHit()
+            hit.create_hit(new_hit.split('\t'))
+            hit.annotate_hit(self.parser.ref_data)
+            hit_list.add_hit(hit)
+        compare_hits_lca(read, 3, 125, hit_list, self.parser.get_config().get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
+        print('Read status:', read.get_status())
+        print('Read function:', read.get_functions())
+        self.assertEqual(read.get_status(), 'nofunction')
+        self.assertEqual(len(read.get_functions()), 0)
+        self.assertEqual(read.taxonomy, None)
+
+
+
     def test_3_background_search(self):
         print('Test parser')
         self.parser.parse_background_output()
@@ -638,7 +682,7 @@ class DiamondParserTest(unittest.TestCase):
         # read outfile:
         
         lines = []
-        outfile = os.path.join(self.parser.project.get_project_dir(sample), sample + '_' + end + '_' + self.parser.project.get_pe_reads_fastq_name())
+        outfile = os.path.join(self.parser.options.get_project_dir(sample_id), sample_id + '_' + end + '_' + self.parser.options.get_pe_reads_fastq_name())
         with open (outfile, 'r') as f:
             for line in f:
                 lines.append(line)
@@ -659,7 +703,7 @@ class DiamondParserTest(unittest.TestCase):
     def test_8_import_annotated_reads(self):
         self.parser.parse_background_output()
         hits = ','.join([str(hit) for read in sorted(self.parser.reads.keys()) for hit in self.parser.reads[read].get_hit_list().get_hits()])
-        infile = os.path.join(self.parser.project.get_project_dir(sample), sample + '_' + end + '_' + self.parser.project.get_reads_json_name())
+        infile = os.path.join(self.parser.options.get_project_dir(sample_id), sample_id + '_' + end + '_' + self.parser.options.get_reads_json_name())
         self.parser.set_reads(import_annotated_reads(infile))
         for read in self.parser.reads:
             for hit in self.parser.reads[read].get_hit_list().get_hits():

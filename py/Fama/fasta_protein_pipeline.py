@@ -2,16 +2,22 @@
 import os,sys,argparse,gzip,csv,operator
 from subprocess import Popen, PIPE, CalledProcessError
 from collections import defaultdict,Counter
+
+from Fama.Project import Project
 from Fama.DiamondParser.DiamondParser import DiamondParser
 from Fama.DiamondParser.DiamondHit import DiamondHit
 from Fama.DiamondParser.DiamondHitList import DiamondHitList
 from Fama.ReadUtil.AnnotatedRead import AnnotatedRead
 
-from Fama.OutputUtil.Report import generate_report
+from Fama.OutputUtil.Report import generate_fasta_report
 from Fama.OutputUtil.PdfReport import generate_protein_pdf_report
 from Fama.OutputUtil.KronaXMLWriter import generate_functions_chart
 from Fama.OutputUtil.JSONUtil import export_annotated_reads
 from Fama.OutputUtil.JSONUtil import import_annotated_reads
+
+from Fama.protein_taxonomic_mapping import run_uniprot_search,parse_uniref_output
+from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
+from Fama.ReferenceLibrary.UniprotData import UniprotData
 
 # This program no longer runs functional profiling for individual samples
 coverage_data = None
@@ -559,9 +565,79 @@ def functional_profiling_pipeline(config_file, project_file, sample):
     
     # Generate output
     print('Generating reports')
-    generate_report(parser)
+    generate_fasta_report(parser)
     generate_protein_pdf_report(parser)
     generate_functions_chart(parser)
+
+def run_taxonomic_profiling(project):
+    diamond_infile = os.path.join(project.options.get_work_dir(), 'all_proteins.faa')
+    with open(diamond_infile, 'w') as of:
+        for sample in project.list_samples():
+            if 'pe1' in project.samples[sample]:
+                for protein_id in project.samples[sample]['pe1'].keys():
+                    protein = project.samples[sample]['pe1'][protein_id]
+                    if protein.get_status() == 'function,besthit' or protein.get_status() == 'function':
+                        of.write('>' + sample + '|' + protein.get_read_id() + '\n')
+                        of.write(protein.get_sequence() + '\n')
+        of.closed
+    run_uniprot_search(project)
+
+def generate_output(project):
+    taxonomy_data = TaxonomyData(project.config)
+    taxonomy_data.load_taxdata(project.config)
+    uniprot = UniprotData(project.config)
+    taxonomic_mappings = parse_uniref_output(project)
+    outfile = os.path.join(project.options.get_work_dir(), 'all_proteins.list.txt')
+    with open(outfile, 'w') as of:
+        of.write('Sample\tProtein\tFunction(s)\tDescription\tFama %id.\tUniRef taxonomy\tUniRef best hit\tUniRef taxonomyID\tUniRef %id.\tUniRef length\tUniRef start\tUniRef end\n')
+        for sample in project.list_samples():
+            if 'pe1' in project.samples[sample]:
+                for protein_id in sorted(project.samples[sample]['pe1'].keys()):
+                    protein = project.samples[sample]['pe1'][protein_id]
+                    if protein.get_status() == 'function,besthit' or protein.get_status() == 'function':
+                        fama_identity = sum([x.get_identity() for x in protein.hit_list.get_hits()])/len(protein.hit_list.get_hits())
+                        function = ','.join(sorted(protein.get_functions().keys()))
+                        description = '|'.join(sorted([project.ref_data.lookup_function_name(f) for f in protein.get_functions().keys()]))
+                        
+                        
+                        of.write(sample + '\t' + 
+                                protein_id + '\t' + 
+                                function + '\t' + 
+                                description + '\t' + 
+                                '{0:.1f}'.format(fama_identity) + '\t')
+                        if sample + '|' + protein_id in taxonomic_mappings:
+                            taxonomy_id = uniprot.get_uniprot_taxid(taxonomic_mappings[sample + '|' + protein_id]['subject'])
+                            
+                            of.write(
+                                taxonomy_data.names[taxonomy_id]['name']  + '\t' + 
+                                taxonomic_mappings[sample + '|' + protein_id]['subject'] + '\t' + 
+                                taxonomy_id + '\t' +
+                                taxonomic_mappings[sample + '|' + protein_id]['identity'] + '\t' +
+                                taxonomic_mappings[sample + '|' + protein_id]['subject_length'] + '\t' +
+                                taxonomic_mappings[sample + '|' + protein_id]['subject_start'] + '\t' +
+                                taxonomic_mappings[sample + '|' + protein_id]['subject_end'] + '\n'
+                                )
+                        else:
+                            of.write('\t\t\t\t\t\t\n')
+                of.write('\n')
+            else:
+                of.write('No proteins found in ' + sample + '\n\n')
+        of.closed
+    
+
+def protein_pipeline(args):
+    project = Project(config_file=args.config, project_file=args.project)
+    for sample in project.list_samples():
+        if os.path.exists(os.path.join(project.options.get_project_dir(sample), sample + '_pe1_' + project.options.get_reads_json_name())):
+            project.load_annotated_reads(sample, 'pe1')
+        else:
+            functional_profiling_pipeline(config_file=args.config, project_file=args.project, sample=sample)
+            if os.path.exists(os.path.join(project.options.get_project_dir(sample), sample + '_pe1_' + project.options.get_reads_json_name())):
+                project.load_annotated_reads(sample, 'pe1')
+            
+    #run_taxonomic_profiling(project)
+    generate_output(project)
+
 
 def main():
     args = get_args()

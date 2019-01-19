@@ -7,21 +7,22 @@ from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
 from Fama.DiamondParser.DiamondHit import DiamondHit
 from Fama.DiamondParser.DiamondHitList import DiamondHitList
 from Fama.ReadUtil.AnnotatedRead import AnnotatedRead
-from Fama.DiamondParser.hit_utils import cleanup_protein_id,get_rpkm_score,compare_hits,get_paired_end,get_paired_read_id,compare_hits_naive,compare_hits_lca
+from Fama.utils import autovivify,cleanup_protein_id
+from Fama.DiamondParser.hit_utils import get_rpkm_score,compare_hits,get_paired_end,get_paired_read_id,compare_hits_naive,compare_hits_lca
 
 class DiamondParser:
 
-    def __init__(self, sample, end, config_file=None, project_file=None, config=None, project=None, ref_data=None, taxonomy_data = None):
+    def __init__(self, sample=None, end='', config_file=None, project_file=None, config=None, options=None, ref_data=None, taxonomy_data = None):
         self.reads = {}
         self.sample = sample
         self.end = end
         self.config = config
         if not self.config:
             self.config = ProgramConfig(config_file)
-        self.project = project
-        if not self.project:
-            self.project = ProjectOptions(project_file)
-        collection = self.project.get_collection(self.sample)
+        self.options = options
+        if not self.options:
+            self.options = ProjectOptions(project_file)
+        collection = self.options.get_collection(self.sample.sample_id)
         if collection not in self.config.list_collections():
             raise Exception ('Collection ' + collection + ' not found. Available collections are: ' + (',').join(colelctions))
         self.collection = collection
@@ -36,7 +37,8 @@ class DiamondParser:
 
     def parse_reference_output(self):
         
-        tsvfile = os.path.join(self.project.get_project_dir(self.sample), self.sample + '_' + self.end + '_'+ self.project.get_ref_output_name())
+        tsvfile = os.path.join(self.options.get_project_dir(self.sample.sample_id), 
+                            self.sample.sample_id + '_' + self.end + '_'+ self.options.get_ref_output_name())
         #add paired-end option
         
         current_sequence_read_id = ''
@@ -83,7 +85,8 @@ class DiamondParser:
         if len(self.reads) == 0:
             self.reads = self.import_hit_list()
         
-        tsvfile = os.path.join(self.project.get_project_dir(self.sample), self.sample + '_' + self.end + '_'+ self.project.get_background_output_name())
+        tsvfile = os.path.join(self.sample.work_directory, 
+                            self.sample.sample_id + '_' + self.end + '_'+ self.options.get_background_output_name())
         #add paired-end option
         
         current_query_id = None
@@ -119,7 +122,7 @@ class DiamondParser:
                     if read_id in self.reads.keys():
                         #compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                         #compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
-                        compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample), self.taxonomy_data, self.ref_data) # here should be all the magic
+                        compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.sample.fastq_fwd_readcount, self.taxonomy_data, self.ref_data) # here should be all the magic
                     else:
                         print ('Read not found: ', read_id)
 #                        raise TypeError
@@ -133,14 +136,16 @@ class DiamondParser:
             if read_id in self.reads.keys():
                 #compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                 #compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
-                compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample), self.taxonomy_data, self.ref_data) # here should be all the magic
+                compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.sample.fastq_fwd_readcount, self.taxonomy_data, self.ref_data) # here should be all the magic
             else:
                 print ('Read not found: ', read_id)
-
+            f.closed
     
     def import_fastq(self):
-        fastq_file = self.project.get_fastq_path(self.sample,self.end)
+        fastq_file = self.options.get_fastq_path(self.sample.sample_id,self.end)
         line_counter = 0
+        read_count = 0
+        base_count = 0
         current_read = None
         fh = None
         if fastq_file.endswith('.gz'):
@@ -155,13 +160,14 @@ class DiamondParser:
                 line = line.decode('utf8').rstrip('\n\r')
                 if line_counter == 1:
                     (read_id, end) = self.parse_fastq_seqid(line)
-                    
+                    read_count += 1
                     if read_id in self.reads:
                         current_read = read_id
                         self.reads[current_read].set_read_id_line(line)
                     else: 
                         current_read = None
                 elif line_counter == 2:
+                    base_count += len(line)
                     if current_read:
                         self.reads[current_read].set_sequence(line)
                 elif line_counter == 3:
@@ -170,11 +176,14 @@ class DiamondParser:
                 elif line_counter == 4:
                     if current_read:
                         self.reads[current_read].set_quality(line)
-        fh.close()
+            fh.closed
+        return read_count, base_count
         
     def import_fasta(self):
-        fasta_file = self.project.get_fastq_path(self.sample,self.end)
+        fasta_file = self.options.get_fastq_path(self.sample.sample_id,self.end)
         sequence  = []
+        read_count = 0
+        base_count = 0
         current_id = None
         fh = None
         if fasta_file.endswith('.gz'):
@@ -185,6 +194,7 @@ class DiamondParser:
             for line in fh:
                 line = line.decode('utf8').rstrip('\n\r')
                 if line.startswith('>'):
+                    read_count += 1
                     if current_id:
                         self.reads[current_id[1:]].set_read_id_line(current_id)
                         self.reads[current_id[1:]].set_sequence(''.join(sequence))
@@ -195,16 +205,18 @@ class DiamondParser:
                     else: 
                         current_id = None
                 else:
+                    base_count += len(line)
                     if current_id:
                         sequence.append(line)
             if current_id:
                 self.reads[seq_id].set_read_id_line(current_id)
                 self.reads[seq_id].set_sequence(''.join(sequence))
             fh.close()
+        return read_count, base_count
 
     def export_read_fastq(self):
-        outdir = self.project.get_project_dir(self.sample)
-        with open(os.path.join(outdir, self.sample + '_' + self.end + '_' + self.project.get_reads_fastq_name()), 'w') as of:
+        outdir = self.sample.work_directory
+        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_reads_fastq_name()), 'w') as of:
             for read_id in sorted(self.reads.keys()):
                 if self.reads[read_id].get_status() == 'function' or self.reads[read_id].get_status() == 'function,besthit':
                     of.write(self.reads[read_id].get_read_id_line() + '\n')
@@ -213,16 +225,16 @@ class DiamondParser:
                     of.write(self.reads[read_id].get_quality() + '\n') 
 
     def export_read_fasta(self):
-        outdir = self.project.get_project_dir(self.sample)
-        with open(os.path.join(outdir, self.sample + '_' + self.end + '_' + self.project.get_reads_fastq_name()), 'w') as of:
+        outdir = self.sample.work_directory
+        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_reads_fastq_name()), 'w') as of:
             for read_id in sorted(self.reads.keys()):
                 if self.reads[read_id].get_status() == 'function' or self.reads[read_id].get_status() == 'function,besthit':
                     of.write(self.reads[read_id].get_read_id_line() + '\n')
                     of.write(self.reads[read_id].get_sequence() + '\n') 
 
     def export_hit_fastq(self):
-        outdir = self.project.get_project_dir(self.sample)
-        with open(os.path.join(outdir, self.sample + '_' + self.end + '_' + self.project.get_ref_hits_fastq_name()), 'w') as of:
+        outdir = self.sample.work_directory
+        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_ref_hits_fastq_name()), 'w') as of:
             for read_id in self.reads.keys():
                 for hit in self.reads[read_id].get_hit_list().get_hits():
                     start = hit.get_query_start()
@@ -246,8 +258,8 @@ class DiamondParser:
                         print ('TypeError occurred while exporting ', read_id)
 
     def export_hit_fasta(self):
-        outdir = self.project.get_project_dir(self.sample)
-        with open(os.path.join(outdir, self.sample + '_' + self.end + '_' + self.project.get_ref_hits_fastq_name()), 'w') as of:
+        outdir = self.sample.work_directory
+        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_ref_hits_fastq_name()), 'w') as of:
             for read_id in self.reads.keys():
                 for hit in self.reads[read_id].get_hit_list().get_hits():
                     start = hit.get_query_start()
@@ -269,14 +281,15 @@ class DiamondParser:
                         print ('TypeError occurred while exporting ', read_id)
 
     def export_hit_list(self):
-        outfile = os.path.join(self.project.get_project_dir(self.sample), self.sample + '_' + self.end + '_' + self.project.get_ref_hits_list_name())
+        outfile = os.path.join(self.sample.work_directory, 
+                                self.sample.sample_id + '_' + self.end + '_' + self.options.get_ref_hits_list_name())
         with open(outfile, 'w') as of:
             for read in self.reads.keys():
                 for hit in self.reads[read].get_hit_list().get_hits():
                     of.write(str(hit) + '\n')
     
-    def get_project(self):
-        return self.project
+    def get_options(self):
+        return self.options
 
     def get_config(self):
         return self.config
@@ -321,14 +334,14 @@ class DiamondParser:
     
     def export_paired_end_reads_fastq(self):
         # This function not only exports FASTQ data, but also imports sequence data from paired-end FASTQ file
-        fastq_file = self.project.get_fastq_path(self.sample,get_paired_end(self.end))
-        outdir = self.project.get_project_dir(self.sample)
+        fastq_file = self.options.get_fastq_path(self.sample.sample_id,get_paired_end(self.end))
+        outdir = self.sample.work_directory
         read_ids = {}
         for read_id in sorted(self.reads.keys()):
             #read_ids[get_paired_read_id(read_id)] = read_id
             read_ids[read_id] = read_id
         line_counter = 0
-        with open(os.path.join(outdir, self.sample + '_' + self.end + '_' + self.project.get_pe_reads_fastq_name()), 'w') as of:
+        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_pe_reads_fastq_name()), 'w') as of:
             current_read = None
             fh = None
             if fastq_file.endswith('.gz'):
@@ -363,7 +376,8 @@ class DiamondParser:
                 
 
     def import_hit_list(self):
-        infile = os.path.join(os.path.join(self.project.get_project_dir(self.sample), self.sample + '_' + self.end + '_'+ self.project.get_ref_hits_list_name()))
+        infile = os.path.join(os.path.join(self.sample.work_directory, 
+                            self.sample.sample_id + '_' + self.end + '_'+ self.options.get_ref_hits_list_name()))
         ret_val = {}
         _hit_list = None
         current_read_id = None

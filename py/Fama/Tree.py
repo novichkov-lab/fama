@@ -1,13 +1,14 @@
 import queue
 from collections import defaultdict
-RANKS = set(['norank','superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'])
+#RANKS = set(['norank','superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'])
+RANKS = set(['norank','superkingdom', 'phylum', 'class', 'order', 'family', 'genus'])
 
 class Node(object):
     
     def __init__(self, rank = None, name = None, taxid = None, parent = None, children = set()):
         self.parent = parent
         self.children = children
-        if not rank or rank in RANKS:
+        if rank in RANKS:
             self.rank = rank
         else:
             raise Exception('Rank not allowed:' + rank)

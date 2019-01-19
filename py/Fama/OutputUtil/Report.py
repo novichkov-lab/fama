@@ -1,20 +1,18 @@
-#!/usr/bin/python3
 import os
 from collections import defaultdict,Counter,OrderedDict
-import xlsxwriter
 
-from Fama.DiamondParser.hit_utils import cleanup_protein_id,autovivify
+from Fama.utils import autovivify,cleanup_protein_id,sanitize_file_name
 
-ENDS = ['pe1','pe2']
-def generate_report(parser):
-    outfile = os.path.join(parser.project.get_project_dir(parser.sample), parser.project.get_output_subdir(parser.sample),parser.sample + '_' + parser.end + '_'+ parser.project.get_report_name())
+#ENDS = ['pe1','pe2']
+def generate_fastq_report(parser):
+    outfile = os.path.join(parser.options.get_project_dir(parser.sample.sample_id), parser.options.get_output_subdir(parser.sample.sample_id),parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_report_name())
     with open(outfile, 'w') as of:
         # Write general info
         of.write('\nRun info\n\n')
-        of.write('Sample ID:\t' + parser.project.get_sample_id(parser.sample) + '\n')
+        of.write('Sample ID:\t' + parser.options.get_sample_name(parser.sample.sample_id) + '\n')
         of.write('Paired end:\t' + parser.end + '\n')
-        of.write('FASTQ file:\t' + parser.project.get_fastq_path(parser.sample, parser.end) + '\n')
-        of.write('Total number of reads:\t' + str(parser.project.get_fastq1_readcount(parser.sample)) + '\n')
+        of.write('FASTQ file:\t' + parser.options.get_fastq_path(parser.sample.sample_id, parser.end) + '\n')
+        of.write('Total number of reads:\t' + str(parser.options.get_fastq1_readcount(parser.sample.sample_id)) + '\n')
         of.write('*****************************************\n\n')
 
         # Write read statistics
@@ -99,34 +97,44 @@ def generate_report(parser):
             if parser.reads[read].get_status() == 'function,besthit' or parser.reads[read].get_status() == 'function':
 #            if parser.reads[read].get_status() == 'function':
 #                print ('\t',parser.reads[read].get_status())
-                hits = parser.reads[read].get_hit_list().get_hits()
-                for hit in hits:
-#                    print (hit.get_subject_id())
-#                    print (parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id())))
-#                    print (hit.get_identity())
-                    protein_taxid = parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
-                    tax_stats[protein_taxid] += 1
-                    identity_stats[protein_taxid] += hit.get_identity()
-                if len(hits) == 1:
-                    read_functions = parser.reads[read].get_functions()
-                    for function in read_functions:
-                        rpkm_stats[parser.ref_data.lookup_protein_tax(cleanup_protein_id(hits[0].get_subject_id()))] += read_functions[function]
-                else:
-                    read_functions = parser.reads[read].get_functions()
-                    protein_taxids = {}
-                    for hit in hits:
-                        hit_taxid = parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
-                        hit_functions = hit.get_functions()
-                        for hit_function in hit_functions:
-                            protein_taxids[hit_taxid] = hit_function
-                    for taxid in protein_taxids:
-                        if protein_taxids[taxid] in read_functions:
-                            rpkm_stats[taxid] += read_functions[protein_taxids[taxid]]
+                taxonomy = parser.reads[read].taxonomy
+                if taxonomy is None:
+                    print ('No taxonomy ID assigned to ', read)
+                    continue
+                tax_stats[taxonomy] += 1
+                read_functions = parser.reads[read].get_functions()
+                for f in read_functions:
+                    rpkm_stats[taxonomy] += read_functions[f]
+                identity_stats[taxonomy] += sum(list(hit.get_identity() for hit in parser.reads[read].get_hit_list().get_hits()))
+                    
+                #~ hits = parser.reads[read].get_hit_list().get_hits()
+                #~ for hit in hits:
+#~ #                    print (hit.get_subject_id())
+#~ #                    print (parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id())))
+#~ #                    print (hit.get_identity())
+                    #~ protein_taxid = parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
+                    #~ tax_stats[protein_taxid] += 1
+                    #~ identity_stats[protein_taxid] += hit.get_identity()
+                #~ if len(hits) == 1:
+                    #~ read_functions = parser.reads[read].get_functions()
+                    #~ for function in read_functions:
+                        #~ rpkm_stats[parser.ref_data.lookup_protein_tax(cleanup_protein_id(hits[0].get_subject_id()))] += read_functions[function]
+                #~ else:
+                    #~ read_functions = parser.reads[read].get_functions()
+                    #~ protein_taxids = {}
+                    #~ for hit in hits:
+                        #~ hit_taxid = parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
+                        #~ hit_functions = hit.get_functions()
+                        #~ for hit_function in hit_functions:
+                            #~ protein_taxids[hit_taxid] = hit_function
+                    #~ for taxid in protein_taxids:
+                        #~ if protein_taxids[taxid] in read_functions:
+                            #~ rpkm_stats[taxid] += read_functions[protein_taxids[taxid]]
                         
         tax_data = parser.taxonomy_data
         counts_per_rank, identity_per_rank, rpkm_per_rank = tax_data.get_taxonomy_profile(counts=tax_stats, identity=identity_stats, scores = rpkm_stats)
 
-        ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
+        ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus']
         for rank in ranks:
             of.write('Taxonomy report for rank ' + rank + '\n\n')
             of.write('Taxon\tRead count\tRPKM score\tAverage identity\n')
@@ -146,12 +154,28 @@ def generate_report(parser):
             if parser.reads[read].get_status() != 'nofunction':
 #                of.write(read + '\t' + parser.reads[read].get_status() + '\n')
 #                of.write('\t' + str(parser.reads[read].get_functions()) + '\n')
-                of.write(read + ': ' + parser.reads[read].get_status() + ': ' + ','.join(sorted(parser.reads[read].get_functions().keys())) + '\n')
+                of.write(read + ': ' + parser.reads[read].get_status() + ': ' + ','.join(sorted(parser.reads[read].get_functions().keys())) + '\n')#' Taxonomy :' + parser.reads[read].taxonomy + '\n')
                 for hit in parser.reads[read].get_hit_list().get_hits():
                     of.write('\t' + str(hit) + '\n')
                 
         of.write('\n\n*** End of report ***\n')
         of.closed
+
+def generate_fasta_report(project, sample_id):
+    # TODO
+    pass
+
+def generate_sample_report(project, sample_id):
+    outfile = os.path.join(project.samples[sample_id].work_directory, sample_id + '_report.txt')
+    with open(outfile, 'w') as of:
+        of.write('Report for ' + sample_id + '\n\n')
+        of.write('Sample ID:\t' + project.options.get_sample_name(sample_id) + '\n')
+        of.write('FASTQ file 1:\t' + project.options.get_fastq_path(sample_id, 'pe1') + '\n')
+        if project.samples[sample_id].is_paired_end:
+            of.write('FASTQ file 2:\t' + project.options.get_fastq_path(sample_id, 'pe2') + '\n')
+
+        of.closed
+    
 
 def generate_functions_scores_table(project):
     functions_list = set()
@@ -161,7 +185,7 @@ def generate_functions_scores_table(project):
     # fill tables of scores and read counts
     for sample in project.list_samples():
         for end in ENDS:
-            project.load_annotated_reads(sample, end) # Lazy load
+            project.import_reads_json(sample, [end,]) # Lazy load
             scaling_factor = 1.0
             if end == 'pe1':
                 scaling_factor = project.options.get_fastq1_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
@@ -169,15 +193,14 @@ def generate_functions_scores_table(project):
                 scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
             else:
                 raise Exception('Unknown identifier of read end: ' + end)
-            #reads = project.samples[sample][end]
-            for read_id in project.samples[sample][end]:
-                read = project.samples[sample][end][read_id]
+            for read_id in project.samples[sample].reads[end]:
+                read = project.samples[sample].reads[end][read_id]
                 if read.get_status() == 'function,besthit' or read.get_status() == 'function':
                     for function in read.functions:
                         functions_list.add(function)
                         scores[function][sample] += scaling_factor * read.functions[function]
                         read_counts[function][sample] += 1.0/len(read.functions)
-            project.samples[sample][end] = None
+            project.samples[sample].reads[end] = None
 
     # generate output
     samples_list = sorted(project.samples.keys())
@@ -210,16 +233,15 @@ def generate_functions_scores_list(project):
     protein_counts = defaultdict(dict)
     # initialize list of functions
     for sample in project.list_samples():
-        for end in project.samples[sample]:
-            reads = project.samples[sample][end]
-            for read in reads:
+        for end in project.samples[sample].reads:
+            for read in project.samples[sample].reads[end]:
                 if read.get_status() == 'function,besthit' or read.get_status() == 'function':
-                    for function in reads[read].functions:
+                    for function in read.functions:
                         if sample in functions[function]:
-                            functions[function][sample] += reads[read].functions[function]
+                            functions[function][sample] += read.functions[function]
                             protein_counts[function][sample] += 1
                         else:
-                            functions[function][sample] = reads[read].functions[function]
+                            functions[function][sample] = read.functions[function]
                             protein_counts[function][sample] = 1
     
     samples_list = sorted(project.samples.keys())
@@ -247,267 +269,6 @@ def generate_functions_scores_list(project):
     
     return '\n'.join(lines)
 
-def create_functions_xlsx(project):
-    xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_functions.xlsx'))    
-    xlsxfile = xlsxfile.replace(' ', '_')
-    xlsxfile = xlsxfile.replace("'", "")
-    xlsxfile = xlsxfile.replace('"', '')
-    workbook = xlsxwriter.Workbook(xlsxfile)
-    bold = workbook.add_format({'bold': True})
-    
-    functions_list = set()
-    categories_list = set()
-    scores = defaultdict(lambda : defaultdict(float))
-    read_counts = defaultdict(lambda : defaultdict(float))
-    scores_cat = defaultdict(lambda : defaultdict(float))
-    read_counts_cat = defaultdict(lambda : defaultdict(float))
-    
-    # calculate scores
-
-    for sample in project.list_samples():
-        for end in ENDS:
-            if end not in project.samples[sample]:
-                project.samples[sample][end] = None
-            if not project.samples[sample][end]:
-                print('Loading data:', sample, end)
-                project.load_annotated_reads(sample, end) 
-            scaling_factor = 1.0
-            if end == 'pe1':
-                scaling_factor = project.options.get_fastq1_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
-            elif end == 'pe2':
-                scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
-            else:
-                raise Exception('Unknown identifier of read end: ' + end)
-#            reads = project.samples[sample][end]
-            for read_id in project.samples[sample][end]:
-                read = project.samples[sample][end][read_id]
-                if read.get_status() == 'function,besthit' or read.get_status() == 'function':
-                    for function in read.functions:
-                        functions_list.add(function)
-                        scores[function][sample] += scaling_factor * read.functions[function]
-                        read_counts[function][sample] += 1.0/len(read.functions)
-                        category = project.ref_data.lookup_function_group(function)
-                        categories_list.add(category)
-                        scores_cat[category][sample] += scaling_factor * read.functions[function]
-                        read_counts_cat[category][sample] += 1.0/len(read.functions)
-            project.samples[sample][end] = None
-            
-    # generate output
-    samples_list = sorted(project.list_samples())
-    
-    # generate tables for functions
-    scores_worksheet = workbook.add_worksheet('Functions RPKM')
-    counts_worksheet = workbook.add_worksheet('Functions read count')
-    
-    row = 0
-    col = 0
-    
-    scores_worksheet.write(row, col, 'Function', bold)
-    counts_worksheet.write(row, col, 'Function', bold)
-    
-    for sample in samples_list:
-        col += 1
-        scores_worksheet.write(row, col, sample, bold)
-        counts_worksheet.write(row, col, sample, bold)
-    
-    col += 1
-    scores_worksheet.write(row, col, 'Definition', bold)
-    counts_worksheet.write(row, col, 'Definition', bold)
-    
-    for function in sorted(functions_list):
-        row += 1
-        col = 0
-        scores_worksheet.write(row, col, function, bold)
-        counts_worksheet.write(row, col, function, bold)
-        for sample in samples_list:
-            col += 1
-            if sample in scores[function]:
-                #scores_worksheet.write(row, col, '{0:.3f}'.format(scores[function][sample]))
-                #counts_worksheet.write(row, col, '{0:.0f}'.format(read_counts[function][sample]))
-                scores_worksheet.write(row, col, scores[function][sample])
-                counts_worksheet.write(row, col, read_counts[function][sample])
-            else:
-                scores_worksheet.write(row, col, 0.0)
-                counts_worksheet.write(row, col, 0)
-        col += 1
-        scores_worksheet.write(row, col, project.ref_data.lookup_function_name(function))
-        counts_worksheet.write(row, col, project.ref_data.lookup_function_name(function))
-
-    # adjust column width
-    scores_worksheet.set_column(0, 0, 10)
-    counts_worksheet.set_column(0, 0, 10)    
-    scores_worksheet.set_column(col, col, 50)
-    counts_worksheet.set_column(col, col, 50)
-
-    # generate tables for categories
-    scores_cat_worksheet = workbook.add_worksheet('Categories RPKM')
-    counts_cat_worksheet = workbook.add_worksheet('Categories read count')
-    
-    row = 0
-    col = 0
-    
-    scores_cat_worksheet.write(row, col, 'Category', bold)
-    counts_cat_worksheet.write(row, col, 'Category', bold)
-    
-    for sample in samples_list:
-        col += 1
-        scores_cat_worksheet.write(row, col, sample, bold)
-        counts_cat_worksheet.write(row, col, sample, bold)
-    
-    col += 1
-    
-    for category in sorted(categories_list):
-        row += 1
-        col = 0
-        scores_cat_worksheet.write(row, col, category, bold)
-        counts_cat_worksheet.write(row, col, category, bold)
-        for sample in samples_list:
-            col += 1
-            if sample in scores_cat[category]:
-#                scores_cat_worksheet.write(row, col, '{0:.3f}'.format(scores_cat[category][sample]))
-#                counts_cat_worksheet.write(row, col, '{0:.0f}'.format(read_counts_cat[category][sample]))
-                scores_cat_worksheet.write(row, col, scores_cat[category][sample])
-                counts_cat_worksheet.write(row, col, read_counts_cat[category][sample])
-            else:
-                scores_cat_worksheet.write(row, col, 0.0)
-                counts_cat_worksheet.write(row, col, 0)
-
-    # adjust column width
-    scores_cat_worksheet.set_column(0, 0, 40)
-    counts_cat_worksheet.set_column(0, 0, 40)    
-
-    workbook.close()
-    
-def create_functions_rpkm_xlsx(project):
-    xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_functions.xlsx'))    
-    xlsxfile = xlsxfile.replace(' ', '_')
-    xlsxfile = xlsxfile.replace("'", "")
-    xlsxfile = xlsxfile.replace('"', '')
-    workbook = xlsxwriter.Workbook(xlsxfile)
-    bold = workbook.add_format({'bold': True})
-    
-    functions_list = set()
-    categories_list = set()
-    scores = autovivify(3, float)#defaultdict(lambda : defaultdict(float))
-    read_counts = autovivify(3, float)#defaultdict(lambda : defaultdict(float))
-    scores_cat = autovivify(3, float)#defaultdict(lambda : defaultdict(float))
-    read_counts_cat = autovivify(3, float)#defaultdict(lambda : defaultdict(float))
-    
-    # calculate scores
-
-    for sample in project.list_samples():
-        for end in ENDS:
-            project.load_annotated_reads(sample, end) 
-            scaling_factor = 1.0
-            if end == 'pe1':
-                scaling_factor = project.options.get_fastq1_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
-            elif end == 'pe2':
-                scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
-            else:
-                raise Exception('Unknown identifier of read end: ' + end)
-#            reads = project.samples[sample][end]
-            for read_id in project.samples[sample][end]:
-                read = project.samples[sample][end][read_id]
-                if read.get_status() == 'function,besthit' or read.get_status() == 'function':
-                    for function in read.functions:
-                        functions_list.add(function)
-                        scores[function][sample][end] += scaling_factor * read.functions[function]
-                        read_counts[function][sample][end] += 1.0/len(read.functions)
-                        category = project.ref_data.lookup_function_group(function)
-                        categories_list.add(category)
-                        scores_cat[category][sample][end] += scaling_factor * read.functions[function]
-                        read_counts_cat[category][sample][end] += 1.0/len(read.functions)
-            project.samples[sample][end] = None
-            
-    # generate output
-    samples_list = sorted(project.list_samples())
-    
-    # generate tables for functions
-    scores_worksheet = workbook.add_worksheet('Functions RPKM')
-    counts_worksheet = workbook.add_worksheet('Functions read count')
-    
-    row = 0
-    col = 0
-    
-    scores_worksheet.write(row, col, 'Function', bold)
-    counts_worksheet.write(row, col, 'Function', bold)
-    
-    for sample in samples_list:
-        for end in ENDS:
-            col += 1
-            scores_worksheet.write(row, col, sample, bold)
-            counts_worksheet.write(row, col, sample, bold)
-    
-    col += 1
-    scores_worksheet.write(row, col, 'Definition', bold)
-    counts_worksheet.write(row, col, 'Definition', bold)
-    
-    for function in sorted(functions_list):
-        row += 1
-        col = 0
-        scores_worksheet.write(row, col, function, bold)
-        counts_worksheet.write(row, col, function, bold)
-        for sample in samples_list:
-            for end in ENDS:
-                col += 1
-                if sample in scores[function]:
-                    #scores_worksheet.write(row, col, '{0:.3f}'.format(scores[function][sample]))
-                    #counts_worksheet.write(row, col, '{0:.0f}'.format(read_counts[function][sample]))
-                    scores_worksheet.write(row, col, scores[function][sample][end])
-                    counts_worksheet.write(row, col, read_counts[function][sample][end])
-                else:
-                    scores_worksheet.write(row, col, 0.0)
-                    counts_worksheet.write(row, col, 0)
-        col += 1
-        scores_worksheet.write(row, col, project.ref_data.lookup_function_name(function))
-        counts_worksheet.write(row, col, project.ref_data.lookup_function_name(function))
-
-    # adjust column width
-    scores_worksheet.set_column(0, 0, 10)
-    counts_worksheet.set_column(0, 0, 10)    
-    scores_worksheet.set_column(col, col, 50)
-    counts_worksheet.set_column(col, col, 50)
-
-    # generate tables for categories
-    scores_cat_worksheet = workbook.add_worksheet('Categories RPKM')
-    counts_cat_worksheet = workbook.add_worksheet('Categories read count')
-    
-    row = 0
-    col = 0
-    
-    scores_cat_worksheet.write(row, col, 'Category', bold)
-    counts_cat_worksheet.write(row, col, 'Category', bold)
-    
-    for sample in samples_list:
-        for end in ENDS:
-            col += 1
-            scores_cat_worksheet.write(row, col, sample, bold)
-            counts_cat_worksheet.write(row, col, sample, bold)
-    
-    col += 1
-    
-    for category in sorted(categories_list):
-        row += 1
-        col = 0
-        scores_cat_worksheet.write(row, col, category, bold)
-        counts_cat_worksheet.write(row, col, category, bold)
-        for sample in samples_list:
-            for end in ENDS:
-                col += 1
-                if sample in scores_cat[category]:
-    #                scores_cat_worksheet.write(row, col, '{0:.3f}'.format(scores_cat[category][sample]))
-    #                counts_cat_worksheet.write(row, col, '{0:.0f}'.format(read_counts_cat[category][sample]))
-                    scores_cat_worksheet.write(row, col, scores_cat[category][sample][end])
-                    counts_cat_worksheet.write(row, col, read_counts_cat[category][sample][end])
-                else:
-                    scores_cat_worksheet.write(row, col, 0.0)
-                    counts_cat_worksheet.write(row, col, 0)
-
-    # adjust column width
-    scores_cat_worksheet.set_column(0, 0, 40)
-    counts_cat_worksheet.set_column(0, 0, 40)    
-
-    workbook.close()
 
 def create_functions_markdown_document(project):
 
@@ -519,11 +280,11 @@ def create_functions_markdown_document(project):
     # calculate scores
 
     for sample in project.list_samples():
-        for end in ENDS:
-            if end not in project.samples[sample]:
-                project.samples[sample][end] = None
-            if not project.samples[sample][end]:
-                project.load_annotated_reads(sample, end) 
+        for end in project.ENDS:
+            project.samples[sample].reads[end] = None
+            if end == 'pe2' and not project.samples[sample].is_paired_end:
+                continue
+            project.import_reads_json(sample, [end,])
             scaling_factor = 1.0
             if end == 'pe1':
                 scaling_factor = project.options.get_fastq1_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
@@ -531,9 +292,8 @@ def create_functions_markdown_document(project):
                 scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
             else:
                 raise Exception('Unknown identifier of read end: ' + end)
-            #reads = project.samples[sample][end]
-            for read_id in project.samples[sample][end]:
-                read = project.samples[sample][end][read_id]
+            for read_id in project.samples[sample].reads[end]:
+                read = project.samples[sample].reads[end][read_id]
                 if read.get_status() == 'function,besthit' or read.get_status() == 'function':
                     for function in read.functions:
                         functions_list.add(function)
@@ -541,7 +301,7 @@ def create_functions_markdown_document(project):
                         category = project.ref_data.lookup_function_group(function)
                         categories_list.add(category)
                         scores_cat[category][sample] += scaling_factor * read.functions[function]
-            project.samples[sample][end] = None
+            project.samples[sample].reads[end] = None
 
     # write output
     samples_list = sorted(project.list_samples())
@@ -658,13 +418,6 @@ def create_functions_markdown_document(project):
             
 
 
-def sanitize_file_name(filename):
-    filename = filename.replace(' ', '_')
-    filename = filename.replace("'", "")
-    filename = filename.replace('"', '')
-    return filename
-    
-
 def generate_assembly_report(assembler):
     outfile = os.path.join(assembler.assembly_dir, 'out', 'assembly_report.txt')
     with open(outfile, 'w') as of:
@@ -694,346 +447,3 @@ def generate_assembly_report(assembler):
         of.write('\n\n*** End of report ***\n')
         of.closed
 
-def create_assembly_xlsx(assembler, taxonomy_data):
-    xlsxfile = sanitize_file_name(os.path.join(assembler.project.options.get_assembly_dir(), assembler.project.options.get_name() + '_assembly.xlsx'))    
-    xlsxfile = xlsxfile.replace(' ', '_')
-    xlsxfile = xlsxfile.replace("'", "")
-    xlsxfile = xlsxfile.replace('"', '')
-    workbook = xlsxwriter.Workbook(xlsxfile)
-    bold = workbook.add_format({'bold': True})
-    cell_numformat0 = workbook.add_format()
-    cell_numformat0.set_num_format('0')
-    cell_numformat1 = workbook.add_format()
-    cell_numformat1.set_num_format('0.0')
-    cell_numformat5 = workbook.add_format()
-    cell_numformat5.set_num_format('0.00000')
-    
-    functions_list = set()
-    samples_list = sorted(assembler.project.list_samples())
-    function_read_counts = autovivify(2, float) # function_read_counts[function][sample]
-    contig_scores = autovivify(3, float)#contig_scores[function][contig][sample]
-    gene_rpkm = autovivify(3, float) # gene_rpkm[function][gene][sample], parameters are RPKM, coverage, identity 
-    
-    # count reads per function, per sample
-    for function in assembler.assembly.reads:
-        functions_list.add(function)
-        for read in assembler.assembly.reads[function]:
-            function_read_counts[function][assembler.assembly.reads[function][read]] += 1
-    
-    # collect RPKM scores for contigs per function, per sample (for contigs? for genes?)
-    
-    
-    # calculate total read count
-    total_read_count = 0 
-
-    for sample in assembler.project.list_samples():
-        total_read_count += assembler.project.options.get_fastq1_readcount(sample)
-        #total_read_count += assembler.project.options.get_fastq2_readcount(sample)
-            
-            
-    # generate output
-    
-    # make worksheet for read counts per function
-    reads_worksheet = workbook.add_worksheet('Functions read count')
-    
-    row = 0
-    col = 0
-    reads_worksheet.write(row, col, 'Function', bold)
-
-    for sample in samples_list:
-            col += 1
-            reads_worksheet.write(row, col, sample, bold)
-    col += 1
-    reads_worksheet.write(row, col, 'All samples', bold)
-    col += 1
-    reads_worksheet.write(row, col, 'Assembled reads', bold)
-    col += 1
-    reads_worksheet.write(row, col, 'Unassembled reads', bold)
-    col += 1
-    reads_worksheet.write(row, col, 'Definition', bold)
-
-    for function in sorted(functions_list):
-        row += 1
-        col = 0
-        reads_worksheet.write(row, col, function, bold)
-        for sample in samples_list:
-                col += 1
-                if sample in function_read_counts[function]:
-                    reads_worksheet.write(row, col, function_read_counts[function][sample]*2, cell_numformat0)
-                else:
-                    reads_worksheet.write(row, col, 0, cell_numformat0)
-        col += 1
-        all_reads = sum(function_read_counts[function].values())*2
-        reads_worksheet.write(row, col, all_reads, cell_numformat0)
-        col += 1
-        assembled_reads = 0
-        if function in assembler.assembly.contigs:
-            assembled_reads = sum([len(c.reads) for c in assembler.assembly.contigs[function].values()])
-        reads_worksheet.write(row, col, assembled_reads, cell_numformat0)
-        col += 1
-        reads_worksheet.write(row, col, all_reads - assembled_reads, cell_numformat0)
-        col += 1
-        reads_worksheet.write(row, col, assembler.project.ref_data.lookup_function_name(function))
-
-    # adjust column width
-    reads_worksheet.set_column(0, 0, 10)
-    reads_worksheet.set_column(col, col, 50)
-
-
-    # make worksheet with contig data
-    contigs_worksheet = workbook.add_worksheet('Contigs')
-    
-    row = 0
-    col = 0
-    contigs_worksheet.write(row, col, 'Contig', bold)
-    col += 1
-    contigs_worksheet.write(row, col, 'Function', bold)
-    col += 1
-    contigs_worksheet.write(row, col, 'Length', bold)
-    col += 1
-    contigs_worksheet.write(row, col, 'Read count', bold)
-    col += 1
-    contigs_worksheet.write(row, col, 'RPKM', bold)
-    col += 1
-    contigs_worksheet.write(row, col, 'Coverage', bold)
-    col += 1
-    contigs_worksheet.write(row, col, 'Number of genes', bold)
-
-    for sample in samples_list:
-        col += 1
-        contigs_worksheet.write(row, col, sample, bold)
-        col += 1
-        contigs_worksheet.write(row, col, sample, bold)
-        col += 1
-        contigs_worksheet.write(row, col, sample, bold)
-
-    col += 1
-    contigs_worksheet.write(row, col, 'Definition', bold)
-
-    row += 1
-    col = 6
-    for sample in samples_list:
-        col += 1
-        contigs_worksheet.write(row, col, 'Read count', bold)
-        col += 1
-        contigs_worksheet.write(row, col, 'RPKM', bold)
-        col += 1
-        contigs_worksheet.write(row, col, 'Coverage', bold)
-
-    
-    for function in sorted(functions_list):
-        if function in assembler.assembly.contigs:
-            for contig in sorted(assembler.assembly.contigs[function].keys()):
-                row += 1
-                col = 0
-                contigs_worksheet.write(row, col, contig, bold)
-                col += 1
-                contigs_worksheet.write(row, col, function)
-                col += 1
-                contigs_worksheet.write(row, col, len(assembler.assembly.contigs[function][contig].sequence))
-                col += 1
-                contigs_worksheet.write(row, col, assembler.assembly.contigs[function][contig].get_read_count())
-                col += 1
-                contigs_worksheet.write(row, col, assembler.assembly.contigs[function][contig].get_rpkm(total_read_count), cell_numformat5)
-                col += 1
-                contigs_worksheet.write(row, col, assembler.assembly.contigs[function][contig].get_coverage(), cell_numformat1)
-                col += 1
-                contigs_worksheet.write(row, col, len(assembler.assembly.contigs[function][contig].genes))
-                col += 1
-
-                for sample in samples_list:
-                    contigs_worksheet.write(row, col, assembler.assembly.contigs[function][contig].get_read_count(sample))
-                    col += 1
-                    contigs_worksheet.write(row, col, assembler.assembly.contigs[function][contig].get_rpkm(assembler.project.options.get_fastq1_readcount(sample),sample), cell_numformat5)
-                    col += 1
-                    contigs_worksheet.write(row, col, assembler.assembly.contigs[function][contig].get_coverage(sample), cell_numformat1)
-                    col += 1
-                contigs_worksheet.write(row, col, assembler.project.ref_data.lookup_function_name(function))
-
-    # adjust column width
-    contigs_worksheet.set_column(0, 1, 10)
-    contigs_worksheet.set_column(col, col, 50)
-
-    # make worksheet for genes
-    genes_worksheet = workbook.add_worksheet('Genes')
-    
-    row = 0
-    col = 0
-    genes_worksheet.write(row, col, 'Gene', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'Reads function', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'Contig', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'Gene length', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'Read count', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'RPKM', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'Coverage', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'FAMA gene status', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'FAMA function', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'FAMA identity', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'CDS completeness', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'FAMA best hit', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'FAMA best hit taxonomy ID', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'Uniref best hit organism', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'Uniref best hit taxonomy ID', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'Uniref best hit ID', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'Uniref best hit identity', bold)
-    col += 1
-    genes_worksheet.write(row, col, 'Uniref best hit description', bold)
-
-    for sample in samples_list:
-        col += 1
-        genes_worksheet.write(row, col, sample, bold)
-        col += 1
-        genes_worksheet.write(row, col, sample, bold)
-        col += 1
-        genes_worksheet.write(row, col, sample, bold)
-
-    col += 1
-    genes_worksheet.write(row, col, 'Definition', bold)
-
-    row += 1
-    col = 17
-    for sample in samples_list:
-        col += 1
-        genes_worksheet.write(row, col, 'Read count', bold)
-        col += 1
-        genes_worksheet.write(row, col, 'RPKM', bold)
-        col += 1
-        genes_worksheet.write(row, col, 'Coverage', bold)
-
-    for function in sorted(functions_list):
-        if function in assembler.assembly.contigs:
-            for contig in sorted(assembler.assembly.contigs[function].keys()):
-                for gene_id in sorted(assembler.assembly.contigs[function][contig].genes.keys()):
-                    gene = assembler.assembly.contigs[function][contig].genes[gene_id]
-                    row += 1
-                    col = 0
-                    # Write Gene ID
-                    genes_worksheet.write(row, col, gene_id)
-                    col += 1
-                    # Write Gene function from read mapping
-                    genes_worksheet.write(row, col, function)
-                    col += 1
-                    # Write Contig ID
-                    genes_worksheet.write(row, col, contig)
-                    col += 1
-                    # Write gene length
-                    genes_worksheet.write(row, col, len(gene.protein_sequence) * 3)
-                    col += 1
-                    # Write read count (calculated from read count of contig, adjusted by gene length)
-                    gene_read_count = assembler.assembly.contigs[function][contig].get_read_count() * len(gene.protein_sequence) * 3 / len(assembler.assembly.contigs[function][contig].sequence)
-                    genes_worksheet.write(row, col, gene_read_count, cell_numformat1)
-                    col += 1
-                    # Write RPKM
-                    gene_rpkm = assembler.assembly.contigs[function][contig].get_rpkm(total_read_count) * len(gene.protein_sequence) * 3 / len(assembler.assembly.contigs[function][contig].sequence)
-                    genes_worksheet.write(row, col, gene_rpkm, cell_numformat5)
-                    col += 1
-                    # Write coverage
-                    genes_worksheet.write(row, col, assembler.assembly.contigs[function][contig].get_coverage(), cell_numformat1)
-                    col += 1
-                    # Write FAMA gene status
-                    genes_worksheet.write(row, col, gene.get_status())
-                    col += 1
-                    if gene.get_status() == 'function,besthit' or gene.get_status() == 'function':
-                        # Write FAMA predicted functions
-                        gene_functions = [y for x in gene.hit_list.get_hits() for y in x.functions]
-                        genes_worksheet.write(row, col, ','.join(gene_functions))
-                        col += 1
-                        # Write FAMA identity
-                        gene_identity = [x.get_identity() for x in gene.hit_list.get_hits()]
-                        genes_worksheet.write(row, col, sum (gene_identity) / len (gene_identity), cell_numformat1)
-                        col += 1
-                        # Write CDS completeness
-                        ref_length = [x.get_subject_length() for x in gene.hit_list.get_hits()]
-                        genes_worksheet.write(row, col, len (gene.protein_sequence) * 100 / sum (ref_length), cell_numformat1)
-                        col += 1
-                        # Write FAMA best hits
-                        fama_hits = [cleanup_protein_id(x.get_subject_id()) for x in gene.hit_list.get_hits()]
-                        genes_worksheet.write(row, col, ','.join(fama_hits))
-                        col += 1
-                        # Write FAMA taxonomy ID
-                        gene_taxonomy = [assembler.project.ref_data.lookup_protein_tax(cleanup_protein_id(x.get_subject_id())) for x in gene.hit_list.get_hits()]
-                        genes_worksheet.write(row, col, ','.join(gene_taxonomy))
-                        col += 1
-                    else:
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
-
-                    # Write UniRef taxon name
-                    taxonomy_id = gene.get_taxonomy_id()
-                    if taxonomy_id in taxonomy_data.names:
-                        genes_worksheet.write(row, col, taxonomy_data.names[taxonomy_id]['name'])
-                    else:
-                        genes_worksheet.write(row, col, 'N/A')
-                    col += 1
-
-                    # Write UniRef taxonomy ID
-                    if taxonomy_id:
-                        genes_worksheet.write(row, col, taxonomy_id)
-                    else:
-                        genes_worksheet.write(row, col, 'N/A')
-                    col += 1
-                    
-                    if gene.uniref_hit:
-                        uniref_id = gene.uniref_hit.get_subject_id()
-                        if uniref_id:
-                            # Write Uniref best hit ID
-                            genes_worksheet.write(row, col, uniref_id)
-                            col += 1
-                            # Write Uniref best hit identity
-                            genes_worksheet.write(row, col, gene.uniref_hit.get_identity())
-                            col += 1
-                            # Write Uniref best hit description
-                            genes_worksheet.write(row, col, assembler.uniprot.get_uniprot_description(uniref_id))
-                    else:
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
-                        genes_worksheet.write(row, col, 'N/A')
-
-
-                    for sample in samples_list:
-                        col += 1
-                        gene_read_count = assembler.assembly.contigs[function][contig].get_read_count(sample) * len(gene.protein_sequence) * 3 / len(assembler.assembly.contigs[function][contig].sequence)
-                        genes_worksheet.write(row, col, gene_read_count, cell_numformat1)
-                        col += 1
-                        gene_rpkm = assembler.assembly.contigs[function][contig].get_rpkm(assembler.project.options.get_fastq1_readcount(sample),sample) * len(gene.protein_sequence) * 3 / len(assembler.assembly.contigs[function][contig].sequence)
-                        genes_worksheet.write(row, col, gene_rpkm, cell_numformat5)
-                        col += 1
-                        genes_worksheet.write(row, col, assembler.assembly.contigs[function][contig].get_coverage(sample), cell_numformat1)
-                    col += 1
-                    genes_worksheet.write(row, col, assembler.project.ref_data.lookup_function_name(function))
-                        
-
-
-    # adjust column width
-    genes_worksheet.set_column(0, 0, 20)
-    genes_worksheet.set_column(1, 1, 10)
-    genes_worksheet.set_column(7, 9, 15)
-    genes_worksheet.set_column(col, col, 50)
-    
-    workbook.close()

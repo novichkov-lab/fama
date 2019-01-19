@@ -2,7 +2,7 @@ import os, csv, operator, shutil
 from subprocess import Popen, PIPE, CalledProcessError
 from collections import Counter, defaultdict
 
-from Fama.DiamondParser.hit_utils import autovivify,cleanup_protein_id
+from Fama.utils import autovivify,cleanup_protein_id
 from Fama.GeneAssembler.Contig import Contig
 from Fama.GeneAssembler.Gene import Gene
 from Fama.GeneAssembler.GeneAssembly import GeneAssembly
@@ -11,7 +11,8 @@ from Fama.DiamondParser.DiamondHit import DiamondHit
 from Fama.OutputUtil.JSONUtil import export_gene_assembly
 from Fama.TaxonomyProfile import TaxonomyProfile
 from Fama.OutputUtil.KronaXMLWriter import generate_assembly_taxonomy_chart
-from Fama.OutputUtil.Report import create_assembly_xlsx,generate_assembly_report
+from Fama.OutputUtil.Report import generate_assembly_report
+from Fama.OutputUtil.XlsxUtil import create_assembly_xlsx
 from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
 from Fama.ReferenceLibrary.UniprotData import UniprotData
 

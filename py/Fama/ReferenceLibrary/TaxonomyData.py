@@ -12,6 +12,7 @@ class TaxonomyData:
     def __init__(self,options):
         self.names = defaultdict(dict)
         self.nodes = defaultdict(dict)
+        self.RANKS = ['norank', 'superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
 
     def load_taxdata(self, options):
         names_file = options.get_taxonomy_names_file()
@@ -64,6 +65,8 @@ class TaxonomyData:
         self.names['0']['name'] = 'Unknown'
         self.nodes['0']['parent'] = '1'
         self.nodes['0']['rank'] = 'norank'
+        # make rank of root different from others
+        self.nodes['1']['rank'] = 'norank'
         
     def get_lca(self, taxonomy_id_list):
         # This function takes list of NCBI Taxonomy IDs and returns ID
@@ -122,7 +125,6 @@ class TaxonomyData:
     def get_taxonomy_profile(self,counts,identity,scores):
         unknown_label = 'Unknown'
         unknown_rank = 'superkingdom'
-        ranks = ['norank', 'superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
         
         cellular_organisms_taxid = '131567';
         non_cellular_organisms_name = 'Non-cellular';
@@ -168,7 +170,7 @@ class TaxonomyData:
                     break
                 parent = self.nodes[current_id]['parent']
                 rank = self.nodes[current_id]['rank']
-                if rank in ranks:
+                if rank in self.RANKS:
                     name = self.names[current_id]['name']
                     rpkm_per_rank[rank][name] += scores[taxid]
                     counts_per_rank[rank][name] += counts[taxid]

@@ -1,7 +1,8 @@
 from fpdf import FPDF,HTMLMixin
 import os
 from collections import defaultdict,Counter,OrderedDict
-from Fama.DiamondParser.hit_utils import cleanup_protein_id,get_paired_end
+from Fama.DiamondParser.hit_utils import get_paired_end
+from Fama.utils import cleanup_protein_id
 from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
 
 
@@ -20,16 +21,16 @@ def generate_pdf_report(parser):
     pdf.cell(60, 10, 'Sequence data')
     pdf.ln(h = '')
     pdf.set_font('Arial', '', 12)
-    pdf.cell(75, 10, 'Sample ID: ' + parser.project.get_sample_id(parser.sample))
+    pdf.cell(75, 10, 'Sample ID: ' + parser.options.get_sample_name(parser.sample.sample_id))
     pdf.ln(h = 5)
     pdf.cell(90, 10, 'Paired end: ' + parser.end)
     pdf.ln(h = 5)
-    pdf.cell(105, 10, 'FASTQ file: ' + parser.project.get_fastq_path(parser.sample, parser.end))
+    pdf.cell(105, 10, 'FASTQ file: ' + parser.options.get_fastq_path(parser.sample.sample_id, parser.end))
     pdf.ln(h = 5)
-    if parser.project.get_fastq_path(parser.sample, get_paired_end(parser.end)):
-        pdf.cell(120, 10, 'Paired-end FASTQ file: ' + parser.project.get_fastq_path(parser.sample, get_paired_end(parser.end)))
+    if parser.options.get_fastq_path(parser.sample.sample_id, get_paired_end(parser.end)):
+        pdf.cell(120, 10, 'Paired-end FASTQ file: ' + parser.options.get_fastq_path(parser.sample.sample_id, get_paired_end(parser.end)))
         pdf.ln(h = 5)
-    pdf.cell(135, 10, 'Total number of reads: ' + str(parser.project.get_fastq1_readcount(parser.sample)))
+    pdf.cell(135, 10, 'Total number of reads: ' + str(parser.options.get_fastq1_readcount(parser.sample.sample_id)))
     pdf.ln(h = 20)
 
     pdf.set_font('Arial', 'B', 12)
@@ -61,9 +62,9 @@ def generate_pdf_report(parser):
     pdf.ln(h = 5)
     pdf.cell(335, 10, 'e-value threshold for reference DB search: ' + '{:.2e}'.format(parser.config.get_evalue_cutoff(parser.collection)))
     pdf.ln(h = 5)
-    pdf.cell(335, 10, 'e-value threshold for background DB search: ' + '{:.2e}'.format(parser.config.get_background_db_size(parser.project.get_collection(parser.sample)) 
-                        * parser.config.get_evalue_cutoff(parser.project.get_collection(parser.sample))
-                        / parser.config.get_reference_db_size(parser.project.get_collection(parser.sample))))
+    pdf.cell(335, 10, 'e-value threshold for background DB search: ' + '{:.2e}'.format(parser.config.get_background_db_size(parser.options.get_collection(parser.sample.sample_id)) 
+                        * parser.config.get_evalue_cutoff(parser.options.get_collection(parser.sample.sample_id))
+                        / parser.config.get_reference_db_size(parser.options.get_collection(parser.sample.sample_id))))
     pdf.ln(h = 20)
 
     # Write search stats
@@ -231,7 +232,7 @@ def generate_pdf_report(parser):
         pdf.write_html('\n'.join(table_rows))
 
 
-    outfile = os.path.join(parser.project.get_project_dir(parser.sample), parser.project.get_output_subdir(parser.sample),parser.sample + '_' + parser.end + '_'+ parser.project.get_report_name()+'.pdf')
+    outfile = os.path.join(parser.options.get_project_dir(parser.sample.sample_id), parser.options.get_output_subdir(parser.sample.sample_id),parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_report_name()+'.pdf')
     print('Writing PDF output to ', outfile)
     pdf.output(outfile, 'F')
 
@@ -247,11 +248,11 @@ def generate_protein_pdf_report(parser):
     pdf.cell(60, 10, 'Sequence data')
     pdf.ln(h = '')
     pdf.set_font('Arial', '', 12)
-    pdf.cell(75, 10, 'Sample ID: ' + parser.project.get_sample_id(parser.sample))
+    pdf.cell(75, 10, 'Sample ID: ' + parser.options.get_sample_id(parser.sample.sample_id))
     pdf.ln(h = 5)
-    pdf.cell(105, 10, 'FASTA file: ' + parser.project.get_fastq_path(parser.sample, parser.end))
+    pdf.cell(105, 10, 'FASTA file: ' + parser.options.get_fastq_path(parser.sample.sample_id, parser.end))
     pdf.ln(h = 5)
-    pdf.cell(135, 10, 'Number of reads: ' + str(parser.project.get_fastq1_readcount(parser.sample)))
+    pdf.cell(135, 10, 'Number of reads: ' + str(parser.options.get_fastq1_readcount(parser.sample.sample_id)))
     pdf.ln(h = 20)
 
     pdf.set_font('Arial', 'B', 12)
@@ -283,9 +284,9 @@ def generate_protein_pdf_report(parser):
     pdf.ln(h = 5)
     pdf.cell(335, 10, 'e-value threshold for reference DB search: ' + '{:.2e}'.format(parser.config.get_evalue_cutoff(parser.collection)))
     pdf.ln(h = 5)
-    pdf.cell(335, 10, 'e-value threshold for background DB search: ' + '{:.2e}'.format(parser.config.get_background_db_size(parser.project.get_collection(parser.sample)) 
-                        * parser.config.get_evalue_cutoff(parser.project.get_collection(parser.sample))
-                        / parser.config.get_reference_db_size(parser.project.get_collection(parser.sample))))
+    pdf.cell(335, 10, 'e-value threshold for background DB search: ' + '{:.2e}'.format(parser.config.get_background_db_size(parser.options.get_collection(parser.sample.sample_id)) 
+                        * parser.config.get_evalue_cutoff(parser.options.get_collection(parser.sample.sample_id))
+                        / parser.config.get_reference_db_size(parser.options.get_collection(parser.sample.sample_id))))
     pdf.ln(h = 20)
 
     # Write search stats
@@ -452,6 +453,6 @@ def generate_protein_pdf_report(parser):
         pdf.write_html('\n'.join(table_rows))
 
 
-    outfile = os.path.join(parser.project.get_project_dir(parser.sample), parser.project.get_output_subdir(parser.sample),parser.sample + '_' + parser.end + '_'+ parser.project.get_report_name()+'.pdf')
+    outfile = os.path.join(parser.options.get_project_dir(parser.sample.sample_id), parser.options.get_output_subdir(parser.sample.sample_id),parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_report_name()+'.pdf')
     print('Writing PDF output to ', outfile)
     pdf.output(outfile, 'F')

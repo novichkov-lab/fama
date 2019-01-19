@@ -84,11 +84,10 @@ class AnnotatedRead:
         return self.functions
 
     def set_status(self, status):
-        if self.status == 'unaccounted' or self.status == 'nofunction':
+        if status in ['unaccounted', 'nofunction', 'function']:
             self.status = status
-        elif self.status == 'function':
-            if status != 'nofunction':
-                self.status = status
+        else:
+            raise ValueError('Unknown read status: ' + status)
         
     def get_status(self):
         return self.status
