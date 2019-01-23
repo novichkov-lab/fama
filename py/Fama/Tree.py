@@ -41,11 +41,16 @@ class Node(object):
         self.attributes[k] = v
 
     def add_attribute(self, k, v):
-        if isinstance(v,dict) and not self.attributes:
-            self.attributes = defaultdict(lambda : defaultdict(dict))
+        if isinstance(v,dict) and len(self.attributes) == 0:
+            #self.attributes = defaultdict(lambda : defaultdict(dict))
+            self.attributes = defaultdict(dict)
+        
         if k in self.attributes:
             if isinstance(v,dict):
                 for k2 in v:
+                    if isinstance(v[k2], dict):
+                        print (k, v[k2])
+                        raise TypeError ('Attribute value cannot be dict')
                     if k2 in self.attributes[k]:
                         self.attributes[k][k2] += v[k2]
                     else:
@@ -55,6 +60,9 @@ class Node(object):
         else:
             if isinstance(v,dict):
                 for k2 in v:
+                    if isinstance(v[k2], dict):
+                        print (k, v[k2])
+                        raise TypeError ('Attribute value cannot be dict')
                     self.attributes[k][k2] = v[k2]
             else:
                 self.attributes[k] = v

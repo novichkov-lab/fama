@@ -98,19 +98,20 @@ class TaxonomyData:
                     parent_id = '0'
                 lineage.insert(0,parent_id)
                 depth += 1
+#            print(lineage)
             taxonomic_lineages[taxonomy_id] = lineage
             if depth < min_depth:
                 min_depth = depth
-    #    print(taxonomic_lineages)
+#        print(taxonomic_lineages)
         # Find the deepest common node for all leaves in taxonomic subtree
         upper_level_taxids = set('0')
-        for  i in range(0,min_depth):
+        for  i in range(0,min_depth+1):
             id_set = set()
             # For each level of taxonomy, find non-redundant list of taxonomy IDs
             for taxonomy_id in taxonomy_id_list:
                 if taxonomy_id in self.nodes:
                     id_set.add(taxonomic_lineages[taxonomy_id][i])
-    #        print (id_set)
+#            print (id_set)
             if len(id_set) > 1:
                 # If current level of taxonomy subtree has more than one node,
                 # return taxonomy ID of the upper level node. Otherwise, 
@@ -121,6 +122,59 @@ class TaxonomyData:
         if len(upper_level_taxids) == 1:
             return upper_level_taxids.pop()
         return '0'
+
+    def get_lca2(self, taxonomy_id_list):
+        # This function takes list of NCBI Taxonomy IDs and returns ID
+        # of the latest common ancestor node in NCBI Taxonomy, which
+        # has one of ranks defined in self.RANKS
+        ret_val = '0'
+        
+        if len(taxonomy_id_list) == 1:
+            taxonomy_id = taxonomy_id_list.pop()
+            if taxonomy_id == '':
+                return ret_val
+            else:
+                return taxonomy_id
+
+        taxonomic_levels = defaultdict(set)
+        
+        
+        for taxonomy_id in taxonomy_id_list:
+            if taxonomy_id == '':
+                continue
+            if taxonomy_id in self.nodes:
+                taxonomic_levels[self.nodes[taxonomy_id]['rank']].add(taxonomy_id)
+                parent_id = self.nodes[taxonomy_id]['parent']
+                while parent_id != '1':
+                    taxonomic_levels[self.nodes[parent_id]['rank']].add(parent_id)
+                    parent_id = self.nodes[parent_id]['parent']
+            else: 
+                print('WARNING: taxonomy ID',taxonomy_id,'not found in NCBI Taxonomy: skipped')
+                continue
+        
+        if len(taxonomic_levels) == 0:
+            return ret_val
+        
+        print(taxonomic_levels)
+        last_good_level = set('1')
+        for rank in self.RANKS[1:]:
+            if len(taxonomic_levels[rank]) == 1:
+                print(rank, 'is good!')
+                last_good_level = taxonomic_levels[rank]
+            else:
+                print(rank, 'is not good!')
+                break
+        ret_val = last_good_level.pop()
+        lca_rank = self.nodes[ret_val]['rank']
+        
+        while ret_val != '1':
+            print('LCA', ret_val)
+            if self.nodes[ret_val]['rank'] in self.RANKS:
+                break
+            ret_val = self.nodes[ret_val]['parent']
+            lca_rank = self.nodes[ret_val]['rank']
+
+        return ret_val 
         
     def get_taxonomy_profile(self,counts,identity,scores):
         unknown_label = 'Unknown'

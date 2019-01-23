@@ -125,8 +125,8 @@ def export_sample(sample):
     outfile = os.path.join(sample.work_directory, sample.sample_id + '_' + 'sample.json')
     #print pretty JSON: print(json.dumps(parser.reads,indent=4, cls=CustomEncoder))
     with open (outfile, 'w') as of:
-        of.write(json.dumps(sample,indent=4, cls=CustomEncoder))
-        #json.dump(sample,of,cls=CustomEncoder)
+        #of.write(json.dumps(sample,indent=4, cls=CustomEncoder))
+        json.dump(sample,of,cls=CustomEncoder)
         of.closed
 
 def export_gene_assembly(assembly,outfile):

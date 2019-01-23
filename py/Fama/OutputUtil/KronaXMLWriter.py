@@ -114,42 +114,42 @@ def print_tax_xml(tax_profile, taxid, offset, score='rpkm'):
     ret_val += '\t'*offset + '</node>\n'
     return ret_val
 
-def generate_taxonomy_chart(tax_profile, sample, outfile, score = 'rpkm'):
-    with open(outfile, 'w') as of:
-        # Write header
-        of.write('<krona key="false">\n')
-        of.write('\t<attributes magnitude="' + score + '">\n')
-        of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
-        of.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
-        of.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
-        of.write('\t</attributes>\n')
-        of.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" hueEnd="240" default="true"></color>\n')
+#~ def generate_taxonomy_chart(tax_profile, sample, outfile, score = 'rpkm'):
+    #~ with open(outfile, 'w') as of:
+        #~ # Write header
+        #~ of.write('<krona key="false">\n')
+        #~ of.write('\t<attributes magnitude="' + score + '">\n')
+        #~ of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
+        #~ of.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
+        #~ of.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
+        #~ of.write('\t</attributes>\n')
+        #~ of.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" hueEnd="240" default="true"></color>\n')
         
-        # Write dataset
-        of.write('\t<datasets>\n')
-        of.write('\t\t<dataset>' + sample + '</dataset>\n')
-        of.write('\t</datasets>\n')
+        #~ # Write dataset
+        #~ of.write('\t<datasets>\n')
+        #~ of.write('\t\t<dataset>' + sample + '</dataset>\n')
+        #~ of.write('\t</datasets>\n')
         
-        # Write nodes
-        root_id = '1'
-        offset = 1
-        of.write(print_tax_xml(tax_profile, root_id, offset))
+        #~ # Write nodes
+        #~ root_id = '1'
+        #~ offset = 1
+        #~ of.write(print_tax_xml(tax_profile, root_id, offset))
         
-        # Close XML
-        of.write('</krona>')
-        of.closed
+        #~ # Close XML
+        #~ of.write('</krona>')
+        #~ of.closed
 
-    # Run Krona
-    html_file = outfile + '.html'
-    krona_cmd = ['ktImportXML', '-o', html_file, outfile]
+    #~ # Run Krona
+    #~ html_file = outfile + '.html'
+    #~ krona_cmd = ['ktImportXML', '-o', html_file, outfile]
 
-    with Popen(krona_cmd, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
-        for line in p.stdout:
-            print(line, end='')
-    if p.returncode != 0:
-        raise CalledProcessError(p.returncode, p.args)
+    #~ with Popen(krona_cmd, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
+        #~ for line in p.stdout:
+            #~ print(line, end='')
+    #~ if p.returncode != 0:
+        #~ raise CalledProcessError(p.returncode, p.args)
 
-def print_loose_tax_xml(tax_profile, taxid, offset, score='rpkm'):
+def print_lca_tax_xml(tax_profile, taxid, offset, score='rpkm'):
     #print(taxid)
     attribute_values = defaultdict(float)
     if taxid not in tax_profile.tree.data:
@@ -168,7 +168,7 @@ def print_loose_tax_xml(tax_profile, taxid, offset, score='rpkm'):
     if tax_profile.tree.data[taxid].children:
         for child_taxid in tax_profile.tree.data[taxid].children:
             #print('Called print_tax_xml', child_taxid, offset)
-            child_node, child_values  = print_loose_tax_xml(tax_profile, child_taxid, offset, score)
+            child_node, child_values  = print_lca_tax_xml(tax_profile, child_taxid, offset, score)
             ret_val += child_node
             for k,v in child_values.items():
                 attribute_values[k] += v
@@ -198,7 +198,7 @@ def print_loose_tax_xml(tax_profile, taxid, offset, score='rpkm'):
     attribute_values['hit_count'] = tax_profile.tree.data[taxid].attributes['hit_count']
     return ret_val, attribute_values
 
-def generate_loose_taxonomy_chart(tax_profile, sample, outfile, score = 'rpkm'):
+def generate_taxonomy_chart(tax_profile, sample, outfile, score = 'rpkm'):
     with open(outfile, 'w') as of:
         # Write header
         of.write('<krona key="false">\n')
@@ -217,7 +217,7 @@ def generate_loose_taxonomy_chart(tax_profile, sample, outfile, score = 'rpkm'):
         # Write nodes
         root_id = '1'
         offset = 1
-        child_node, child_attributes = print_loose_tax_xml(tax_profile, root_id, offset, score=score)
+        child_node, child_attributes = print_lca_tax_xml(tax_profile, root_id, offset, score=score)
         of.write(child_node)
         
         # Close XML
@@ -256,7 +256,7 @@ def generate_taxonomy_series_chart(tax_profile, sample_list, outfile, score='rpk
         root_id = '1'
         offset = 1
 #        of.write(print_dataseries_tax_xml(tax_profile, sample_list, root_id, offset, score))
-        child_nodes, _ = print_loose_dataseries_tax_xml(tax_profile, sample_list, root_id, offset, score=score)
+        child_nodes, _ = print_lca_dataseries_tax_xml(tax_profile, sample_list, root_id, offset, score=score)
         of.write(child_nodes)
         
         # Close XML
@@ -273,8 +273,7 @@ def generate_taxonomy_series_chart(tax_profile, sample_list, outfile, score='rpk
     if p.returncode != 0:
         raise CalledProcessError(p.returncode, p.args)
 
-def print_loose_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='rpkm'):
-    #print(taxid)
+def print_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='rpkm'):
     attribute_values = autovivify(2,float)
     
     if taxid not in tax_profile.tree.data:
@@ -293,7 +292,7 @@ def print_loose_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes and score in tax_profile.tree.data[taxid].attributes[datapoint]:
 #                print(datapoint, tax_profile.tree.data[taxid].attributes[datapoint][score])
-                ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint][score]), "0.5f") + '</val>'
+                ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint][score]), "0.6f") + '</val>'
                 #ret_val += '<val>' + str(tax_profile.tree.data[taxid].attributes[datapoint]['rpkm']) + '</val>'
             else:
                 ret_val += '<val>0.0</val>'
@@ -316,47 +315,49 @@ def print_loose_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score
         
     if tax_profile.tree.data[taxid].children:
         for child_taxid in tax_profile.tree.data[taxid].children:
-            child_node, child_values = print_loose_dataseries_tax_xml(tax_profile, dataseries, child_taxid, offset, score=score)
+            child_node, child_values = print_lca_dataseries_tax_xml(tax_profile, dataseries, child_taxid, offset, score=score)
             ret_val += child_node
             for datapoint in child_values.keys():
                 for k,v in child_values[datapoint].items():
                     attribute_values[datapoint][k] += v
-            
+#        print('Finished adding children for', taxid)
+#        print('Children returned', attribute_values)
         # Add a child node for unidentified child taxon, if needed
         unidentified_flag = False
+#        print(tax_profile.tree.data[taxid].attributes)
         for datapoint in dataseries:
-            if datapoint in tax_profile.tree.data[taxid].attributes and attribute_values[datapoint]['count'] < tax_profile.tree.data[taxid].attributes[datapoint]['count']:
-                unidentified_flag = True
-                break
-        
+            if datapoint in tax_profile.tree.data[taxid].attributes:
+                if attribute_values[datapoint]['count'] < tax_profile.tree.data[taxid].attributes[datapoint]['count']:
+                    unidentified_flag = True
+                    break
+    
         if unidentified_flag:
             if offset == 2:
-                ret_val += '\t'*offset + '<node name="Unknown">\n'
+                ret_val += '\t'*offset + '<node name="Unclassified">\n'
             else:
-                ret_val += '\t'*offset + '<node name="Unidentified ' + tax_profile.tree.data[taxid].name + '">\n'
+                ret_val += '\t'*offset + '<node name="Unclassified ' + tax_profile.tree.data[taxid].name + '">\n'
             offset += 1
+            ret_val += '\t'*offset + '<readcount>'
             for datapoint in dataseries:
-                ret_val += '\t'*offset + '<readcount>'
-                for datapoint in dataseries:
-                    if datapoint in tax_profile.tree.data[taxid].attributes and attribute_values[datapoint]['count'] < tax_profile.tree.data[taxid].attributes[datapoint]['count']:
-                        ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint]['count'] - attribute_values[datapoint]['count']), "0.0f") + '</val>'
-                    else:
-                        ret_val += '<val>0</val>'
-                ret_val += '</readcount>\n'
-                ret_val += '\t'*offset + '<' + score + '>'
-                for datapoint in dataseries:
-                    if datapoint in tax_profile.tree.data[taxid].attributes and attribute_values[datapoint]['count'] < tax_profile.tree.data[taxid].attributes[datapoint]['count']:
-                        ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint][score] - attribute_values[datapoint][score]), "0.5f") + '</val>'
-                    else:
-                        ret_val += '<val>0.0</val>'
-                ret_val += '</' + score + '>\n' 
-                ret_val += '\t'*offset + '<identity>'
-                for datapoint in dataseries:
-                    if datapoint in tax_profile.tree.data[taxid].attributes and attribute_values[datapoint]['count'] < tax_profile.tree.data[taxid].attributes[datapoint]['count']:
-                        ret_val += '<val>' + format(((tax_profile.tree.data[taxid].attributes[datapoint]['identity'] - attribute_values[datapoint]['identity'])/(tax_profile.tree.data[taxid].attributes[datapoint]['hit_count'] - attribute_values[datapoint]['hit_count'])), "0.1f") + '</val>'
-                    else:
-                        ret_val += '<val>0.0</val>'
-                ret_val += '</identity>\n'
+                if datapoint in tax_profile.tree.data[taxid].attributes and attribute_values[datapoint]['count'] < tax_profile.tree.data[taxid].attributes[datapoint]['count']:
+                    ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint]['count'] - attribute_values[datapoint]['count']), "0.0f") + '</val>'
+                else:
+                    ret_val += '<val>0</val>'
+            ret_val += '</readcount>\n'
+            ret_val += '\t'*offset + '<' + score + '>'
+            for datapoint in dataseries:
+                if datapoint in tax_profile.tree.data[taxid].attributes and attribute_values[datapoint]['count'] < tax_profile.tree.data[taxid].attributes[datapoint]['count']:
+                    ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint][score] - attribute_values[datapoint][score]), "0.6f") + '</val>'
+                else:
+                    ret_val += '<val>0.0</val>'
+            ret_val += '</' + score + '>\n' 
+            ret_val += '\t'*offset + '<identity>'
+            for datapoint in dataseries:
+                if datapoint in tax_profile.tree.data[taxid].attributes and 'hit_count' in tax_profile.tree.data[taxid].attributes[datapoint] and attribute_values[datapoint]['hit_count'] < tax_profile.tree.data[taxid].attributes[datapoint]['hit_count']:
+                    ret_val += '<val>' + format(((tax_profile.tree.data[taxid].attributes[datapoint]['identity'] - attribute_values[datapoint]['identity'])/(tax_profile.tree.data[taxid].attributes[datapoint]['hit_count'] - attribute_values[datapoint]['hit_count'])), "0.1f") + '</val>'
+                else:
+                    ret_val += '<val>0.0</val>'
+            ret_val += '</identity>\n'
 
             offset -= 1
             ret_val += '\t'*offset + '</node>\n'
@@ -372,6 +373,7 @@ def print_loose_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score
                 attribute_values[datapoint]['count'] = tax_profile.tree.data[taxid].attributes[datapoint]['count']
             if 'identity' in tax_profile.tree.data[taxid].attributes[datapoint]:
                 attribute_values[datapoint]['identity'] = tax_profile.tree.data[taxid].attributes[datapoint]['identity']
+            if 'hit_count' in tax_profile.tree.data[taxid].attributes[datapoint]:
                 attribute_values[datapoint]['hit_count'] = tax_profile.tree.data[taxid].attributes[datapoint]['hit_count']
     return ret_val, attribute_values
 

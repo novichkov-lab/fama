@@ -24,6 +24,87 @@ def get_rpk_score(hit, function_fraction, length_cutoff):
         ret_val = function_fraction*1000/3
     return ret_val
 
+def compare_hits_rpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, taxonomy_data, ref_data):
+    # This function compares hits assigned to an annotated read with functions
+    # from a Diamond hit list. It looks through the hit list, finds 
+    # hits with bitscore above cutoff and takes their functions.
+    #
+    # If there is one hit with the highest bit-score, read gets status 'function,besthit'
+    # If there are several hits with the highest bit-score, read gets status 'function'
+    # Otherwise, read gets status 'nofunction'
+    #
+    # hit_start and hit_end parameters are used for identification of hit for
+    # comparison, since multiple hits can be associated with a read 
+    #
+    # This function does not return anything. It sets status of read and 
+    # assigns RPKM score to each function of the read
+    #
+    # Find best hit
+    for hit in read.get_hit_list().get_hits():
+        #print(str(hit))
+        #print (str(hit.get_query_start()), str(hit_start), str(hit.get_query_end()), str(hit_end))
+        #print (type(hit.get_query_start()), type(hit_start), type(hit.get_query_end()), type(hit_end))
+        if hit.get_query_start() == hit_start and hit.get_query_end() == hit_end:
+            best_bitscore = 0.0
+            best_hit = None
+            for new_hit in new_hit_list.get_hits():
+                bitscore = new_hit.get_bitscore()
+                if bitscore > best_bitscore:
+                    best_hit = new_hit
+                    best_bitscore = bitscore
+            # Set status of read
+            if best_hit != None:
+                if '' in best_hit.get_functions():
+                    read.set_status('nofunction')
+                    return
+                else:
+                    read.set_status('function')
+            else:
+                read.set_status('nofunction')
+                return
+            
+            # Filter list of hits by bitscore
+            bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
+            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() > bitscore_lower_cutoff]
+            if hit.get_subject_id() not in [new_hit.get_subject_id() for new_hit in new_hits] and hit.get_bitscore() >= best_bitscore:
+                    new_hits.append(hit)
+
+            # Collect taxonomy IDs of all hits for LCA inference
+            taxonomy_ids = set([ref_data.lookup_protein_tax(h.get_subject_id()) for h in new_hits])
+
+            # Make non-redundant list of functions from hits after filtering
+            new_functions = {}
+            new_functions_counter = Counter()
+            new_functions_dict = defaultdict(dict)
+            # Find best hit for each function: only one hit with highest bitscore to be reported for each function
+            for h in new_hits:
+                for f in h.get_functions():
+                    new_functions_counter[f] += 1
+                    if f in new_functions_dict:
+                        if h.get_bitscore() > new_functions_dict[f]['bit_score']:
+                            new_functions_dict[f]['bit_score'] = h.get_bitscore()
+                            new_functions_dict[f]['hit'] = h
+                    else:
+                        new_functions_dict[f]['bit_score'] = h.get_bitscore()
+                        new_functions_dict[f]['hit'] = h
+
+            # If the most common function in new hits is unknown, set status "nofunction" and return
+            if new_functions_counter.most_common(1)[0][0] == '':
+                read.set_status('nofunction')
+                return
+
+            # Calculate RPK scores for functions
+            for function in new_functions_dict:
+                if function == '':
+                    continue
+                # Currently, functions are unweighted. To assign weights to functions, change second parameter of get_rpk_score
+                new_functions[function] = get_rpk_score(new_functions_dict[function]['hit'], 1.0, length_cutoff)
+
+            read.append_functions(new_functions)
+            # Set read taxonomy ID 
+            read.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
+
+
 def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, fastq_readcount, taxonomy_data, ref_data):
     # This function compares hits assigned to an annotated read with functions
     # from a Diamond hit list. It looks through the hit list, finds 

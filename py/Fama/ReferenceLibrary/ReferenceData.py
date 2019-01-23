@@ -27,7 +27,7 @@ class ReferenceData:
                 else:
                     line = line.rstrip('\n\r')
                     line_tokens = line.split('\t')
-                    if len(line_tokens) == 3:
+                    if len(line_tokens) > 2:
                         _dict[line_tokens[0]]['name'] = line_tokens[1]
                         _dict[line_tokens[0]]['group'] = line_tokens[2]
         print (len(_dict), ' functions found')
@@ -43,10 +43,10 @@ class ReferenceData:
                 else:
                     line = line.rstrip('\n\r')
                     line_tokens = line.split('\t')
-                    if len(line_tokens) == 4:
+                    if len(line_tokens) > 3:
                         _dict[line_tokens[0]]['taxid'] = line_tokens[1]
-                        _dict[line_tokens[0]]['function'] = line_tokens[3]
-                        _dict[line_tokens[0]]['source'] = line_tokens[2]
+                        _dict[line_tokens[0]]['function'] = line_tokens[-1]
+                        _dict[line_tokens[0]]['source'] = line_tokens[-2]
         print (len(_dict), ' reference proteins found')
         return _dict
         

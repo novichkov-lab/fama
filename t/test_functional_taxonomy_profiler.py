@@ -13,7 +13,8 @@ from Fama.DiamondParser.DiamondParser import DiamondParser
 from Fama.TaxonomyProfile import TaxonomyProfile
 
 from Fama.OutputUtil.JSONUtil import import_annotated_reads
-from Fama.OutputUtil.Report import generate_fastq_report
+from Fama.OutputUtil.Report import generate_fastq_report, get_function_scores, get_function_taxonomy_scores
+from Fama.OutputUtil.XlsxUtil import generate_function_sample_xlsx, generate_function_taxonomy_sample_xlsx
 from Fama.OutputUtil.KronaXMLWriter import generate_functional_taxonomy_chart,generate_taxonomy_series_chart
 
 data_dir = 'data'
@@ -1152,8 +1153,9 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
                     read_pe2 = self.project.samples[sample_id].reads['pe2'][read_id]
                     if read_pe2.get_status() == 'function':
                         # Both ends are mapped
-                        fragment_taxonomy = self.project.taxonomy_data.get_lca([read_pe1.taxonomy, read_pe2.taxonomy])
-                        
+                        fragment_lca = self.project.taxonomy_data.get_lca([read_pe1.taxonomy, read_pe2.taxonomy])
+#                        if fragment_lca == '1':
+#                            print ('Unknown LCA', read_id)
                         #fragment_scores = defaultdict(float) # Stores FPKM scores for the current read
                         fragment_functions = set() # List of functions assigned to the current read
 
@@ -1162,56 +1164,96 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
 
                         fragment_functions.update(read1_functions.keys())
                         fragment_functions.update(read2_functions.keys())
+                        
+#                        if 'RP-S9' in fragment_functions:
+#                            print(read_id, '\tboth ends\t', fragment_taxonomy)
 
                         # We filled list of functions. Let's calculate FPKM score
                             
                         for function in fragment_functions:
                             all_functions_list.add(function)
-                            sample_scores[fragment_taxonomy][function]['count'] += 1
                             if function in read1_functions and function in read2_functions: # Take higher score
+                                sample_scores[fragment_lca][function]['count'] += 1
                                 all_scores[sample_id][function] += max (norm_factor * read1_functions[function], norm_factor * read2_functions[function])
-                                sample_scores[fragment_taxonomy][function][metrics] += max (norm_factor * read1_functions[function], norm_factor * read2_functions[function])
+                                sample_scores[fragment_lca][function][metrics] += max (norm_factor * read1_functions[function], norm_factor * read2_functions[function])
                             elif function in read1_functions:
+                                sample_scores[read_pe1.taxonomy][function]['count'] += 1
+                                #sample_scores[fragment_lca][function]['count'] += 1
                                 all_scores[sample_id][function] += norm_factor * read1_functions[function]
-                                sample_scores[fragment_taxonomy][function][metrics] += norm_factor * read1_functions[function]
+                                sample_scores[read_pe1.taxonomy][function][metrics] += norm_factor * read1_functions[function]
+                                #sample_scores[fragment_lca][function][metrics] += norm_factor * read1_functions[function]
                             elif function in read2_functions:
+                                sample_scores[read_pe2.taxonomy][function]['count'] += 1
+                                #sample_scores[fragment_lca][function]['count'] += 1
                                 all_scores[sample_id][function] += norm_factor * read2_functions[function]
-                                sample_scores[fragment_taxonomy][function][metrics] += norm_factor * read2_functions[function]
+                                sample_scores[read_pe2.taxonomy][function][metrics] += norm_factor * read2_functions[function]
+                                #sample_scores[fragment_lca][function][metrics] += norm_factor * read2_functions[function]
 
                         # Let's get hits data for calculation of identity% 
                         
-                        function_maxbitscores = {}
-                        hits1 = [hit for hit in read_pe1.get_hit_list().get_hits() if read_pe1.get_status() == 'function']
-                        hits2 = [hit for hit in read_pe2.get_hit_list().get_hits() if read_pe2.get_status() == 'function']
+                        function_maxbitscores = defaultdict(dict)
+                        hits1 = [hit for hit in read_pe1.get_hit_list().get_hits()]
+                        hits2 = [hit for hit in read_pe2.get_hit_list().get_hits()]
                         # Find max. bitscore for each function
                         for hit in hits1:
                             for hit_function in [function for function in hit.get_functions() if function in fragment_functions]:
                                 if hit_function in function_maxbitscores:
-                                    if hit.get_bitscore() > function_maxbitscores[hit_function]:
-                                        function_maxbitscores[hit_function] = hit.get_bitscore()
+                                    if hit.get_bitscore() > function_maxbitscores[hit_function]['bitscore']:
+                                        function_maxbitscores[hit_function]['bitscore'] = hit.get_bitscore()
+                                        function_maxbitscores[hit_function]['identity'] = hit.get_identity()
+                                        function_maxbitscores[hit_function]['taxonomy'] = read_pe1.taxonomy
                                 else:
-                                    function_maxbitscores[hit_function] = hit.get_bitscore()
+                                    function_maxbitscores[hit_function]['bitscore'] = hit.get_bitscore()
+                                    function_maxbitscores[hit_function]['identity'] = hit.get_identity()
+                                    function_maxbitscores[hit_function]['taxonomy'] = read_pe1.taxonomy
                         for hit in hits2:
                             for hit_function in [function for function in hit.get_functions() if function in fragment_functions]:
                                 if hit_function in function_maxbitscores:
-                                    if hit.get_bitscore() > function_maxbitscores[hit_function]:
-                                        function_maxbitscores[hit_function] = hit.get_bitscore()
+                                    if hit.get_bitscore() > function_maxbitscores[hit_function]['bitscore']:
+                                        function_maxbitscores[hit_function]['bitscore'] = hit.get_bitscore()
+                                        function_maxbitscores[hit_function]['identity'] = hit.get_identity()
+                                        function_maxbitscores[hit_function]['taxonomy'] = read_pe2.taxonomy
                                 else:
-                                    function_maxbitscores[hit_function] = hit.get_bitscore()
+                                    function_maxbitscores[hit_function]['bitscore'] = hit.get_bitscore()
+                                    function_maxbitscores[hit_function]['identity'] = hit.get_identity()
+                                    function_maxbitscores[hit_function]['taxonomy'] = read_pe2.taxonomy
                         # Count hits and sum identity
-                        for hit in hits1:
-                            for hit_function in [function for function in hit.get_functions() if function in fragment_functions]:
-                                if hit_function in function_maxbitscores and hit.get_bitscore() == function_maxbitscores[hit_function]:
-                                    sample_scores[fragment_taxonomy][hit_function]['hit_count'] += 1.0 
-                                    sample_scores[fragment_taxonomy][hit_function]['identity'] += hit.get_identity()
-                                    del function_maxbitscores[hit_function]
+                        for function in fragment_functions:
+                            if function in function_maxbitscores:
+                                if function in read1_functions and function in read2_functions:
+                                    #sample_scores[function_maxbitscores[function]['taxonomy']][function]['hit_count'] += 1.0 
+                                    #sample_scores[function_maxbitscores[function]['taxonomy']][function]['identity'] += function_maxbitscores[hit_function]['identity'] 
+                                    
+                                    sample_scores[fragment_lca][function]['hit_count'] += 1.0 
+                                    sample_scores[fragment_lca][function]['identity'] += function_maxbitscores[hit_function]['identity'] 
+                                elif function in read1_functions:
+                                    sample_scores[read_pe1.taxonomy][function]['hit_count'] += 1.0 
+                                    sample_scores[read_pe1.taxonomy][function]['identity'] += function_maxbitscores[hit_function]['identity'] 
+                                elif function in read2_functions:
+                                    sample_scores[read_pe2.taxonomy][function]['hit_count'] += 1.0 
+                                    sample_scores[read_pe2.taxonomy][function]['identity'] += function_maxbitscores[hit_function]['identity'] 
+                                    
+                            else:
+                                print('Function',function,'not found in hits of read', read_id)
+                                
+                                
+                        #~ for hit in hits1:
+                            #~ for hit_function in [function for function in hit.get_functions() if function in fragment_functions]:
+                                #~ if hit_function in function_maxbitscores and hit.get_bitscore() == function_maxbitscores[hit_function]:
+                                    #~ if hit_function in read1_functions and hit_function in read2_functions:
+                                        #~ sample_scores[fragment_lca][hit_function]['hit_count'] += 1.0 
+                                        #~ sample_scores[fragment_lca][hit_function]['identity'] += hit.get_identity()
+                                    #~ else:
+                                        #~ sample_scores[read_pe1.taxonomy][hit_function]['hit_count'] += 1.0 
+                                        #~ sample_scores[read_pe1.taxonomy][hit_function]['identity'] += hit.get_identity()
+                                    #~ del function_maxbitscores[hit_function]
 
-                        for hit in hits2:
-                            for hit_function in [function for function in hit.get_functions() if function in fragment_functions]:
-                                if hit_function in function_maxbitscores and hit.get_bitscore() == function_maxbitscores[hit_function]:
-                                    sample_scores[fragment_taxonomy][hit_function]['hit_count'] += 1.0 
-                                    sample_scores[fragment_taxonomy][hit_function]['identity'] += hit.get_identity()
-                                    del function_maxbitscores[hit_function]
+                        #~ for hit in hits2:
+                            #~ for hit_function in [function for function in hit.get_functions() if function in fragment_functions]:
+                                #~ if hit_function in function_maxbitscores and hit.get_bitscore() == function_maxbitscores[hit_function]:
+                                    #~ sample_scores[read_pe2.taxonomy][hit_function]['hit_count'] += 1.0 
+                                    #~ sample_scores[read_pe2.taxonomy][hit_function]['identity'] += hit.get_identity()
+                                    #~ del function_maxbitscores[hit_function]
 
 
                 else: #Only end1 is mapped
@@ -1219,6 +1261,10 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
                     fragment_taxonomy = read_pe1.taxonomy
                     read_functions = read_pe1.get_functions()
                     fragment_functions.update(read_functions.keys())
+
+#                    if 'RP-S9' in fragment_functions:
+#                        print(read_id, '\tpe1\t', fragment_taxonomy)
+
                     # Count FPKM
                     for function in fragment_functions:
                         all_functions_list.add(function)
@@ -1226,23 +1272,34 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
                         sample_scores[fragment_taxonomy][function]['count'] += 1
                         sample_scores[fragment_taxonomy][function][metrics] += norm_factor * read_functions[function]
                     # Build FPKM-based functional taxonomic profile
-                    function_maxbitscores = {}
-                    hits1 = [hit for hit in read_pe1.get_hit_list().get_hits() if read_pe1.get_status() == 'function']
+                    function_maxbitscores = defaultdict(dict)
+                    hits1 = [hit for hit in read_pe1.get_hit_list().get_hits()]
                     # Find max. bitscore for each function
                     for hit in hits1:
                         for hit_function in [function for function in hit.get_functions() if function in fragment_functions]:
                             if hit_function in function_maxbitscores:
-                                if hit.get_bitscore() > function_maxbitscores[hit_function]:
-                                    function_maxbitscores[hit_function] = hit.get_bitscore()
+                                if hit.get_bitscore() > function_maxbitscores[hit_function]['bitscore']:
+                                    function_maxbitscores[hit_function]['bitscore'] = hit.get_bitscore()
+                                    function_maxbitscores[hit_function]['identity'] = hit.get_identity()
+                                    function_maxbitscores[hit_function]['taxonomy'] = fragment_taxonomy
                             else:
-                                function_maxbitscores[hit_function] = hit.get_bitscore()
+                                function_maxbitscores[hit_function]['bitscore'] = hit.get_bitscore()
+                                function_maxbitscores[hit_function]['identity'] = hit.get_identity()
+                                function_maxbitscores[hit_function]['taxonomy'] = fragment_taxonomy
                     # Count hits and sum identity
-                    for hit in hits1:
-                        for hit_function in [function for function in hit.get_functions() if function in fragment_functions]:
-                            if hit_function in function_maxbitscores and hit.get_bitscore() == function_maxbitscores[hit_function]:
-                                sample_scores[fragment_taxonomy][hit_function]['hit_count'] += 1.0 
-                                sample_scores[fragment_taxonomy][hit_function]['identity'] += hit.get_identity()
-                                del function_maxbitscores[hit_function]
+                    for function in fragment_functions:
+                        if function in function_maxbitscores:
+                            sample_scores[function_maxbitscores[function]['taxonomy']][function]['hit_count'] += 1.0 
+                            sample_scores[function_maxbitscores[function]['taxonomy']][function]['identity'] += function_maxbitscores[hit_function]['identity']
+                        else:
+                            print('Function',function,'not found in hits of read', read_id)
+
+                    #~ for hit in hits1:
+                        #~ for hit_function in [function for function in hit.get_functions() if function in fragment_functions]:
+                            #~ if hit_function in function_maxbitscores and hit.get_bitscore() == function_maxbitscores[hit_function]:
+                                #~ sample_scores[fragment_taxonomy][hit_function]['hit_count'] += 1.0 
+                                #~ sample_scores[fragment_taxonomy][hit_function]['identity'] += hit.get_identity()
+                                #~ del function_maxbitscores[hit_function]
 
             for read_id in self.project.samples[sample_id].reads['pe2'].keys():
                 if read_id in reads_processed: 
@@ -1257,6 +1314,9 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
                 read_functions = read_pe2.get_functions()
                 fragment_functions.update(read_functions.keys())
 
+#                if 'RP-S9' in fragment_functions:
+#                    print(read_id, '\tpe2\t', fragment_taxonomy)
+
                 # Count FPKM
                 for function in fragment_functions:
                     all_functions_list.add(function)
@@ -1264,35 +1324,47 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
                     sample_scores[fragment_taxonomy][function]['count'] += 1
                     sample_scores[fragment_taxonomy][function][metrics] += norm_factor * read_functions[function]
                 # Build FPKM-based functional taxonomic profile
-                function_maxbitscores = {}
-                hits = [hit for hit in read_pe2.get_hit_list().get_hits() if read_pe2.get_status() == 'function']
+                function_maxbitscores = defaultdict(dict)
+                hits = [hit for hit in read_pe2.get_hit_list().get_hits()]
                 # Find max. bitscore for each function
                 for hit in hits:
                     for hit_function in [function for function in hit.get_functions() if function in fragment_functions]:
                         if hit_function in function_maxbitscores:
-                            if hit.get_bitscore() > function_maxbitscores[hit_function]:
-                                function_maxbitscores[hit_function] = hit.get_bitscore()
+                            if hit.get_bitscore() > function_maxbitscores[hit_function]['bitscore']:
+                                function_maxbitscores[hit_function]['bitscore'] = hit.get_bitscore()
+                                function_maxbitscores[hit_function]['identity'] = hit.get_identity()
+                                function_maxbitscores[hit_function]['taxonomy'] = fragment_taxonomy
                         else:
-                            function_maxbitscores[hit_function] = hit.get_bitscore()
+                            function_maxbitscores[hit_function]['bitscore'] = hit.get_bitscore()
+                            function_maxbitscores[hit_function]['identity'] = hit.get_identity()
+                            function_maxbitscores[hit_function]['taxonomy'] = fragment_taxonomy
+
                 # Count hits and sum identity
-                for hit in hits:
-                    for hit_function in [function for function in hit.get_functions() if function in fragment_functions]:
-                        if hit_function in function_maxbitscores and hit.get_bitscore() == function_maxbitscores[hit_function]:
-                            sample_scores[fragment_taxonomy][hit_function]['hit_count'] += 1.0 
-                            sample_scores[fragment_taxonomy][hit_function]['identity'] += hit.get_identity()
-                            del function_maxbitscores[hit_function]
+                for function in fragment_functions:
+                    if function in function_maxbitscores:
+                        sample_scores[function_maxbitscores[function]['taxonomy']][function]['hit_count'] += 1.0 
+                        sample_scores[function_maxbitscores[function]['taxonomy']][function]['identity'] += function_maxbitscores[hit_function]['identity']
+                    else:
+                        print('Function',function,'not found in hits of read', read_id)
+
+                #~ for hit in hits:
+                    #~ for hit_function in [function for function in hit.get_functions() if function in fragment_functions]:
+                        #~ if hit_function in function_maxbitscores and hit.get_bitscore() == function_maxbitscores[hit_function]:
+                            #~ sample_scores[fragment_taxonomy][hit_function]['hit_count'] += 1.0 
+                            #~ sample_scores[fragment_taxonomy][hit_function]['identity'] += hit.get_identity()
+                            #~ del function_maxbitscores[hit_function]
 
             #~ for tax in sample_scores.keys():
                 #~ for func in sample_scores[tax].keys():
                     #~ if not isinstance(sample_scores[tax][func]['identity'], float):
                         #~ print (tax, func)
             
-            
+
             tax_profile = TaxonomyProfile()
             
             #outfile = os.path.join(self.parser.options.get_project_dir(sample), self.parser.options.get_output_subdir(sample), sample + '_' + end + '_' + 'functional_taxonomy_profile.xml')
 #            outfile = os.path.join(sample + '_fpkm_naive_functional_taxonomy_profile.xml')
-            outfile = sanitize_file_name(os.path.join(self.project.options.get_work_dir(), sample_id + '_' + metrics + '_fpkm_naive_functional_taxonomy_profile.xml'))
+            outfile = sanitize_file_name(os.path.join(self.project.options.get_work_dir(), sample_id + '_' + metrics + '_naive_functional_taxonomy_profile.xml'))
             tax_profile.build_functional_taxonomy_profile(self.project.taxonomy_data, sample_scores)
 #            print(tax_profile.print_functional_taxonomy_profile(score=metrics))
             
@@ -1377,6 +1449,55 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
         writer.save()
         
         self.assertTrue(all_scores)
+
+#    @unittest.skip("for faster testing")
+    def test_7_build_fragment_function_lca_profile(self):
+        self.project.import_reads_json(sample_id, self.project.ENDS)
+        
+        outfile = sanitize_file_name(self.project.options.get_name() + '_fpkm_functions.xlsx')
+        metrics = 'fpkm'
+        
+        scores = get_function_scores(self.project,sample_id=sample_id,metrics='fpkm')
+        
+        generate_function_sample_xlsx(self.project, scores, metrics='fpkm', sample_id=sample_id)
+        
+
+        #~ tax_profile = TaxonomyProfile()
+        #~ outfile = sanitize_file_name(os.path.join(self.project.options.get_work_dir(), sample_id + '_' + metrics + '_lca_functional_taxonomy_profile.xml'))
+        #~ tax_profile.build_functional_taxonomy_profile(self.project.taxonomy_data, scores)
+        #~ generate_lca_taxonomy_chart(tax_profile, sample=sample_id, outfile=outfile, score='fpkm')
+
+        
+        self.assertTrue(len(scores), 30)
+
+    def test_8_build_fragment_function_taxonomy_lca_profile(self):
+        self.project.import_reads_json(sample_id, self.project.ENDS)
+        
+        outfile = sanitize_file_name(self.project.options.get_name() + '_fpkm_functions_taxonomy.xlsx')
+        metrics = 'fpkm'
+        
+        scores = get_function_taxonomy_scores(self.project,sample_id=sample_id,metrics='fpkm')
+        
+        generate_function_taxonomy_sample_xlsx(self.project, scores, metrics='fpkm', sample_id=sample_id)
+        
+        # Subsetting scores
+        sample_scores = autovivify(3, float)
+        for tax in scores.keys():
+            for f in scores[tax].keys():
+                if sample_id in scores[tax][f]:
+                    for k,v in scores[tax][f][sample_id].items():
+                        sample_scores[tax][f][k] = v
+
+
+
+        tax_profile = TaxonomyProfile()
+        outfile = sanitize_file_name(os.path.join(self.project.options.get_work_dir(), sample_id + '_' + metrics + '_lca_functional_taxonomy_profile.xml'))
+        tax_profile.build_functional_taxonomy_profile(self.project.taxonomy_data, sample_scores)
+        #generate_lca_taxonomy_chart(tax_profile, sample=sample_id, outfile=outfile, score='fpkm')
+        generate_taxonomy_series_chart(tax_profile, sample_list=sorted(self.project.ref_data.functions_dict.keys()), outfile=outfile, score='fpkm')
+        
+        self.assertTrue(sample_scores)
+
 
     def tearDown(self):
         self.parser = None

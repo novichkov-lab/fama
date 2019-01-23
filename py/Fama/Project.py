@@ -11,7 +11,7 @@ from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
 from Fama.DiamondParser.DiamondParser import DiamondParser
 from Fama.GeneAssembler.GeneAssembler import GeneAssembler
 
-#from Fama.OutputUtil.Report import generate_fastq_report
+from Fama.OutputUtil.Report import generate_project_report
 from Fama.OutputUtil.PdfReport import generate_pdf_report
 from Fama.OutputUtil.KronaXMLWriter import generate_functions_chart
 from Fama.OutputUtil.JSONUtil import export_annotated_reads
@@ -65,13 +65,16 @@ class Project(object):
         pass
 
     def generate_report(self):
-        # TODO
         outfile = os.path.join(self.options.get_work_dir(), 'project_report.txt')
         with open (outfile, 'w') as of:
             of.write(self.options.get_name() + '\n\n')
             for sample_id in self.list_samples():
-                of.write(sample_id + '\n')
+                of.write(sample_id + ':\t' + self.samples[sample_id].sample_name + '\tpe1 reads: ' + str(len(self.samples[sample_id].reads['pe1'])))
+                if self.samples[sample_id].is_paired_end:
+                    of.write('\tpe2 reads: ' + str(len(self.samples[sample_id].reads['pe2'])))
+                of.write('\n')
             of.closed
+        generate_project_report(self)
 
     def check_project(self):
         problems = defaultdict(list)

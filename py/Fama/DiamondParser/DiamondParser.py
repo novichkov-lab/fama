@@ -8,7 +8,7 @@ from Fama.DiamondParser.DiamondHit import DiamondHit
 from Fama.DiamondParser.DiamondHitList import DiamondHitList
 from Fama.ReadUtil.AnnotatedRead import AnnotatedRead
 from Fama.utils import autovivify,cleanup_protein_id
-from Fama.DiamondParser.hit_utils import get_rpkm_score,compare_hits,get_paired_end,get_paired_read_id,compare_hits_naive,compare_hits_lca
+from Fama.DiamondParser.hit_utils import compare_hits_rpk_lca,get_paired_end,get_paired_read_id
 
 class DiamondParser:
 
@@ -93,7 +93,7 @@ class DiamondParser:
         _hit_list = None
         identity_cutoff = self.config.get_identity_cutoff(self.collection)
         length_cutoff = self.config.get_length_cutoff(self.collection)
-        biscore_range_cutoff = self.config.get_biscore_range_cutoff(self.collection)
+        bitscore_range_cutoff = self.config.get_biscore_range_cutoff(self.collection)
         print ('Identity cutoff: ', identity_cutoff, ', Length cutoff: ', length_cutoff)
         
         with open(tsvfile, 'r', newline='') as f:
@@ -122,7 +122,8 @@ class DiamondParser:
                     if read_id in self.reads.keys():
                         #compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                         #compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
-                        compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.sample.fastq_fwd_readcount, self.taxonomy_data, self.ref_data) # here should be all the magic
+                        #compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.sample.fastq_fwd_readcount, self.taxonomy_data, self.ref_data) # here should be all the magic
+                        compare_hits_rpk_lca(self.reads[read_id], hit_start, hit_end, _hit_list, bitscore_range_cutoff, length_cutoff, self.taxonomy_data, self.ref_data)  # here should be all the magic
                     else:
                         print ('Read not found: ', read_id)
 #                        raise TypeError
@@ -136,7 +137,8 @@ class DiamondParser:
             if read_id in self.reads.keys():
                 #compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                 #compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
-                compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.sample.fastq_fwd_readcount, self.taxonomy_data, self.ref_data) # here should be all the magic
+                #compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.sample.fastq_fwd_readcount, self.taxonomy_data, self.ref_data) # here should be all the magic
+                compare_hits_rpk_lca(self.reads[read_id], hit_start, hit_end, _hit_list, bitscore_range_cutoff, length_cutoff, self.taxonomy_data, self.ref_data)  # here should be all the magic
             else:
                 print ('Read not found: ', read_id)
             f.closed
@@ -216,7 +218,7 @@ class DiamondParser:
 
     def export_read_fastq(self):
         outdir = self.sample.work_directory
-        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_reads_fastq_name()), 'w') as of:
+        with gzip.open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_reads_fastq_name() + '.gz'), 'wt') as of:
             for read_id in sorted(self.reads.keys()):
                 if self.reads[read_id].get_status() == 'function' or self.reads[read_id].get_status() == 'function,besthit':
                     of.write(self.reads[read_id].get_read_id_line() + '\n')
@@ -226,11 +228,13 @@ class DiamondParser:
 
     def export_read_fasta(self):
         outdir = self.sample.work_directory
-        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_reads_fastq_name()), 'w') as of:
+        fastq_file = os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_reads_fastq_name() + '.gz')
+        with gzip.open(fastq_file, 'wt') as of:
             for read_id in sorted(self.reads.keys()):
                 if self.reads[read_id].get_status() == 'function' or self.reads[read_id].get_status() == 'function,besthit':
                     of.write(self.reads[read_id].get_read_id_line() + '\n')
                     of.write(self.reads[read_id].get_sequence() + '\n') 
+            of.closed
 
     def export_hit_fastq(self):
         outdir = self.sample.work_directory
@@ -341,7 +345,8 @@ class DiamondParser:
             #read_ids[get_paired_read_id(read_id)] = read_id
             read_ids[read_id] = read_id
         line_counter = 0
-        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_pe_reads_fastq_name()), 'w') as of:
+        fastq_outfile = os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_pe_reads_fastq_name() + '.gz')
+        with gzip.open(fastq_outfile, 'wt') as of:
             current_read = None
             fh = None
             if fastq_file.endswith('.gz'):

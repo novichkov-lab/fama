@@ -30,6 +30,10 @@ def main():
     if args.prot:
         protein_pipeline(args)
     else:
+        if args.sample is None:
+            print ('Run functional profiling for all samples in the project')
+        else:
+            print ('Run functional profiling only for ', args.sample)
         fastq_pipeline(config_file=args.config, project_file=args.project, sample_identifier=args.sample, end_identifier=args.end)
     print('Done!')
 

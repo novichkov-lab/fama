@@ -78,7 +78,7 @@ def run_bgr_search(parser,command):
 
 def run_microbecensus(sample, threads):
     print ('Starting MicrobeCensus')
-    mc_args = ['/home/aekazakov/Soft/MicrobeCensus/MicrobeCensus/scripts/run_microbe_census.py',
+    mc_args = ['/home/aekazakov/Soft/MicrobeCensus/my_microbe_census/MicrobeCensus/scripts/run_microbe_census.py',
                     '-e',
                     '-t',
                     threads
@@ -132,9 +132,16 @@ def fastq_pipeline(config_file, project_file, sample_identifier, end_identifier)
         project.options.set_sample_data(project.samples[sample_id])
     
     # Generate output for the project
-    project.generate_report()
-                
-    project.options.save_options(project_file + '.new')
+    if sample_identifier is None:
+        project.generate_report() # Skip project report if the pipeline is running for only one sample
+    
+    i = 0
+    while True:
+        if os.path.exists(project_file + '.new.' + str(i)):
+            i += 1
+        else:
+            project.options.save_options(project_file + '.new.' + str(i)) # Create copy of project.ini with new parameters
+            break
 
 def run_fastq_pipeline(project, sample, end_id):
 
@@ -200,10 +207,12 @@ def run_fastq_pipeline(project, sample, end_id):
     
     # Generate output
     generate_fastq_report(parser)
-    generate_pdf_report(parser)
+    #generate_pdf_report(parser)
     generate_functions_chart(parser)
     
-    return parser.reads
+    #return parser.reads
+    # Return only good reads
+    return {read_id:read for (read_id,read) in parser.reads.items() if read.get_status() == 'function'}
 
 def main():
     
