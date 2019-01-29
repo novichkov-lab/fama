@@ -119,7 +119,7 @@ class DiamondParser:
                     current_query_id_tokens = current_query_id.split('|')
                     hit_end = int(current_query_id_tokens[-1])
                     hit_start = int(current_query_id_tokens[-2])
-                    protein_id = '|'.join(current_query_id_tokens[:-2])
+                    read_id = '|'.join(current_query_id_tokens[:-2])
                     #print (read_id, hit_start, hit_end, biscore_range_cutoff)
                     #print (_hit_list.print_hits())
                     if read_id in self.reads.keys():
