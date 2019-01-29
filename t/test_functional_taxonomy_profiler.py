@@ -14,7 +14,7 @@ from Fama.TaxonomyProfile import TaxonomyProfile
 
 from Fama.OutputUtil.JSONUtil import import_annotated_reads
 from Fama.OutputUtil.Report import generate_fastq_report, get_function_scores, get_function_taxonomy_scores
-from Fama.OutputUtil.XlsxUtil import generate_function_sample_xlsx, generate_function_taxonomy_sample_xlsx
+from Fama.OutputUtil.XlsxUtil import generate_function_sample_xlsx, generate_function_taxonomy_sample_xlsx, generate_sample_taxonomy_function_xlsx
 from Fama.OutputUtil.KronaXMLWriter import generate_functional_taxonomy_chart,generate_taxonomy_series_chart
 
 data_dir = 'data'
@@ -31,6 +31,8 @@ end = 'pe1'
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen8test_t.ini')
 #sample_id = 'sample1'
 project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_universal1_lca.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen9_lca.ini')
 sample_id = 'sample6'
 
 class FunctionTaxonomyProfilingTest(unittest.TestCase):
@@ -1117,9 +1119,9 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
 #    @unittest.skip("for faster testing")
     def test_6_lazy_build_fragment_function_taxonomy_profile(self):
         
-        outfile = sanitize_file_name(self.project.options.get_name() + '_fpkm_functions_taxonomy.xlsx')
+        outfile = 'test.xlsx'#sanitize_file_name(self.project.options.get_name() + '_fpkm_functions_taxonomy.xlsx')
         writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
-        metrics = 'fpkm'
+        metrics = 'fpkg'
 
 
 
@@ -1385,27 +1387,27 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
             order_format = workbook.add_format({'bg_color': '#FFFFCC'})
             family_format = workbook.add_format({'bg_color': '#99FFCC'})
             genus_format = workbook.add_format({'bg_color': '#99FFFF'})
-            worksheet.conditional_format('C4:C1048560', {'type':     'text',
+            worksheet.conditional_format('C3:C1048560', {'type':     'text',
                                    'criteria': 'containing',
                                    'value':    'superkingdom',
                                    'format':   superkingdom_format})
-            worksheet.conditional_format('C4:C1048560', {'type':     'text',
+            worksheet.conditional_format('C3:C1048560', {'type':     'text',
                                    'criteria': 'containing',
                                    'value':    'phylum',
                                    'format':   phylum_format})
-            worksheet.conditional_format('C4:C1048560', {'type':     'text',
+            worksheet.conditional_format('C3:C1048560', {'type':     'text',
                                    'criteria': 'containing',
                                    'value':    'class',
                                    'format':   class_format})
-            worksheet.conditional_format('C4:C1048560', {'type':     'text',
+            worksheet.conditional_format('C3:C1048560', {'type':     'text',
                                    'criteria': 'containing',
                                    'value':    'order',
                                    'format':   order_format})
-            worksheet.conditional_format('C4:C1048560', {'type':     'text',
+            worksheet.conditional_format('C3:C1048560', {'type':     'text',
                                    'criteria': 'containing',
                                    'value':    'family',
                                    'format':   family_format})
-            worksheet.conditional_format('C4:C1048560', {'type':     'text',
+            worksheet.conditional_format('C3:C1048560', {'type':     'text',
                                    'criteria': 'containing',
                                    'value':    'genus',
                                    'format':   genus_format})
@@ -1471,14 +1473,15 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
         self.assertTrue(len(scores), 30)
 
     def test_8_build_fragment_function_taxonomy_lca_profile(self):
+        sample_id = 'sample1'
         self.project.import_reads_json(sample_id, self.project.ENDS)
         
         outfile = sanitize_file_name(self.project.options.get_name() + '_fpkm_functions_taxonomy.xlsx')
-        metrics = 'fpkm'
+        metrics = 'fpkg'
         
-        scores = get_function_taxonomy_scores(self.project,sample_id=sample_id,metrics='fpkm')
+        scores = get_function_taxonomy_scores(self.project,sample_id=sample_id,metrics=metrics)
         
-        generate_function_taxonomy_sample_xlsx(self.project, scores, metrics='fpkm', sample_id=sample_id)
+        generate_function_taxonomy_sample_xlsx(self.project, scores, metrics=metrics, sample_id=sample_id)
         
         # Subsetting scores
         sample_scores = autovivify(3, float)
@@ -1493,12 +1496,114 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
         tax_profile = TaxonomyProfile()
         outfile = sanitize_file_name(os.path.join(self.project.options.get_work_dir(), sample_id + '_' + metrics + '_lca_functional_taxonomy_profile.xml'))
         tax_profile.build_functional_taxonomy_profile(self.project.taxonomy_data, sample_scores)
-        #generate_lca_taxonomy_chart(tax_profile, sample=sample_id, outfile=outfile, score='fpkm')
-        generate_taxonomy_series_chart(tax_profile, sample_list=sorted(self.project.ref_data.functions_dict.keys()), outfile=outfile, score='fpkm')
+        #generate_lca_taxonomy_chart(tax_profile, sample=sample_id, outfile=outfile, score=metrics)
+        generate_taxonomy_series_chart(tax_profile, sample_list=sorted(self.project.ref_data.functions_dict.keys()), outfile=outfile, score=metrics)
         
         self.assertTrue(sample_scores)
 
+    def test_9_build_fragment_function_taxonomy_comparison_table (self):
+        for sample_id in self.project.list_samples():
+            self.project.import_reads_json(sample_id, self.project.ENDS)
+        
+        metrics = 'fpkg'
+        scores = get_function_taxonomy_scores(self.project,sample_id=None,metrics=metrics)
+        generate_sample_taxonomy_function_xlsx(self.project, scores, metrics=metrics, function_id=None)
+        
+        self.assertTrue(scores)
 
+    def test_10_build_fragment_function_taxonomy_filtered_table (self):
+        for sample_id in self.project.list_samples():
+            self.project.import_reads_json(sample_id, self.project.ENDS)
+        
+        metrics = 'fpkg'
+        taxon = 'phylum'
+        scores = get_function_taxonomy_scores(self.project,sample_id=None,metrics=metrics)
+        
+        xlsxfile = 'test.xlsx'
+
+        writer = pd.ExcelWriter(xlsxfile, engine='xlsxwriter')
+
+        for function in sorted(self.project.ref_data.functions_dict.keys()):
+        
+            # Subsetting scores
+            sample_scores = autovivify(3, float)
+            for tax in scores.keys():
+                if function in scores[tax].keys():
+                    for s in self.project.list_samples():
+                        if s in scores[tax][function]:
+                            for k,v in scores[tax][function][s].items():
+                                sample_scores[tax][s][k] = v
+                        else:
+                            sample_scores[tax][s][metrics] = 0.0
+                    
+
+
+            tax_profile = TaxonomyProfile()
+            tax_profile.build_functional_taxonomy_profile(self.project.taxonomy_data, sample_scores)
+
+            df = tax_profile.convert_taxonomic_profile_into_score_df(score=metrics)
+            #print(df.index)
+            #print(list(df))
+            df_filtered = df[df[('','Rank')] == 'phylum']
+            #print(df_filtered.head())
+            
+            df_filtered.to_excel(writer, sheet_name=function)
+            workbook  = writer.book
+            worksheet = writer.sheets[function]
+
+            superkingdom_format = workbook.add_format({'bg_color': '#FF6666'})
+            phylum_format = workbook.add_format({'bg_color': '#FF9900'})
+            class_format = workbook.add_format({'bg_color': '#FFCC99'})
+            order_format = workbook.add_format({'bg_color': '#FFFFCC'})
+            family_format = workbook.add_format({'bg_color': '#99FFCC'})
+        #    genus_format = workbook.add_format({'bg_color': '#99FFFF'})
+            worksheet.conditional_format('C3:C1048560', {'type':     'text',
+                                   'criteria': 'containing',
+                                   'value':    'superkingdom',
+                                   'format':   superkingdom_format})
+            worksheet.conditional_format('C3:C1048560', {'type':     'text',
+                                   'criteria': 'containing',
+                                   'value':    'phylum',
+                                   'format':   phylum_format})
+            worksheet.conditional_format('C3:C1048560', {'type':     'text',
+                                   'criteria': 'containing',
+                                   'value':    'class',
+                                   'format':   class_format})
+            worksheet.conditional_format('C3:C1048560', {'type':     'text',
+                                   'criteria': 'containing',
+                                   'value':    'order',
+                                   'format':   order_format})
+            worksheet.conditional_format('C3:C1048560', {'type':     'text',
+                                   'criteria': 'containing',
+                                   'value':    'family',
+                                   'format':   family_format})
+            #~ worksheet.conditional_format('C3:C1048560', {'type':     'text',
+                                   #~ 'criteria': 'containing',
+                                   #~ 'value':    'genus',
+                                   #~ 'format':   genus_format})
+            worksheet.set_column(1, 1, 30)
+            worksheet.set_column(2, 2, 15)
+
+        writer.save()
+        
+        self.assertTrue(scores)
+
+    def test_11_build_fragment_function_taxonomy_filtered_table (self):
+        for sample_id in self.project.list_samples():
+            self.project.import_reads_json(sample_id, self.project.ENDS)
+        
+        metrics = 'fpkg'
+        
+        rank = 'phylum'
+        #ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus']
+        scores = get_function_taxonomy_scores(self.project,sample_id=None,metrics=metrics)
+        #for rank in ranks:
+        generate_sample_taxonomy_function_xlsx(self.project, scores, metrics=metrics, function_id='RP-S3', rank = None)
+        #generate_function_taxonomy_sample_xlsx(self.project, scores, metrics=metrics, sample_id=None, rank = None)
+        
+        self.assertTrue(scores)
+
+        
     def tearDown(self):
         self.parser = None
         

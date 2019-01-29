@@ -396,19 +396,19 @@ class TaxonomyProfile:
         if taxid in self.tree.data:
             #line_dict[('', 'No.')] = str(line_number)
             line_dict[('', 'Rank')] = self.tree.data[taxid].rank
-            line_dict[('', 'Name')] = self.tree.data[taxid].name
+            line_dict[('', 'Taxon name')] = self.tree.data[taxid].name
             for function in function_list:
                 if function in self.tree.data[taxid].attributes:
-                    line_dict[(function, '1.Score')] = format((self.tree.data[taxid].attributes[function][score]), "0.3f")
+                    line_dict[(function, '1.Score')] = self.tree.data[taxid].attributes[function][score]#format((self.tree.data[taxid].attributes[function][score]), "0.3f")
                     if 'identity' in self.tree.data[taxid].attributes[function]:
-                        line_dict[(function, '2.Identity')] = format((self.tree.data[taxid].attributes[function]['identity']/self.tree.data[taxid].attributes[function]['hit_count']), "0.1f") + '%'
+                        line_dict[(function, '2.Identity')] = self.tree.data[taxid].attributes[function]['identity']/self.tree.data[taxid].attributes[function]['hit_count']#format((self.tree.data[taxid].attributes[function]['identity']/self.tree.data[taxid].attributes[function]['hit_count']), "0.1f") + '%'
                     else:
-                        line_dict[(function, '2.Identity')] = ''
-                    line_dict[(function, '3.Read count')] = format(self.tree.data[taxid].attributes[function]['count'], "0.0f")
+                        line_dict[(function, '2.Identity')] = 0.0#''
+                    line_dict[(function, '3.Read count')] = self.tree.data[taxid].attributes[function]['count'] #format(self.tree.data[taxid].attributes[function]['count'], "0.0f")
                 else:
-                    line_dict[(function, '1.Score')] = ''
-                    line_dict[(function, '2.Identity')] = ''
-                    line_dict[(function, '3.Read count')] = ''
+                    line_dict[(function, '1.Score')] = 0.0#''
+                    line_dict[(function, '2.Identity')] = 0.0#''
+                    line_dict[(function, '3.Read count')] = 0.0#''
             ret_val[line_number] = line_dict
             line_number += 1
             if self.tree.data[taxid].children:
@@ -432,22 +432,22 @@ class TaxonomyProfile:
                     line_dict = {}
                     line_dict[('', 'Rank')] = self.LOWER_RANKS[self.tree.data[taxid].rank]
                     if taxid == '1':
-                        line_dict[('', 'Name')] = 'Unclassified'
+                        line_dict[('', 'Taxon name')] = 'Unclassified'
                     else:
-                        line_dict[('', 'Name')] = 'Unclassified ' + self.tree.data[taxid].name
+                        line_dict[('', 'Taxon name')] = 'Unclassified ' + self.tree.data[taxid].name
                     
                     for function in function_list:
                         if function in self.tree.data[taxid].attributes and children_values[function]['count'] < self.tree.data[taxid].attributes[function]['count']:
-                            line_dict[(function, '1.Score')] = format((self.tree.data[taxid].attributes[function][score] - children_values[function][score]), "0.3f")
+                            line_dict[(function, '1.Score')] = self.tree.data[taxid].attributes[function][score] - children_values[function][score]#format((self.tree.data[taxid].attributes[function][score] - children_values[function][score]), "0.3f")
                             if 'identity' in self.tree.data[taxid].attributes[function] and self.tree.data[taxid].attributes[function]['hit_count'] > children_values[function]['hit_count']:
-                                line_dict[(function, '2.Identity')] = format((self.tree.data[taxid].attributes[function]['identity'] - children_values[function]['identity'])/(self.tree.data[taxid].attributes[function]['hit_count'] - children_values[function]['hit_count']), "0.1f") + '%'
+                                line_dict[(function, '2.Identity')] = (self.tree.data[taxid].attributes[function]['identity'] - children_values[function]['identity'])/(self.tree.data[taxid].attributes[function]['hit_count'] - children_values[function]['hit_count'])#format((self.tree.data[taxid].attributes[function]['identity'] - children_values[function]['identity'])/(self.tree.data[taxid].attributes[function]['hit_count'] - children_values[function]['hit_count']), "0.1f") + '%'
                             else:
-                                line_dict[(function, '2.Identity')] = ''
-                            line_dict[(function, '3.Read count')] = format((self.tree.data[taxid].attributes[function]['count'] - children_values[function]['count']), "0.0f")
+                                line_dict[(function, '2.Identity')] = 0.0#''
+                            line_dict[(function, '3.Read count')] = self.tree.data[taxid].attributes[function]['count'] - children_values[function]['count']#format((self.tree.data[taxid].attributes[function]['count'] - children_values[function]['count']), "0.0f")
                         else:
-                            line_dict[(function, '1.Score')] = ''
-                            line_dict[(function, '2.Identity')] = ''
-                            line_dict[(function, '3.Read count')] = ''
+                            line_dict[(function, '1.Score')] = 0.0#''
+                            line_dict[(function, '2.Identity')] = 0.0#''
+                            line_dict[(function, '3.Read count')] = 0.0#''
                     ret_val[line_number] = line_dict
                     line_number += 1
                 
@@ -455,6 +455,93 @@ class TaxonomyProfile:
                 #print('Node has no children:', taxid, '\t', self.tree.data[taxid].rank, '\t', self.tree.data[taxid].name)
                 pass
             #print(ret_val)
+            
+            return ret_val, attribute_values
+        else:
+            print('Node not found:',taxid)
+            return ret_val, attribute_values
+
+    def convert_taxonomic_profile_into_score_df(self, score='rpkm'):
+        function_list = set()
+        for taxid in self.tree.data:
+            for function in self.tree.data[taxid].attributes.keys():
+                function_list.add(function) 
+        root_id = '1'
+        line_number = 1
+        print ('Start converting tax.profile into dict')
+        tax_dict, _ = self.convert_node_into_values_dict(root_id, function_list, line_number, score=score)
+        #print(tax_dict)
+        with open('out.txt', 'w') as of:
+            for line in tax_dict.keys():
+                of.write(str(line) + '\n')
+                for k,v in tax_dict[line].items():
+                    of.write('\t' + str(k) + '\t' + str(v) + '\n')
+            of.closed
+        df = pd.DataFrame(tax_dict)
+        
+        # df = pd.DataFrame(self.convert_node_into_dict(root_id, function_list, line_number, score=score))
+        return df.transpose()
+
+    def convert_node_into_values_dict(self, taxid, function_list, line_number, score='rpkm'):
+        # Collect all attributes for reporting to the upper level
+        attribute_values = defaultdict(dict)
+        for function in function_list:
+            if function in self.tree.data[taxid].attributes:
+                if score in self.tree.data[taxid].attributes[function]:
+                    attribute_values[function][score] = self.tree.data[taxid].attributes[function][score]
+                else:
+                    attribute_values[function][score] = 0.0
+
+        ret_val = {}
+        line_dict = {}
+        children_values = autovivify(2,float)
+        if taxid in self.tree.data:
+            #line_dict[('', 'No.')] = str(line_number)
+            line_dict[('', 'Rank')] = self.tree.data[taxid].rank
+            line_dict[('', 'Taxon name')] = self.tree.data[taxid].name
+            for function in function_list:
+                if function in self.tree.data[taxid].attributes:
+                    line_dict[(function, score)] = self.tree.data[taxid].attributes[function][score] #format((self.tree.data[taxid].attributes[function][score]), "0.5f")
+                else:
+                    line_dict[(function, score)] = 0.0 #''
+            ret_val[line_number] = line_dict
+            line_number += 1
+            if self.tree.data[taxid].children:
+                for child_id in sorted(self.tree.data[taxid].children):
+                    children_lines, child_values = self.convert_node_into_values_dict(child_id, function_list, line_number, score)
+                    for child_line_number in children_lines:
+                        ret_val[child_line_number] = children_lines[child_line_number]
+                    line_number += len(children_lines)
+                    for datapoint in child_values.keys():
+                        for k,v in child_values[datapoint].items():
+                            children_values[datapoint][k] += v
+
+                # Add a child node for unidentified child taxon, if needed
+                unidentified_flag = False
+                for function in function_list:
+                    if function in self.tree.data[taxid].attributes and children_values[function][score] < self.tree.data[taxid].attributes[function][score]:
+                        unidentified_flag = True
+                        break
+                
+                if unidentified_flag and self.tree.data[taxid].rank in self.LOWER_RANKS:
+                    line_dict = {}
+                    line_dict[('', 'Rank')] = self.LOWER_RANKS[self.tree.data[taxid].rank]
+                    if taxid == '1':
+                        line_dict[('', 'Taxon name')] = 'Unclassified'
+                    else:
+                        line_dict[('', 'Taxon name')] = 'Unclassified ' + self.tree.data[taxid].name
+                    
+                    for function in function_list:
+                        if function in self.tree.data[taxid].attributes and children_values[function][score] < self.tree.data[taxid].attributes[function][score]:
+                            line_dict[(function, score)] = self.tree.data[taxid].attributes[function][score] - children_values[function][score] # format((self.tree.data[taxid].attributes[function][score] - children_values[function][score]), "0.5f")
+                        else:
+                            line_dict[(function, score)] = 0.0 # ''
+                    ret_val[line_number] = line_dict
+                    line_number += 1
+                
+            else:
+                #print('Node has no children:', taxid, '\t', self.tree.data[taxid].rank, '\t', self.tree.data[taxid].name)
+                pass
             
             return ret_val, attribute_values
         else:

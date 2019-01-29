@@ -3,14 +3,14 @@ from subprocess import Popen, PIPE, CalledProcessError
 from collections import defaultdict, Counter
 from Fama.GeneAssembler.Contig import Contig
 from Fama.GeneAssembler.Gene import Gene
-from Fama.DiamondParser.hit_utils import autovivify
+from Fama.utils import autovivify
 
 class GeneAssembly:
     def __init__(self):
         self.reads = autovivify(2) # Stores read IDs and sample IDs: self.reads[function_id][read_id] = sample_id
         self.contigs = autovivify(2, Contig)# Stores Contig objects: self.contigs[function_id][contig_id] = Contig
     
-    def calculate_mean_coverage(self, sample=None):
+    def calculate_average_coverage(self, sample=None):
         contig_count = 0
         coverage_sum = 0.0
         for function_id in self.contigs.keys():

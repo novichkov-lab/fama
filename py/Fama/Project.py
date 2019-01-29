@@ -59,6 +59,48 @@ class Project(object):
             if end_id == 'pe2' and not self.samples[sample_id].is_paired_end:
                 continue
             self.samples[sample_id].reads[end_id] = import_annotated_reads(os.path.join(self.options.get_project_dir(sample_id), sample_id + '_' + end_id + '_' + self.options.get_reads_json_name()))
+
+    def get_fragment_length(self, sample):
+        if not sample.is_paired_end:
+            return None
+        elif sample.fragment_length is not None:
+            return sample.fragment_length
+        elif self.find_fragment_length(self.samples[sample_id]) > 0:
+            return self.find_fragment_length(self.samples[sample_id])
+        else:
+            print('WARNING: Unable to estimate average insert size. Insert size set to the default value of 300 bp.')
+            return 300
+
+    def find_fragment_length(self, sample):
+        fragment_list = []
+        gene_length_threshold = 2500
+        alignment_length_threshold = 45
+        for read_id,read1 in sample.reads['pe1'].items():
+            if read_id not in sample.reads['pe2']:
+                continue
+            read2 =sample.reads['pe2'][read_id]
+            for hit in read1.get_hit_list().get_hits():
+                if hit.get_subject_id() not in [h.get_subject_id() for h in read2.get_hit_list().get_hits()]:
+                    continue
+                if hit.s_len*3 < gene_length_threshold:
+                    continue
+                if hit.s_end - hit.s_start < alignment_length_threshold:
+                    continue
+                for hit2 in read2.get_hit_list().get_hits():
+                    if hit.get_subject_id() != hit2.get_subject_id():
+                        continue
+                    if hit2.s_end - hit2.s_start < alignment_length_threshold:
+                        continue
+                    if (hit.s_end - hit2.s_start) > (hit2.s_end - hit.s_start):
+                        fragment_length = 3 * (hit.s_end - hit2.s_start)
+                    else:
+                        fragment_length = 3 * (hit2.s_end - hit.s_start)
+                    fragment_list.append(fragment_length)
+                    break
+        if len(fragment_list) > 0:
+            return int(sum(fragment_list) / len(fragment_list))
+        else:
+            return 0
         
     def export_comparative_table(self):
         # TODO

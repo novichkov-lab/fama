@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import os, csv, operator
 import unittest
-from collections import Counter
+from collections import Counter,defaultdict
 from fpdf import FPDF
 
 from context import Fama
@@ -16,10 +16,12 @@ from Fama.OutputUtil.Report import create_functions_markdown_document
 
 data_dir = 'data'
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
-#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen9.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen9_lca.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_universal1_lca.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
 sample_id = 'test_sample'
-#sample_id = 'sample1'
+sample_id = 'sample1'
 end = 'pe1'
 
 class FamaReportTest(unittest.TestCase):
@@ -105,6 +107,78 @@ class FamaReportTest(unittest.TestCase):
                         of.write(('\t').join([read_id, function, read.status, hit.get_subject_id()]) + '\n')
             of.closed
             
+#    @unittest.skip("for faster testing")
+    def test_8_predict_insert_size(self):
+        
+        #Should take into account https://github.com/ksahlin/GetDistr/blob/master/getdistr/model.py
+
+        sample_id = 'sample1'
+#        for sample_id in self.project.list_samples():
+        self.project.import_reads_json(sample_id, self.project.ENDS)
+        outfile = sample_id + '_insert_size_distribution.txt'
+        fragment_list = []
+        fragment_weights = defaultdict(float)
+        gene_length_threshold = 2500
+        alignment_length_threshold = 45
+        print ('pe1 reads', str(len(self.project.samples[sample_id].reads['pe1'])))
+        print ('pe2 reads', str(len(self.project.samples[sample_id].reads['pe2'])))
+        for read_id,read1 in self.project.samples[sample_id].reads['pe1'].items():
+            if read_id not in self.project.samples[sample_id].reads['pe2']:
+                continue
+#            print ('Found read with two mapped ends')
+            read2 =self.project.samples[sample_id].reads['pe2'][read_id]
+            for hit in read1.get_hit_list().get_hits():
+                if hit.get_subject_id() not in [h.get_subject_id() for h in read2.get_hit_list().get_hits()]:
+#                    print ('Different target proteins: skipped')
+                    continue
+                if hit.s_len*3 < gene_length_threshold:
+#                    print ('Target protein shorter than threshold: skipped')
+                    continue
+                if hit.s_end - hit.s_start < alignment_length_threshold:
+                    continue
+                for hit2 in read2.get_hit_list().get_hits():
+                    if hit.get_subject_id() != hit2.get_subject_id():
+                        continue
+#                    print ('Found read with two hits in one protein')
+                    if hit2.s_end - hit2.s_start < alignment_length_threshold:
+                        continue
+#                    print ('Found read with two hits in one protein longer than alignment cutoff')
+                    if (hit.s_end - hit2.s_start) > (hit2.s_end - hit.s_start):
+                        fragment_length = 3 * (hit.s_end - hit2.s_start)
+                    else:
+                        fragment_length = 3 * (hit2.s_end - hit.s_start)
+                    
+                    fragment_weight = (gene_length_threshold - fragment_length + 1)/(3*hit.s_len - 3*alignment_length_threshold + 1)
+                    fragment_weights[fragment_length] += fragment_weight
+                    fragment_list.append([fragment_length, fragment_weight])
+                    break
+        #~ if len(fragment_list) > 0:
+            #~ return int(sum(fragment_list) / len(fragment_list))
+        #~ else:
+            #~ return 0
+#        print (fragment_list)
+        with open(outfile, 'w') as of:
+#            for fragment in fragment_list:
+#                    of.write(str(fragment[0]) + '\t' + str(fragment[1]) + '\n')
+            for length in sorted(fragment_weights.keys()):
+                    of.write(str(length) + '\t' + str(fragment_weights[length]) + '\n')
+            of.closed
+
+        self.assertTrue(len(fragment_list) > 0)
+
+
+#    @unittest.skip("for faster testing")
+    def test_9_find_fragment_length(self):
+
+        for sample_id in self.project.list_samples():
+        #sample_id = 'sample1'
+            self.project.import_reads_json(sample_id, self.project.ENDS)
+            avg_fragment_length = self.project.find_fragment_length(self.project.samples[sample_id])
+            print('Fragment length for',sample_id,'is',str(avg_fragment_length))
+        
+        self.assertEqual(avg_fragment_length, 245)
+
+
 
     def tearDown(self):
         self.parser = None

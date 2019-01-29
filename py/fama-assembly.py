@@ -1,7 +1,6 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import sys,argparse
-from Fama.functional_profiling_pipeline import fastq_pipeline
-from Fama.protein_functional_pipeline import protein_pipeline
+from Fama.assembly_pipeline import assembly_pipeline
 
 def get_args():
     desc = '''This program runs functional profiling pipeline.'''
@@ -12,9 +11,9 @@ def get_args():
                         help='Sample ID (optional)')
     parser.add_argument('-e', dest='end', type=str, default=None,
                         help='paired end ID (expected values: pe1 or pe2). Optional')
-    parser.add_argument('--prot', dest='prot',  action='store_true',
-                        help='Process protein sequences in FASTA format (default: False)')
-    parser.set_defaults(prot=False)
+    parser.add_argument('--coassembly', dest='coassembly', action='store_true',
+                        help='Coassemble reads for all functions (default: False)')
+    parser.set_defaults(coassembly=False)
     args = parser.parse_args()
     if len(sys.argv) == 1:
         parser.print_help()
@@ -28,15 +27,7 @@ def get_args():
 
 def main():
     args = get_args()
-    if args.prot:
-        protein_pipeline(args)
-    else:
-        if args.sample is None:
-            print ('Run functional profiling for all samples in the project')
-        else:
-            print ('Run functional profiling only for ', args.sample)
-        fastq_pipeline(config_file=args.config, project_file=args.project, sample_identifier=args.sample, end_identifier=args.end)
-    print('Done!')
+    assembly_pipeline(args)
 
 if __name__=='__main__':
     main()

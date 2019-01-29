@@ -132,18 +132,20 @@ class ProjectOptions:
             return float(self.parser[sample]['rpkg_scaling'])
         else:
             return None
-    
+
     def set_sample_data(self,sample):
         self.parser[sample.sample_id]['sample_id'] = sample.sample_name
         self.parser[sample.sample_id]['fastq_pe1'] = sample.fastq_fwd_path
-        self.parser[sample.sample_id]['fastq_pe2'] = sample.fastq_rev_path
         self.parser[sample.sample_id]['fastq_pe1_readcount'] = str(sample.fastq_fwd_readcount)
-        self.parser[sample.sample_id]['fastq_pe2_readcount'] = str(sample.fastq_rev_readcount)
         self.parser[sample.sample_id]['fastq_pe1_basecount'] = str(sample.fastq_fwd_basecount)
-        self.parser[sample.sample_id]['fastq_pe2_basecount'] = str(sample.fastq_rev_basecount)
+        if sample.is_paired_end:
+            self.parser[sample.sample_id]['fastq_pe2'] = sample.fastq_rev_path
+            self.parser[sample.sample_id]['fastq_pe2_readcount'] = str(sample.fastq_rev_readcount)
+            self.parser[sample.sample_id]['fastq_pe2_basecount'] = str(sample.fastq_rev_basecount)
         self.parser[sample.sample_id]['sample_dir'] = sample.work_directory
         self.parser[sample.sample_id]['rpkg_scaling'] = str(sample.rpkg_scaling_factor)
         self.parser[sample.sample_id]['replicate'] = sample.replicate
+        self.parser[sample.sample_id]['fragment_length'] = str(sample.fragment_length)
         
     def save_options(self, project_file):
         with open (project_file, 'w') as f:

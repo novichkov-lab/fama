@@ -1,6 +1,7 @@
 import operator
 from collections import defaultdict,Counter
 from Fama.utils import autovivify,cleanup_protein_id
+from Fama.DiamondParser.DiamondHitList import DiamondHitList
 
 def get_rpkm_score(hit, function_fraction, total_readcount, length_cutoff):
     ret_val = None
@@ -13,18 +14,29 @@ def get_rpkm_score(hit, function_fraction, total_readcount, length_cutoff):
         ret_val = function_fraction*1000000000.0/(3*total_readcount)
     return ret_val
 
-def get_rpk_score(hit, function_fraction, length_cutoff):
-    ret_val = None
-#    print ('Subject length', hit.get_subject_length())
-    if (hit.get_subject_length() - length_cutoff) > 0:
-        ret_val = function_fraction*1000/((hit.get_subject_length() - length_cutoff)*3)
-    else:
-#        print(hit)
-#        print(function_fraction, str(total_readcount))
-        ret_val = function_fraction*1000/3
-    return ret_val
+def get_rpk_score(protein_length):
+    return 1000/3/protein_length
 
-def compare_hits_rpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, taxonomy_data, ref_data):
+def get_erpk_score(protein_length, average_read_length, length_cutoff):
+    denominator = 3*protein_length - 6*length_cutoff + average_read_length + 1
+    if denominator > 0:
+        return 1000/denominator
+    else:
+        return 1000
+
+def get_efpk_score(protein_length, average_read_length, length_cutoff, fragment_length = None):
+    if fragment_length is None:
+        denominator = 3*protein_length - 6*length_cutoff + 2*average_read_length + 1
+    elif fragment_length > 2*average_read_length + protein_length:
+        denominator = 2 * (3*protein_length - 6*length_cutoff + average_read_length + 1)
+    else:
+        denominator = 3*protein_length - 6*length_cutoff + fragment_length + 1
+    if denominator > 0:
+        return 1000/denominator
+    else:
+        return 1000
+
+def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, average_read_length, taxonomy_data, ref_data):
     # This function compares hits assigned to an annotated read with functions
     # from a Diamond hit list. It looks through the hit list, finds 
     # hits with bitscore above cutoff and takes their functions.
@@ -67,7 +79,7 @@ def compare_hits_rpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_
             bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
             new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() > bitscore_lower_cutoff]
             if hit.get_subject_id() not in [new_hit.get_subject_id() for new_hit in new_hits] and hit.get_bitscore() >= best_bitscore:
-                    new_hits.append(hit)
+                new_hits.append(hit)
 
             # Collect taxonomy IDs of all hits for LCA inference
             taxonomy_ids = set([ref_data.lookup_protein_tax(h.get_subject_id()) for h in new_hits])
@@ -97,10 +109,23 @@ def compare_hits_rpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_
             for function in new_functions_dict:
                 if function == '':
                     continue
-                # Currently, functions are unweighted. To assign weights to functions, change second parameter of get_rpk_score
-                new_functions[function] = get_rpk_score(new_functions_dict[function]['hit'], 1.0, length_cutoff)
+                #new_functions[function] = get_rpk_score(new_functions_dict[function]['hit'].get_subject_length())
+                new_functions[function] = get_erpk_score(new_functions_dict[function]['hit'].get_subject_length(), average_read_length, length_cutoff)
 
             read.append_functions(new_functions)
+
+            # Set new list of hits
+            _hit_list = DiamondHitList(read.get_read_id())
+            for f in new_functions_dict:
+                if f == '':
+                    continue
+                good_hit = new_functions_dict[f]['hit']
+                good_hit.query_id = read.get_read_id()
+                good_hit.annotate_hit(ref_data)
+                _hit_list.add_hit(good_hit)
+            
+            read.set_hit_list(_hit_list)
+
             # Set read taxonomy ID 
             read.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
 
@@ -159,7 +184,6 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                 new_functions = {}
                 for function in new_hits[0].get_functions():
                     new_functions[function] = get_rpkm_score(new_hits[0], 1.0, fastq_readcount, length_cutoff)
-                    #new_functions[function] = get_rpk_score(new_hits[0], 1.0, length_cutoff)
 #                print('New functions', new_functions)
                 read.append_functions(new_functions)
                 # Set read taxonomy ID 
@@ -191,7 +215,6 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                 for function in new_functions_dict:
                     if function == '':
                         continue
-                    #new_functions[function] = get_rpk_score(new_functions_dict[function]['hit'], 1.0, length_cutoff)
                     new_functions[function] = get_rpkm_score(new_functions_dict[function]['hit'], 1.0, fastq_readcount, length_cutoff)
 #                print('New functions', new_functions)
 

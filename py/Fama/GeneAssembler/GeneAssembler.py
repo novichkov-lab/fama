@@ -21,6 +21,7 @@ from Fama.OutputUtil.JSONUtil import import_gene_assembly
 class GeneAssembler:
     def __init__(self, project):
         self.project = project
+        project.load_project()
         self.assembly = GeneAssembly()
         self.assembly_dir = os.path.join(self.project.options.get_assembly_dir())
         if not os.path.isdir(self.assembly_dir):
@@ -32,19 +33,20 @@ class GeneAssembler:
 
     def assemble_contigs(self):
         # Export reads in FASTQ format
-        for sample in sorted(self.project.list_samples()):
-            for end in ('pe1','pe2'):
-                print ('Loading mapped reads: ', sample, end)
-                self.project.load_annotated_reads(sample, end) # Lazy load
-                for read_id in self.project.samples[sample][end]:
-                    read = self.project.samples[sample][end][read_id]
+        for sample_id in sorted(self.project.list_samples()):
+            self.project.import_reads_json(sample_id, self.project.ENDS)
+            for end in self.project.ENDS:
+                #print ('Loading mapped reads: ', sample, end)
+                #self.project.load_annotated_reads(sample, end) # Lazy load
+                for read_id in self.project.samples[sample_id].reads[end]:
+                    read = self.project.samples[sample_id].reads[end][read_id]
 #                    print(read_id)
                     if read.get_status() == 'function,besthit' or read.get_status() == 'function':
                         #read_functions = project.samples[sample][end][read].get_functions()
                         for function in read.get_functions():
                             if read_id in self.assembly.reads[function]:
                                 continue
-                            self.assembly.reads[function][read_id] = sample
+                            self.assembly.reads[function][read_id] = sample_id
                             outfile1 = os.path.join(self.assembly_dir,function + '_pe1.fastq')
                             outfile2 = os.path.join(self.assembly_dir,function + '_pe2.fastq')
                             if end == 'pe2':
@@ -64,7 +66,7 @@ class GeneAssembler:
                                 of2.write(read.pe_quality + '\n')
                                 of2.closed
                 # Delete reads from memory
-                self.project.samples[sample][end] = None
+                self.project.samples[sample_id].reads[end] = None
         
         # Run Assembler ('megahit' for Megahit or 'metaSPAdes' for metaSPAdes)
         #run_assembler(sorted(self.assembly.reads.keys()), 'megahit', self.assembly_dir)
@@ -123,17 +125,18 @@ class GeneAssembler:
     def coassemble_contigs(self):
         
         # Export reads in FASTQ format
-        for sample in sorted(self.project.list_samples()):
-            for end in ('pe1','pe2'):
-                print ('Loading mapped reads: ', sample, end)
-                self.project.load_annotated_reads(sample, end) # Lazy load
-                for read_id in self.project.samples[sample][end]:
-                    read = self.project.samples[sample][end][read_id]
+        for sample_id in sorted(self.project.list_samples()):
+            self.project.import_reads_json(sample_id, self.project.ENDS)
+            for end in self.project.ENDS:
+#                print ('Loading mapped reads: ', sample, end)
+#                self.project.load_annotated_reads(sample, end) # Lazy load
+                for read_id in self.project.samples[sample_id].reads[end]:
+                    read = self.project.samples[sample_id].reads[end][read_id]
 #                    print(read_id)
                     if read.get_status() == 'function,besthit' or read.get_status() == 'function':
                         if read_id in self.assembly.reads['Coassembly']:
                             continue
-                        self.assembly.reads['Coassembly'][read_id] = sample
+                        self.assembly.reads['Coassembly'][read_id] = sample_id
                         outfile1 = os.path.join(self.assembly_dir,'Coassembly_pe1.fastq')
                         outfile2 = os.path.join(self.assembly_dir,'Coassembly_pe2.fastq')
                         if end == 'pe2':
@@ -153,7 +156,7 @@ class GeneAssembler:
                             of2.write(read.pe_quality + '\n')
                             of2.closed
                 # Delete reads from memory
-                self.project.samples[sample][end] = None
+                self.project.samples[sample_id].reads[end] = None
         
         # Run Assembler ('megahit' for Megahit or 'metaSPAdes' for metaSPAdes)
         #run_assembler(sorted(self.assembly.reads.keys()), 'megahit', self.assembly_dir)
@@ -307,7 +310,7 @@ class GeneAssembler:
         biscore_range_cutoff = self.project.config.get_biscore_range_cutoff(self.project.options.get_collection())
         print ('Identity cutoff: ', identity_cutoff, ', Length cutoff: ', length_cutoff)
         
-        mean_coverage = self.assembly.calculate_mean_coverage()
+        average_coverage = self.assembly.calculate_average_coverage()
         
         with open(tsvfile, 'r', newline='') as f:
             tsvin = csv.reader(f, delimiter='\t')
@@ -341,7 +344,8 @@ class GeneAssembler:
                     if gene_id in self.assembly.contigs[function_id][contig_id].genes:
                         coverage = self.assembly.contigs[function_id][contig_id].get_coverage()
                         #compare_hits(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, mean_coverage, coverage) # here should be all the magic
-                        compare_hits_naive(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, mean_coverage, coverage) # here should be all the magic
+                        #compare_hits_naive(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, average_coverage, coverage) # here should be all the magic
+                        compare_hits_lca(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, average_coverage, coverage, self.project.taxonomy_data, self.project.ref_data)  # here should be all the magic
                     else:
                         print ('Gene not found: ', gene_id, ' in ', function_id, contig_id)
                         raise TypeError
@@ -357,7 +361,8 @@ class GeneAssembler:
             hit_end = int(hit_end)
             if gene_id in self.assembly.contigs[function_id][contig_id].genes:
                 #compare_hits(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, mean_coverage, coverage) # here should be all the magic
-                compare_hits_naive(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, mean_coverage, coverage) # here should be all the magic
+                #compare_hits_naive(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, average_coverage, coverage) # here should be all the magic
+                compare_hits_lca(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, average_coverage, coverage, self.project.taxonomy_data, self.project.ref_data)  # here should be all the magic
             else:
                 print ('Gene not found: ', gene_id)
                 raise TypeError
@@ -912,16 +917,110 @@ def parse_gene_id(gene_id):
     contig_id = '_'.join(gene_id_tokens[:-1])
     return function_id, contig_id, gene_id
 
-def get_abundance(function_fraction, mean_coverage, coverage):
+def get_abundance(function_fraction, average_coverage, coverage):
     if function_fraction > 1.0:
         print('FUNCTION FRACTION TOO BIG!', function_fraction)
     #else:
     #    print('FUNCTION FRACTION ', function_fraction)
-    ret_val = coverage * function_fraction/mean_coverage
+    ret_val = coverage * function_fraction/average_coverage
     return ret_val
 
 
-def compare_hits_naive(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, mean_coverage, coverage):
+def compare_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, average_coverage, coverage, taxonomy_data, ref_data):
+    # This function compares hits assigned to an annotated read with functions
+    # from a Diamond hit list. It looks through the hit list, finds 
+    # hits with bitscore above cutoff and takes their functions.
+    #
+    # If there is one hit with the highest bit-score, read gets status 'function,besthit'
+    # If there are several hits with the highest bit-score, read gets status 'function'
+    # Otherwise, read gets status 'nofunction'
+    #
+    # hit_start and hit_end parameters are used for identification of hit for
+    # comparison, since multiple hits can be associated with a read 
+    #
+    # This function does not return anything. It sets status of read and 
+    # assigns RPKM score to each function of the read
+    #
+    # Find best hit
+    for hit in gene.hit_list.get_hits():
+        #print(str(hit))
+        #print (str(hit.get_query_start()), str(hit_start), str(hit.get_query_end()), str(hit_end))
+        #print (type(hit.get_query_start()), type(hit_start), type(hit.get_query_end()), type(hit_end))
+        if hit.get_query_start() == hit_start and hit.get_query_end() == hit_end:
+            best_bitscore = 0.0
+            best_hit = None
+            for new_hit in new_hit_list.get_hits():
+                bitscore = new_hit.get_bitscore()
+                if bitscore > best_bitscore:
+                    best_hit = new_hit
+                    best_bitscore = bitscore
+            # Set status of read
+            if best_hit != None:
+                if '' in best_hit.get_functions():
+                    gene.set_status('nofunction')
+                    return
+                else:
+                    gene.set_status('function')
+            else:
+                gene.set_status('nofunction')
+                return
+            
+            # Filter list of hits by bitscore
+            bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
+            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() > bitscore_lower_cutoff]
+            if hit.get_subject_id() not in [new_hit.get_subject_id() for new_hit in new_hits] and hit.get_bitscore() >= best_bitscore:
+                    new_hits.append(hit)
+
+            # Collect taxonomy IDs of all hits for LCA inference
+            taxonomy_ids = set([ref_data.lookup_protein_tax(h.get_subject_id()) for h in new_hits])
+
+            # Make non-redundant list of functions from hits after filtering
+            new_functions = {}
+            new_functions_counter = Counter()
+            new_functions_dict = defaultdict(dict)
+            # Find best hit for each function: only one hit with highest bitscore to be reported for each function
+            for h in new_hits:
+                for f in h.get_functions():
+                    new_functions_counter[f] += 1
+                    if f in new_functions_dict:
+                        if h.get_bitscore() > new_functions_dict[f]['bit_score']:
+                            new_functions_dict[f]['bit_score'] = h.get_bitscore()
+                            new_functions_dict[f]['hit'] = h
+                    else:
+                        new_functions_dict[f]['bit_score'] = h.get_bitscore()
+                        new_functions_dict[f]['hit'] = h
+
+            # If the most common function in new hits is unknown, set status "nofunction" and return
+            if new_functions_counter.most_common(1)[0][0] == '':
+                gene.set_status('nofunction')
+                return
+
+            # Calculate RPK scores for functions
+            for function in new_functions_dict:
+                if function == '':
+                    continue
+                #new_functions[function] = get_rpk_score(new_functions_dict[function]['hit'].get_subject_length())
+                new_functions[function] = get_abundance(1.0, average_coverage, coverage)
+
+            gene.set_functions(new_functions)
+
+            # Set new list of hits
+            _hit_list = DiamondHitList(gene.gene_id)
+            for f in new_functions_dict:
+                if f == '':
+                    continue
+                good_hit = new_functions_dict[f]['hit']
+                good_hit.query_id = gene.gene_id
+                good_hit.annotate_hit(ref_data)
+                _hit_list.add_hit(good_hit)
+            
+            gene.set_hit_list(_hit_list)
+
+            # Set read taxonomy ID 
+            gene.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
+
+
+def compare_hits_naive(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, average_coverage, coverage, ref_data, taxonomy_data):
     # This function compares hits assigned to a predicted gene with functions
     # from a Diamond hit list. It looks through the hit list, finds a hit with highest bitscore and takes its functions
     # If there are several hits with highest bitscore, this function takes function from the first hit.
@@ -970,14 +1069,17 @@ def compare_hits_naive(gene, hit_start, hit_end, new_hit_list, bitscore_range_cu
                     new_hits.append(hit)
             #print([str(new_hit) for new_hit in new_hits])
             if len(new_hits) == 1:
-                gene.set_status('function,besthit')
+                gene.set_status('function')
             # Set functions of gene
             new_functions = {}
             for function in best_hit.get_functions():
-                new_functions[function] = get_abundance(1.0, mean_coverage, coverage)
+                new_functions[function] = get_abundance(1.0, average_coverage, coverage)
             gene.set_functions(new_functions)
+            
+            taxonomy_ids = set([ref_data.lookup_protein_tax(h.get_subject_id()) for h in new_hits])
+            gene.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
 
-def compare_hits(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, mean_coverage, coverage):
+def compare_hits(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, average_coverage, coverage):
     # This functions compares hits assigned to an annotated read with functions
     # from a Diamond hit list
     #
@@ -1020,7 +1122,7 @@ def compare_hits(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                     #print(functions)
                     total_count = sum(functions.values())#len(new_hits[0].get_functions())
                     for function in new_hits[0].get_functions():
-                        new_functions[function] = get_abundance(functions[function]/total_count, mean_coverage, coverage)
+                        new_functions[function] = get_abundance(functions[function]/total_count, average_coverage, coverage)
                 elif '' in functions:
                     # function unknown
 #                    print ('case 1.3')
@@ -1032,7 +1134,7 @@ def compare_hits(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                     gene.set_status('function')
                     total_count = sum(functions.values())
                     for function in functions:
-                        new_functions[function] = get_abundance(functions[function]/total_count, mean_coverage, coverage)
+                        new_functions[function] = get_abundance(functions[function]/total_count, average_coverage, coverage)
                 gene.set_functions(new_functions)
                 
             else:
@@ -1076,7 +1178,7 @@ def compare_hits(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                         gene.set_status('function')
                         total_count = sum(functions.values())
                         for function in functions:
-                            new_functions[function] = get_abundance(functions[function]/total_count, mean_coverage, coverage)
+                            new_functions[function] = get_abundance(functions[function]/total_count, average_coverage, coverage)
                     gene.set_functions(new_functions)
                 else:
 #                    for hit1 in new_hits:
@@ -1093,10 +1195,10 @@ def compare_hits(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                         total_count = sum(functions.values())#len(new_hits[0].get_functions())
                         for function in functions:
                             if function in new_hits[0].get_functions():
-                                new_functions[function] = get_abundance(functions[function]/total_count, mean_coverage, coverage)
+                                new_functions[function] = get_abundance(functions[function]/total_count, average_coverage, coverage)
                         if not new_functions:
                             for function in functions:
-                                new_functions[function] = get_abundance(functions[function]/total_count, mean_coverage, coverage)
+                                new_functions[function] = get_abundance(functions[function]/total_count, average_coverage, coverage)
 #                        print(hit)
 #                        print(new_functions)
                     else:
@@ -1105,7 +1207,7 @@ def compare_hits(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, 
                         gene.set_status('function')
                         total_count = sum(functions.values())
                         for function in functions:
-                            new_functions[function] = get_abundance(functions[function]/total_count, mean_coverage, coverage)
+                            new_functions[function] = get_abundance(functions[function]/total_count, average_coverage, coverage)
                     gene.set_functions(new_functions)
         else:
 #            print('Skipping hit',hit.get_query_id())

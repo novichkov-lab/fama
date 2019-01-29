@@ -80,9 +80,13 @@ def run_microbecensus(sample, threads):
     print ('Starting MicrobeCensus')
     mc_args = ['/home/aekazakov/Soft/MicrobeCensus/my_microbe_census/MicrobeCensus/scripts/run_microbe_census.py',
                     '-e',
+                    '-v',
                     '-t',
                     threads
                     ]
+    if sample.fastq_fwd_readcount < 3000000:
+        mc_args.append('-n')
+        mc_args.append(str(sample.fastq_fwd_readcount - 200000)) # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
     if sample.is_paired_end:
         mc_args.append(','.join([sample.fastq_fwd_path,sample.fastq_rev_path]))
     else:
@@ -197,12 +201,12 @@ def run_fastq_pipeline(project, sample, end_id):
                                     parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_background_output_name())):
         run_bgr_search(parser, 'blastx')
 
-
-    # Process output of reference DB search
+    # Process output of background DB search
     parser.parse_background_output()
 
     parser.export_read_fastq()
-    parser.export_paired_end_reads_fastq()
+    if sample.is_paired_end:
+        parser.export_paired_end_reads_fastq()
     export_annotated_reads(parser)
     
     # Generate output

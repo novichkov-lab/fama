@@ -8,7 +8,7 @@ from Fama.DiamondParser.DiamondHit import DiamondHit
 from Fama.DiamondParser.DiamondHitList import DiamondHitList
 from Fama.ReadUtil.AnnotatedRead import AnnotatedRead
 from Fama.utils import autovivify,cleanup_protein_id
-from Fama.DiamondParser.hit_utils import compare_hits_rpk_lca,get_paired_end,get_paired_read_id
+from Fama.DiamondParser.hit_utils import compare_hits_erpk_lca,get_paired_end,get_paired_read_id
 
 class DiamondParser:
 
@@ -89,6 +89,8 @@ class DiamondParser:
                             self.sample.sample_id + '_' + self.end + '_'+ self.options.get_background_output_name())
         #add paired-end option
         
+        average_read_length = self.sample.get_avg_read_length(self.end)
+            
         current_query_id = None
         _hit_list = None
         identity_cutoff = self.config.get_identity_cutoff(self.collection)
@@ -114,16 +116,17 @@ class DiamondParser:
                 if hit.get_query_id() != current_query_id:
                     _hit_list.annotate_hits(self.ref_data)
                     # compare list of hits from search in background DB with existing hit from search in reference DB
-                    (read_id, hit_start, hit_end) = current_query_id.split('|')
-                    hit_start= int(hit_start)
-                    hit_end = int(hit_end)
+                    current_query_id_tokens = current_query_id.split('|')
+                    hit_end = int(current_query_id_tokens[-1])
+                    hit_start = int(current_query_id_tokens[-2])
+                    protein_id = '|'.join(current_query_id_tokens[:-2])
                     #print (read_id, hit_start, hit_end, biscore_range_cutoff)
                     #print (_hit_list.print_hits())
                     if read_id in self.reads.keys():
                         #compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                         #compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                         #compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.sample.fastq_fwd_readcount, self.taxonomy_data, self.ref_data) # here should be all the magic
-                        compare_hits_rpk_lca(self.reads[read_id], hit_start, hit_end, _hit_list, bitscore_range_cutoff, length_cutoff, self.taxonomy_data, self.ref_data)  # here should be all the magic
+                        compare_hits_erpk_lca(self.reads[read_id], hit_start, hit_end, _hit_list, bitscore_range_cutoff, length_cutoff, average_read_length, self.taxonomy_data, self.ref_data)  # here should be all the magic
                     else:
                         print ('Read not found: ', read_id)
 #                        raise TypeError
@@ -138,7 +141,7 @@ class DiamondParser:
                 #compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                 #compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                 #compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.sample.fastq_fwd_readcount, self.taxonomy_data, self.ref_data) # here should be all the magic
-                compare_hits_rpk_lca(self.reads[read_id], hit_start, hit_end, _hit_list, bitscore_range_cutoff, length_cutoff, self.taxonomy_data, self.ref_data)  # here should be all the magic
+                compare_hits_erpk_lca(self.reads[read_id], hit_start, hit_end, _hit_list, bitscore_range_cutoff, length_cutoff, average_read_length, self.taxonomy_data, self.ref_data)  # here should be all the magic
             else:
                 print ('Read not found: ', read_id)
             f.closed

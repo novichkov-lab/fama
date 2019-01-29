@@ -10,7 +10,7 @@ from Fama.Sample import Sample
 from Fama.DiamondParser.DiamondHit import DiamondHit
 from Fama.DiamondParser.DiamondHitList import DiamondHitList
 from Fama.DiamondParser.DiamondParser import DiamondParser
-from Fama.DiamondParser.hit_utils import compare_hits,compare_functions,get_paired_read_id,compare_hits_naive,compare_hits_lca
+from Fama.DiamondParser.hit_utils import compare_hits,compare_functions,get_paired_read_id,compare_hits_naive,compare_hits_lca,compare_hits_erpk_lca
 from Fama.ReadUtil.AnnotatedRead import AnnotatedRead
 from Fama.OutputUtil.JSONUtil import export_annotated_reads
 from Fama.OutputUtil.JSONUtil import import_annotated_reads
@@ -18,12 +18,12 @@ from Fama.OutputUtil.JSONUtil import import_annotated_reads
 
 data_dir = 'data'
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
-#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
 sample_id = 'test_sample'
-sample_id = 'sample1'
+#sample_id = 'sample1'
 end = 'pe1'
-end = 'pe2'
+#end = 'pe2'
 
 class DiamondParserTest(unittest.TestCase):
 
@@ -592,7 +592,7 @@ class DiamondParserTest(unittest.TestCase):
             hit.create_hit(new_hit.split('\t'))
             hit.annotate_hit(self.parser.ref_data)
             hit_list.add_hit(hit)
-        compare_hits_lca(read, 100, 2, hit_list, self.parser.get_config().get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
+        compare_hits_erpk_lca(read, 100, 2, hit_list, self.parser.get_config().get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
         
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266835.9.peg.3902	88.0	50	6	570	1	150	270	319	2.8e-19	99.0',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|363754.4.peg.84	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
@@ -618,10 +618,11 @@ class DiamondParserTest(unittest.TestCase):
             hit.create_hit(new_hit.split('\t'))
             hit.annotate_hit(self.parser.ref_data)
             hit_list.add_hit(hit)
-        compare_hits_lca(read, 1, 150, hit_list, self.parser.get_config().get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
+        compare_hits_erpk_lca(read, 1, 150, hit_list, self.parser.get_config().get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
 
-#        print('Read status:', read.get_status())
-#        print('Read function:', read.get_functions())
+        print('Read status:', read.get_status())
+        print('Read function:', read.get_functions())
+        print('Read hits:', read.show_hits())
         self.assertEqual(read.get_status(), 'function')
         self.assertEqual(len(read.get_functions()), 2)
         self.assertEqual(read.get_functions()['UreA'], 193798.4496124031)
@@ -649,7 +650,7 @@ class DiamondParserTest(unittest.TestCase):
             hit.create_hit(new_hit.split('\t'))
             hit.annotate_hit(self.parser.ref_data)
             hit_list.add_hit(hit)
-        compare_hits_lca(read, 3, 125, hit_list, self.parser.get_config().get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
+        compare_hits_erpk_lca(read, 3, 125, hit_list, self.parser.get_config().get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
         print('Read status:', read.get_status())
         print('Read function:', read.get_functions())
         self.assertEqual(read.get_status(), 'nofunction')

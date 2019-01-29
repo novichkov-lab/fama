@@ -11,6 +11,7 @@ class Gene:
         self.hit_list = None
         self.uniref_hit = None
         self.status = 'unaccounted'
+        self.taxonomy = None       # NCBI Taxonomy ID set by LCA algorithm
 
 
     def set_protein_sequence(self, sequence):

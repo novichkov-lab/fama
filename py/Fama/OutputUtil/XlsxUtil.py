@@ -9,7 +9,7 @@ from Fama.TaxonomyProfile import TaxonomyProfile
 
 def generate_function_sample_xlsx(project, scores, metrics, sample_id = None):
     # This function generates XLSX file for function scores for one or more samples.
-    # Scores may be read counts, RPKM, RPKG (for single-end sequencing) or FPKM, FPKG for paired-end sequencing
+    # Scores may be read counts, RPKM, RPKG, ERPKM, ERPKG (for single-end sequencing) or FPKM, FPKG, EFRKM, EFPKG for paired-end sequencing
     
     # scores must be dict of dicts, like scores[function_id][sample_id][metrics] = value
     # metrics must be 'readcount', 'rpkm', 'rpkg', fpkm', 'fpkg'
@@ -94,16 +94,24 @@ def generate_function_sample_xlsx(project, scores, metrics, sample_id = None):
 
     workbook.close()
 
-def generate_function_taxonomy_sample_xlsx(project, scores, metrics, sample_id = None):
+def generate_function_taxonomy_sample_xlsx(project, scores, metrics, sample_id = None, rank = None):
     # This function generates XLSX file for function and taxa scores for one or more samples.
     # Scores may be read counts, RPKM, RPKG (for single-end sequencing) or FPKM, FPKG for paired-end sequencing
     
     # scores must have the following structure: scores[taxonomy_id][function_id][metrics] = value
     # metrics must be 'readcount', 'rpkm', 'rpkg', fpkm', 'fpkg'
+    
+    # if rank parameter is not None, the resulting XLSX file will contain only entries for this rank
     if sample_id is None:
-        xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_' + metrics + '_functions_taxonomy.xlsx'))
+        if rank is None:
+            xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_' + metrics + '_functions_taxonomy.xlsx'))
+        else:
+            xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_' + metrics + '_functions_' + rank + '_taxonomy.xlsx'))
     else:
-        xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), sample_id + '_' + metrics + '_functions_taxonomy.xlsx'))
+        if rank is None:
+            xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), sample_id + '_' + metrics + '_functions_taxonomy.xlsx'))
+        else:
+            xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), sample_id + '_' + metrics + '_functions_' + rank + '_taxonomy.xlsx'))
 
     print('Writing', xlsxfile)
     writer = pd.ExcelWriter(xlsxfile, engine='xlsxwriter')
@@ -124,9 +132,17 @@ def generate_function_taxonomy_sample_xlsx(project, scores, metrics, sample_id =
         tax_profile = TaxonomyProfile()
         tax_profile.build_functional_taxonomy_profile(project.taxonomy_data, sample_scores)
 
-        df = tax_profile.convert_function_taxonomic_profile_into_df(score=metrics)
+        if sample_id is None:
+            df = tax_profile.convert_taxonomic_profile_into_score_df(score=metrics)
+        else:
+            df = tax_profile.convert_function_taxonomic_profile_into_df(score=metrics)
         
-        df.to_excel(writer, sheet_name=s)
+        if rank is None:
+            df.to_excel(writer, sheet_name=s, merge_cells=False)
+        else:
+            df_filtered = df[df[('','Rank')] == rank]
+            df_filtered.to_excel(writer, sheet_name=s, merge_cells=False)
+
         workbook  = writer.book
         worksheet = writer.sheets[s]
         superkingdom_format = workbook.add_format({'bg_color': '#FF6666'})
@@ -135,35 +151,119 @@ def generate_function_taxonomy_sample_xlsx(project, scores, metrics, sample_id =
         order_format = workbook.add_format({'bg_color': '#FFFFCC'})
         family_format = workbook.add_format({'bg_color': '#99FFCC'})
     #    genus_format = workbook.add_format({'bg_color': '#99FFFF'})
-        worksheet.conditional_format('C4:C1048560', {'type':     'text',
+        worksheet.conditional_format('B4:B1048560', {'type':     'text',
                                'criteria': 'containing',
                                'value':    'superkingdom',
                                'format':   superkingdom_format})
-        worksheet.conditional_format('C4:C1048560', {'type':     'text',
+        worksheet.conditional_format('B4:B1048560', {'type':     'text',
                                'criteria': 'containing',
                                'value':    'phylum',
                                'format':   phylum_format})
-        worksheet.conditional_format('C4:C1048560', {'type':     'text',
+        worksheet.conditional_format('B4:B1048560', {'type':     'text',
                                'criteria': 'containing',
                                'value':    'class',
                                'format':   class_format})
-        worksheet.conditional_format('C4:C1048560', {'type':     'text',
+        worksheet.conditional_format('B4:B1048560', {'type':     'text',
                                'criteria': 'containing',
                                'value':    'order',
                                'format':   order_format})
-        worksheet.conditional_format('C4:C1048560', {'type':     'text',
+        worksheet.conditional_format('B4:B1048560', {'type':     'text',
                                'criteria': 'containing',
                                'value':    'family',
                                'format':   family_format})
-        #~ worksheet.conditional_format('C4:C1048560', {'type':     'text',
+        #~ worksheet.conditional_format('B4:B1048560', {'type':     'text',
                                #~ 'criteria': 'containing',
                                #~ 'value':    'genus',
                                #~ 'format':   genus_format})
-        worksheet.set_column(1, 1, 30)
-        worksheet.set_column(2, 2, 15)
+        worksheet.set_column(1, 1, 15)
+        worksheet.set_column(2, 2, 30)
 
     writer.save()
     
+def generate_sample_taxonomy_function_xlsx(project, scores, metrics, function_id = None, rank = None):
+    # This function generates XLSX file for taxa scores in all samples for one or more functions.
+    # Scores may be read counts, RPKM, RPKG (for single-end sequencing) or FPKM, FPKG for paired-end sequencing
+    
+    # scores must have the following structure: scores[taxonomy_id][function_id][metrics] = value
+    # metrics must be 'readcount', 'rpkm', 'rpkg', fpkm', 'fpkg'
+    if function_id is None:
+        if rank is None:
+            xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_' + metrics + '_samples_taxonomy.xlsx'))
+        else:
+            xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_' + metrics + '_samples_' + rank + '_taxonomy.xlsx'))
+            
+    else:
+        if rank is None:
+            xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), function_id + '_' + metrics + '_samples_taxonomy.xlsx'))
+        else:
+            xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), function_id + '_' + metrics + '_samples_' + rank + '_taxonomy.xlsx'))
+
+    print('Writing', xlsxfile)
+    writer = pd.ExcelWriter(xlsxfile, engine='xlsxwriter')
+    
+    for function in sorted(project.ref_data.functions_dict.keys()):
+        if not function_id is None and function != function_id:
+            continue
+    
+        # Subsetting scores
+        sample_scores = autovivify(3, float)
+        for tax in scores.keys():
+            if function in scores[tax].keys():
+                for s in project.list_samples():
+                    if s in scores[tax][function]:
+                        for k,v in scores[tax][function][s].items():
+                            sample_scores[tax][s][k] = v
+                    else:
+                        sample_scores[tax][s][metrics] = 0.0
+                
+
+        tax_profile = TaxonomyProfile()
+        tax_profile.build_functional_taxonomy_profile(project.taxonomy_data, sample_scores)
+
+        df = tax_profile.convert_taxonomic_profile_into_score_df(score=metrics)
+        
+        if rank is None:
+            df.to_excel(writer, sheet_name=function, merge_cells=False)
+        else:
+            df_filtered = df[df[('','Rank')] == rank]
+            df_filtered.to_excel(writer, sheet_name=function, merge_cells=False)
+
+        workbook  = writer.book
+        worksheet = writer.sheets[function]
+        superkingdom_format = workbook.add_format({'bg_color': '#FF6666'})
+        phylum_format = workbook.add_format({'bg_color': '#FF9900'})
+        class_format = workbook.add_format({'bg_color': '#FFCC99'})
+        order_format = workbook.add_format({'bg_color': '#FFFFCC'})
+        family_format = workbook.add_format({'bg_color': '#99FFCC'})
+    #    genus_format = workbook.add_format({'bg_color': '#99FFFF'})
+        worksheet.conditional_format('B4:B1048560', {'type':     'text',
+                               'criteria': 'containing',
+                               'value':    'superkingdom',
+                               'format':   superkingdom_format})
+        worksheet.conditional_format('B4:B1048560', {'type':     'text',
+                               'criteria': 'containing',
+                               'value':    'phylum',
+                               'format':   phylum_format})
+        worksheet.conditional_format('B4:B1048560', {'type':     'text',
+                               'criteria': 'containing',
+                               'value':    'class',
+                               'format':   class_format})
+        worksheet.conditional_format('B4:B1048560', {'type':     'text',
+                               'criteria': 'containing',
+                               'value':    'order',
+                               'format':   order_format})
+        worksheet.conditional_format('B4:B1048560', {'type':     'text',
+                               'criteria': 'containing',
+                               'value':    'family',
+                               'format':   family_format})
+        #~ worksheet.conditional_format('B4:B1048560', {'type':     'text',
+                               #~ 'criteria': 'containing',
+                               #~ 'value':    'genus',
+                               #~ 'format':   genus_format})
+        worksheet.set_column(1, 1, 15)
+        worksheet.set_column(2, 2, 35)
+
+    writer.save()
 
 def create_functions_xlsx(project, metrics, sample_id_only = None):
     xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_' + metrics + '_functions.xlsx'))    
@@ -207,14 +307,14 @@ def create_functions_xlsx(project, metrics, sample_id_only = None):
                             categories_list.add(category)
                             scores_cat[category][sample_id][end] += 1.0/len(read.functions)
             
-        elif metrics == 'FPKM' or metrics == 'FPKG':
+        elif metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
             if not project.samples[sample_id].is_paired_end:
                 continue
-            if metrics == 'FPKM':
+            if metrics in ['fpkm', 'efpkm']:
                 norm_factor = project.samples[sample_id].rpkm_scaling_factor
                 if norm_factor == 0.0:
                     norm_factor = 1000000/project.options.get_fastq1_readcount(sample_id)
-            elif metrics == 'FPKG':
+            elif metrics in ['fpkg', 'efpkg']:
                 norm_factor = project.samples[sample_id].rpkg_scaling_factor
                 if norm_factor == 0.0:
                     raise ValueError('FPKG scaling factor is missing')
@@ -282,12 +382,12 @@ def create_functions_xlsx(project, metrics, sample_id_only = None):
                             categories_list.add(category)
                             scores_cat[category][sample_id][''] += norm_factor * rpk_score
                             
-        elif metrics == 'RPKM' or metrics == 'RPKG':
-            if metrics == 'RPKM':
+        elif metrics in ['rpkm', 'erpkm', 'rpkg', 'erpkg']:
+            if metrics in ['rpkm', 'erpkm']:
                 norm_factor = project.samples[sample_id].rpkm_scaling_factor
                 if norm_factor == 0.0:
                     norm_factor = 1000000/project.options.get_fastq1_readcount(sample_id)
-            elif metrics == 'RPKG':
+            elif metrics in ['rpkg', 'erpkg']:
                 norm_factor = project.samples[sample_id].rpkg_scaling_factor
                 if norm_factor == 0.0:
                     raise ValueError('RPKG scaling factor is missing')
@@ -317,7 +417,7 @@ def create_functions_xlsx(project, metrics, sample_id_only = None):
     scores_worksheet.write(row, col, 'Function', bold)
     
     for sample_id in samples_list:
-        if metrics in ['FPKM','FPKG']:
+        if metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
             col += 1
             scores_worksheet.write(row, col, sample_id, bold)
         else:
@@ -335,7 +435,7 @@ def create_functions_xlsx(project, metrics, sample_id_only = None):
         col = 0
         scores_worksheet.write(row, col, function, bold)
         for sample_id in samples_list:
-            if metrics in ['FPKM','FPKG']:
+            if metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
                 col += 1
                 if sample_id in scores[function]:
                     scores_worksheet.write(row, col, scores[function][sample_id][''])
@@ -366,7 +466,7 @@ def create_functions_xlsx(project, metrics, sample_id_only = None):
     scores_cat_worksheet.write(row, col, 'Category', bold)
     
     for sample_id in samples_list:
-        if metrics in ['FPKM','FPKG']:
+        if metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
             col += 1
             scores_cat_worksheet.write(row, col, sample_id , bold)
         else:
@@ -385,7 +485,7 @@ def create_functions_xlsx(project, metrics, sample_id_only = None):
 
 
         for sample_id in samples_list:
-            if metrics in ['FPKM','FPKG']:
+            if metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
                 col += 1
                 if sample_id in scores_cat[category]:
                    scores_cat_worksheet.write(row, col, scores_cat[category][sample_id][''])

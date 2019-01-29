@@ -3,7 +3,7 @@ from collections import defaultdict,Counter,OrderedDict
 from subprocess import Popen, PIPE, CalledProcessError
 from Fama.utils import autovivify
 
-def generate_functions_chart(parser, score='rpkm'):
+def generate_functions_chart(parser, score='efpkg'):
     
     
     outfile = os.path.join(parser.options.get_project_dir(parser.sample.sample_id), parser.options.get_output_subdir(parser.sample.sample_id),parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_xml_name())
@@ -91,7 +91,7 @@ def generate_functions_chart(parser, score='rpkm'):
     if p.returncode != 0:
         raise CalledProcessError(p.returncode, p.args)
 
-def print_tax_xml(tax_profile, taxid, offset, score='rpkm'):
+def print_tax_xml(tax_profile, taxid, offset, score='efpkg'):
     #print(taxid)
     if taxid not in tax_profile.tree.data:
         raise Exception (taxid,'not found in the tree!!!')
@@ -149,7 +149,7 @@ def print_tax_xml(tax_profile, taxid, offset, score='rpkm'):
     #~ if p.returncode != 0:
         #~ raise CalledProcessError(p.returncode, p.args)
 
-def print_lca_tax_xml(tax_profile, taxid, offset, score='rpkm'):
+def print_lca_tax_xml(tax_profile, taxid, offset, score='efpkg'):
     #print(taxid)
     attribute_values = defaultdict(float)
     if taxid not in tax_profile.tree.data:
@@ -198,7 +198,7 @@ def print_lca_tax_xml(tax_profile, taxid, offset, score='rpkm'):
     attribute_values['hit_count'] = tax_profile.tree.data[taxid].attributes['hit_count']
     return ret_val, attribute_values
 
-def generate_taxonomy_chart(tax_profile, sample, outfile, score = 'rpkm'):
+def generate_taxonomy_chart(tax_profile, sample, outfile, score = 'efpkg'):
     with open(outfile, 'w') as of:
         # Write header
         of.write('<krona key="false">\n')
@@ -234,7 +234,7 @@ def generate_taxonomy_chart(tax_profile, sample, outfile, score = 'rpkm'):
     if p.returncode != 0:
         raise CalledProcessError(p.returncode, p.args)
 
-def generate_taxonomy_series_chart(tax_profile, sample_list, outfile, score='rpkm'):
+def generate_taxonomy_series_chart(tax_profile, sample_list, outfile, score='efpkg'):
     with open(outfile, 'w') as of:
         # Write header
         of.write('<krona key="false">\n')
@@ -273,7 +273,7 @@ def generate_taxonomy_series_chart(tax_profile, sample_list, outfile, score='rpk
     if p.returncode != 0:
         raise CalledProcessError(p.returncode, p.args)
 
-def print_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='rpkm'):
+def print_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpkg'):
     attribute_values = autovivify(2,float)
     
     if taxid not in tax_profile.tree.data:
@@ -378,7 +378,7 @@ def print_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='
     return ret_val, attribute_values
 
 
-def print_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='rpkm'):
+def print_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpkg'):
     #print(taxid)
     if taxid not in tax_profile.tree.data:
         raise Exception (taxid,'not found in the tree!!!')
@@ -422,7 +422,7 @@ def print_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='rpkm
     ret_val += '\t'*offset + '</node>\n'
     return ret_val
 
-def generate_functional_taxonomy_chart(tax_profile, function_list, outfile, score='rpkm'):
+def generate_functional_taxonomy_chart(tax_profile, function_list, outfile, score='efpkg'):
     with open(outfile, 'w') as of:
         # Write header
         of.write('<krona key="false">\n')
@@ -526,7 +526,7 @@ def print_genes_xml(gene_data, gene_ids, dataseries, offset, score):
     
     return ret_val
     
-def print_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score='rpkm'):
+def print_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score='efpkg'):
     # genes contains gene data:, genes[gene_id][function][parameter] = parameter_value
 
     #print(taxid)
@@ -584,7 +584,7 @@ def print_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score=
     return ret_val
 
 
-def generate_assembly_taxonomy_chart(tax_profile, genes, function_list, outfile, score='rpkm'):
+def generate_assembly_taxonomy_chart(tax_profile, genes, function_list, outfile, score='efpkg'):
     # genes contains gene data:, genes[gene_id][function][parameter] = parameter_value
     
     with open(outfile, 'w') as of:
