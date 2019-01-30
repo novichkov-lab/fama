@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 import os,sys
 from Fama.Project import Project
 from Fama.GeneAssembler.GeneAssembler import GeneAssembler

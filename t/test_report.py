@@ -12,7 +12,7 @@ from Fama.OutputUtil.KronaXMLWriter import generate_functions_chart
 from Fama.OutputUtil.PdfReport import generate_pdf_report
 from Fama.OutputUtil.XlsxUtil import create_functions_xlsx
 from Fama.OutputUtil.Report import create_functions_markdown_document
-
+from Fama.lib_est import get_lib_est
 
 data_dir = 'data'
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
@@ -118,8 +118,9 @@ class FamaReportTest(unittest.TestCase):
         outfile = sample_id + '_insert_size_distribution.txt'
         fragment_list = []
         fragment_weights = defaultdict(float)
-        gene_length_threshold = 2500
+        gene_length_threshold = 150
         alignment_length_threshold = 45
+        read_data = defaultdict(dict)
         print ('pe1 reads', str(len(self.project.samples[sample_id].reads['pe1'])))
         print ('pe2 reads', str(len(self.project.samples[sample_id].reads['pe2'])))
         for read_id,read1 in self.project.samples[sample_id].reads['pe1'].items():
@@ -148,15 +149,22 @@ class FamaReportTest(unittest.TestCase):
                     else:
                         fragment_length = 3 * (hit2.s_end - hit.s_start)
                     
+                    
                     fragment_weight = (gene_length_threshold - fragment_length + 1)/(3*hit.s_len - 3*alignment_length_threshold + 1)
                     fragment_weights[fragment_length] += fragment_weight
                     fragment_list.append([fragment_length, fragment_weight])
+                    read_data[read_id]['tlen'] = fragment_length
+                    read_data[read_id]['rlen'] = hit.s_end*3 - hit.s_start*3
+                    read_data[read_id]['ref_len'] = hit.s_len*3
+                    read_data[read_id]['ref_name'] = hit.get_subject_id()
+                    
                     break
         #~ if len(fragment_list) > 0:
             #~ return int(sum(fragment_list) / len(fragment_list))
         #~ else:
             #~ return 0
 #        print (fragment_list)
+        get_lib_est(read_data)
         with open(outfile, 'w') as of:
 #            for fragment in fragment_list:
 #                    of.write(str(fragment[0]) + '\t' + str(fragment[1]) + '\n')
