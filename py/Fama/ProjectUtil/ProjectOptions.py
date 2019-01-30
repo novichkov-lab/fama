@@ -145,7 +145,7 @@ class ProjectOptions:
         self.parser[sample.sample_id]['sample_dir'] = sample.work_directory
         self.parser[sample.sample_id]['rpkg_scaling'] = str(sample.rpkg_scaling_factor)
         self.parser[sample.sample_id]['replicate'] = sample.replicate
-        self.parser[sample.sample_id]['fragment_length'] = str(sample.fragment_length)
+        self.parser[sample.sample_id]['insert_size'] = str(sample.insert_size)
         
     def save_options(self, project_file):
         with open (project_file, 'w') as f:

@@ -374,7 +374,7 @@ def get_function_scores(project, sample_id = None, metrics=None):
         elif metrics in ['fpkg','fpkm','efpkg','efpkm']:
             if not project.samples[s].is_paired_end:
                 raise ValueError('FPKG and FPKM metrics require paired-end sequences')
-            fragment_length = project.get_fragment_length(project.samples[s])
+            insert_size = project.get_insert_size(project.samples[s])
             reads_processed = set()
             
             for read_id in project.samples[s].reads['pe1'].keys():
@@ -439,7 +439,7 @@ def get_function_scores(project, sample_id = None, metrics=None):
                             if function in function_maxbitscores:
                                     ret_val[function][s]['hit_count'] += 1.0 
                                     ret_val[function][s]['identity'] += function_maxbitscores[function]['identity']
-                                    ret_val[function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, fragment_length=fragment_length)
+                                    ret_val[function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
                             else:
                                 print('Function',function,'not found in hits of read', read_id)
                                     
@@ -472,7 +472,7 @@ def get_function_scores(project, sample_id = None, metrics=None):
                         if function in function_maxbitscores:
                             ret_val[function][s]['hit_count'] += 1.0 
                             ret_val[function][s]['identity'] += function_maxbitscores[function]['identity']
-                            ret_val[function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, fragment_length=fragment_length)
+                            ret_val[function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
                         else:
                             print('Function',function,'not found in hits of read', read_id)
 
@@ -514,7 +514,7 @@ def get_function_scores(project, sample_id = None, metrics=None):
                     if function in function_maxbitscores:
                         ret_val[function][s]['hit_count'] += 1.0 
                         ret_val[function][s]['identity'] += function_maxbitscores[function]['identity']
-                        ret_val[function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, fragment_length=fragment_length)
+                        ret_val[function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
                     else:
                         print('Function',function,'not found in hits of read', read_id)
 
@@ -587,7 +587,7 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
         elif metrics in ['fpkg','fpkm','efpkg','efpkm']:
             if not project.samples[s].is_paired_end:
                 raise ValueError('FPKG and FPKM metrics require paired-end sequences')
-            fragment_length = project.get_fragment_length(project.samples[s])
+            insert_size = project.get_insert_size(project.samples[s])
             reads_processed = set()
             length_cutoff = project.config.get_length_cutoff(project.options.get_collection(s))
             average_read_length = project.samples[s].get_avg_read_length('pe1')
@@ -657,7 +657,7 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
                                 ret_val[fragment_taxonomy][function][s]['count'] += 1
                                 ret_val[fragment_taxonomy][function][s]['hit_count'] += 1.0 
                                 ret_val[fragment_taxonomy][function][s]['identity'] += function_maxbitscores[function]['identity']
-                                ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, fragment_length=fragment_length)
+                                ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
                             else:
                                 print('Function',function,'not found in hits of read', read_id)
 
@@ -690,7 +690,7 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
                             ret_val[fragment_taxonomy][function][s]['count'] += 1
                             ret_val[fragment_taxonomy][function][s]['hit_count'] += 1.0 
                             ret_val[fragment_taxonomy][function][s]['identity'] += function_maxbitscores[function]['identity']
-                            ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, fragment_length=fragment_length)
+                            ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
                         else:
                             print('Function',function,'not found in hits of read', read_id)
 
@@ -732,7 +732,7 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
                         ret_val[fragment_taxonomy][function][s]['count'] += 1
                         ret_val[fragment_taxonomy][function][s]['hit_count'] += 1.0 
                         ret_val[fragment_taxonomy][function][s]['identity'] += function_maxbitscores[function]['identity']
-                        ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, fragment_length=fragment_length)
+                        ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
                     else:
                         print('Function',function,'not found in hits of read', read_id)
     return ret_val
@@ -763,6 +763,8 @@ def generate_sample_report(project, sample_id):
         if not project.samples[sample_id].rpkg_scaling_factor is None:
             of.write('Average genome size:\t' + format(project.samples[sample_id].rpkg_scaling_factor * project.samples[sample_id].fastq_fwd_basecount, "0.0f") + '\n')
             of.write('RPKG normalization factor:\t' + str(project.samples[sample_id].rpkg_scaling_factor) + '\n')
+        if project.samples[sample_id].is_paired_end:
+            of.write('Average insert size:\t' + str(project.samples[sample_id].insert_size) + '\n')
 
         of.write('\nNumber of mapped reads\n')
         of.write('FASTQ file 1:\t' + str(len(project.samples[sample_id].reads['pe1'])) + '\n')

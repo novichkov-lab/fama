@@ -9,8 +9,6 @@ from statsmodels.distributions.empirical_distribution import ECDF
 # from rpy2 import robjects
 # from rpy2.robjects import packages
 
-#import assemblymodule.filter_bam as fb
-#~ from Fama import find_normal_parameters as fit
 from mathstats.normaldist.normal import MaxObsDistr
 from mathstats.normaldist.truncatedskewed import param_est
 
@@ -94,9 +92,10 @@ class LibrarySampler(object):
         super(LibrarySampler, self).__init__()
         self.read_data = read_data
         self.param = param
-        self.lib_file = open(os.path.join(param.outfolder,'library_info.txt'), 'w')
-        self.stats_file = open(os.path.join(param.outfolder,'stats.txt'), 'w')
-
+        self.mu_sophisticated = 0.0
+        self.lib_file = os.path.join(param.outfolder,'library_info.txt') 
+        self.stats_file = os.path.join(param.outfolder,'library_stats.txt')
+        
         self.sample_distribution()
 
     def get_correct_ECDF(self):
@@ -105,11 +104,12 @@ class LibrarySampler(object):
 
         x_min = self.min_isize #max(2*(read_len-softclipps) , int(self.mean - 5*self.stddev) )
         x_max = self.max_isize #int(self.mean + 5*self.stddev)
-        stepsize =    max(1,(x_max - x_min) / EMPIRICAL_BINS)
+        stepsize =    int(max(1,(x_max - x_min) / EMPIRICAL_BINS))
         #print (x_max - x_min)/float(EMPIRICAL_BINS)
         cdf_list = [ self.full_ECDF( x_min) * self.get_weight(int(round(x_min+stepsize/2.0,0)), read_len, softclipps)  ] #[ self.full_ECDF( 2*(read_len-softclipps)) * self.get_weight(2*(read_len-softclipps), gap_coordinates, read_len, softclipps) ]
 
         # create weigted (true) distribution
+        print('x_min:',x_min,',x_max:',x_max,',stepsize:',stepsize)
         for x in range( x_min + stepsize , x_max, stepsize):
             increment_area = self.get_weight(int((x+stepsize/2)), read_len, softclipps) * (self.full_ECDF(x) - self.full_ECDF(x-stepsize))
             cdf_list.append( cdf_list[-1] + increment_area)
@@ -189,7 +189,7 @@ class LibrarySampler(object):
 #        self.bamfile.reset()
         #max_tlen = max_tlen+1000
         self.read_length = sum(read_lengths)/len(read_lengths)
-        print('Read length', str(self.read_length))
+        #print('Read length', str(self.read_length))
 
         ## sample proper reads
         
@@ -202,8 +202,8 @@ class LibrarySampler(object):
         params["sample-nr"] = reads_processed # sample_nr
         
         print ('isize_list before filter', str(len(isize_list)))
-        isize_list = filter(lambda x: 0 < x - 2*self.read_length,isize_list)
-        isize_list = list(filter(lambda x: 0 < x - 2*self.read_length,isize_list))
+        #isize_list = filter(lambda x: 0 < x - 2*self.read_length,isize_list)
+        #isize_list = list(filter(lambda x: 0 < x - 2*self.read_length,isize_list))
         print ('after:', str(len(isize_list)))
         
         
@@ -252,17 +252,17 @@ class LibrarySampler(object):
         reference_lengths = map(lambda x: int(x), reference_list)
         #reference_lengths = map(lambda x: int(x), self.bamfile.lengths)
         #ref_list = zip(self.bamfile.references, reference_lengths)
-        ref_list = zip(reference_name_list, reference_lengths)
+#        ref_list = zip(reference_name_list, reference_lengths)
         
         total_basepairs = sum(reference_lengths)
         self.param.total_basepairs = total_basepairs
         params["genome-length"] = total_basepairs
-        params["contigs"] = []
-        for ref, length in ref_list:
-            params["contigs"].append( { "name" : ref, "length" : length } )
-        
-        json.dump(params, self.lib_file, sort_keys=True, indent=4, separators=(',', ': '))
-        self.lib_file.close()
+#        params["contigs"] = []
+#        for ref, length in list(ref_list):
+#            params["contigs"].append( { "name" : ref, "length" : length } )
+        with open(self.lib_file, 'w') as of:
+            json.dump(params, of, sort_keys=True, indent=4, separators=(',', ': '))
+            of.close()
 
         params = dict()
         if self.param.nr_reads:
@@ -283,26 +283,28 @@ class LibrarySampler(object):
         info["ess-ratio"] = 1 #self.ess_ratio
         coverage = self.read_length*samples*2/float(total_basepairs)
         info["mean-coverage-proper"] = coverage
-        inner_span_coverage = coverage * (self.mean -2*self.read_length)/(2*self.read_length)
+        inner_span_coverage = coverage * (self.mean -2*self.read_length)/(2*self.read_length) if self.mean -2*self.read_length > 0 else coverage
         info["average-theoretical-inner-span-coverage"] = inner_span_coverage
         info["mu-full-lib"] = self.mean
         info["sd-full-lib"] = self.stddev
         info["mu-empirical"] = self.adjusted_mean
         info["sd-empirical"] = self.adjusted_stddev
         mu_naive = self.mean + self.stddev**2/float(self.mean - 2*self.read_length+1)
-        sigma_naive = math.sqrt(self.stddev**2 - self.stddev**4/(self.mean -2*self.read_length +1)**2 )
+        sigma_naive = math.sqrt(abs(self.stddev**2 - self.stddev**4/(self.mean -2*self.read_length +1)**2 ))
         info["mu-naive"] = mu_naive
         info["sd-naive"] = sigma_naive
         mu_sophisticated = param_est.mean_given_d(self.mean, self.stddev, self.read_length, total_basepairs, total_basepairs, 0)
         print('Mean insert size (mu_sophisticated)', str(mu_sophisticated))
         sigma_sophisticated = param_est.stddev_given_d(self.mean, self.stddev, self.read_length, total_basepairs, total_basepairs, 0)
         info["mu-sophisticated"] = mu_sophisticated
+        self.mu_sophisticated = mu_sophisticated
         info["sd-sophisticated"] = sigma_sophisticated
         theoretical_margin_of_error = NORMAL_QUANTILE_TWO_SIDED_95*self.stddev / math.sqrt(inner_span_coverage)
         info["theoretical-error-margin-two-sided-95"] = theoretical_margin_of_error
         params["extra-info"] = info
-        json.dump(params, self.stats_file, sort_keys=True, indent=4, separators=(',', ': '))
-        self.stats_file.close()
+        with open(self.stats_file, 'w') as of:
+            json.dump(params, of, sort_keys=True, indent=4, separators=(',', ': '))
+            of.close()
 
         #~ if self.param.plots:
             #~ outfile = os.path.join(self.param.plotfolder, 'isize.eps')
@@ -405,14 +407,15 @@ def chunks(l, n):
     for i in xrange(0, len(l), n):
         yield l[i:i+n]
 
-def get_lib_est(read_data):
+def get_lib_est(read_data, outfolder):
     param = Parameters()
     param.plots = False
-    param.outfolder = '/mnt/data2/SEED/fama/t'
+    param.outfolder = outfolder
     param.stats_output = os.path.join(param.outfolder,'stats_output.txt')
     # param.lib_min = args.lib_min
     # param.lib_max = args.lib_max
 
     if not os.path.exists(param.outfolder):
         os.makedirs(param.outfolder)
-    LibrarySampler(read_data, param)
+    return LibrarySampler(read_data, param).mu_sophisticated
+    

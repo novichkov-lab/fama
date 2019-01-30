@@ -144,7 +144,7 @@ def fastq_pipeline(config_file, project_file, sample_identifier, end_identifier)
         if os.path.exists(project_file + '.new.' + str(i)):
             i += 1
         else:
-            project.options.save_options(project_file + '.new.' + str(i)) # Create copy of project.ini with new parameters
+            project.save_project_options(project_file + '.new.' + str(i)) # Create copy of project.ini with new parameters
             break
 
 def run_fastq_pipeline(project, sample, end_id):

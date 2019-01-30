@@ -24,13 +24,13 @@ def get_erpk_score(protein_length, average_read_length, length_cutoff):
     else:
         return 1000
 
-def get_efpk_score(protein_length, average_read_length, length_cutoff, fragment_length = None):
-    if fragment_length is None:
+def get_efpk_score(protein_length, average_read_length, length_cutoff, insert_size = None):
+    if insert_size is None:
         denominator = 3*protein_length - 6*length_cutoff + 2*average_read_length + 1
-    elif fragment_length > 2*average_read_length + protein_length:
+    elif insert_size > 2*average_read_length + protein_length:
         denominator = 2 * (3*protein_length - 6*length_cutoff + average_read_length + 1)
     else:
-        denominator = 3*protein_length - 6*length_cutoff + fragment_length + 1
+        denominator = 3*protein_length - 6*length_cutoff + insert_size + 1
     if denominator > 0:
         return 1000/denominator
     else:

@@ -115,19 +115,23 @@ class FamaReportTest(unittest.TestCase):
         sample_id = 'sample1'
 #        for sample_id in self.project.list_samples():
         self.project.import_reads_json(sample_id, self.project.ENDS)
-        outfile = sample_id + '_insert_size_distribution.txt'
+        outfile = sample_id + '_insert_size_data.txt'
         fragment_list = []
         fragment_weights = defaultdict(float)
         gene_length_threshold = 150
-        alignment_length_threshold = 45
+        alignment_length_threshold = 15
         read_data = defaultdict(dict)
         print ('pe1 reads', str(len(self.project.samples[sample_id].reads['pe1'])))
         print ('pe2 reads', str(len(self.project.samples[sample_id].reads['pe2'])))
         for read_id,read1 in self.project.samples[sample_id].reads['pe1'].items():
+            if read1.get_status() != 'function':
+                continue
             if read_id not in self.project.samples[sample_id].reads['pe2']:
                 continue
 #            print ('Found read with two mapped ends')
             read2 =self.project.samples[sample_id].reads['pe2'][read_id]
+            if read2.get_status() != 'function':
+                continue
             for hit in read1.get_hit_list().get_hits():
                 if hit.get_subject_id() not in [h.get_subject_id() for h in read2.get_hit_list().get_hits()]:
 #                    print ('Different target proteins: skipped')
@@ -145,34 +149,45 @@ class FamaReportTest(unittest.TestCase):
                         continue
 #                    print ('Found read with two hits in one protein longer than alignment cutoff')
                     if (hit.s_end - hit2.s_start) > (hit2.s_end - hit.s_start):
-                        fragment_length = 3 * (hit.s_end - hit2.s_start)
+                        # Do not count overhangs
+                        #fragment_length = 3 * (hit.s_end - hit2.s_start)
+                        # Count overhangs
+                        insert_size = 3 * (hit.s_end - hit2.s_start) + hit2.q_start - 1 + len(read2.sequence)  - hit.q_end
                     else:
-                        fragment_length = 3 * (hit2.s_end - hit.s_start)
+                        # Do not count overhangs
+                        #fragment_length = 3 * (hit2.s_end - hit.s_start)
+                        # Count overhangs
+                        insert_size = 3 * (hit2.s_end - hit.s_start) + hit.q_start - 1 + len(read1.sequence)  - hit2.q_end
                     
                     
-                    fragment_weight = (gene_length_threshold - fragment_length + 1)/(3*hit.s_len - 3*alignment_length_threshold + 1)
-                    fragment_weights[fragment_length] += fragment_weight
-                    fragment_list.append([fragment_length, fragment_weight])
-                    read_data[read_id]['tlen'] = fragment_length
-                    read_data[read_id]['rlen'] = hit.s_end*3 - hit.s_start*3
+                    #fragment_weight = (gene_length_threshold - fragment_length + 1)/(3*hit.s_len - 3*alignment_length_threshold + 1)
+                    #fragment_weights[insert_size] += fragment_weight
+                    #fragment_list.append([fragment_length, fragment_weight])
+                    read_data[read_id]['tlen'] = insert_size
+                    read_data[read_id]['rlen'] = (len(read1.sequence) + len(read2.sequence)) / 2
                     read_data[read_id]['ref_len'] = hit.s_len*3
                     read_data[read_id]['ref_name'] = hit.get_subject_id()
-                    
+                    if not read_data[read_id]['tlen'] > 0:
+                        print(read_id, str(read_data[read_id]['rlen']), str(insert_size), str(read_data[read_id]['ref_len']), read_data[read_id]['ref_name'])
+                        print(hit)
+                        print(hit2)
+
                     break
         #~ if len(fragment_list) > 0:
             #~ return int(sum(fragment_list) / len(fragment_list))
         #~ else:
             #~ return 0
 #        print (fragment_list)
-        get_lib_est(read_data)
+        avg_fragment_length = get_lib_est(read_data, self.project.options.get_work_dir())
         with open(outfile, 'w') as of:
-#            for fragment in fragment_list:
-#                    of.write(str(fragment[0]) + '\t' + str(fragment[1]) + '\n')
-            for length in sorted(fragment_weights.keys()):
-                    of.write(str(length) + '\t' + str(fragment_weights[length]) + '\n')
+            for read_id in read_data:
+                of.write(read_data[read_id]['ref_name'] + '\t' + str(read_data[read_id]['ref_len'])  + '\t' + str(read_data[read_id]['rlen']) + '\t' + str(read_data[read_id]['tlen'])+ '\n')
+                #of.write(str(fragment[0]) + '\t' + str(fragment[1]) + '\n')
+            #~ for length in sorted(fragment_weights.keys()):
+                #~ of.write(str(length) + '\t' + str(fragment_weights[length]) + '\n')
             of.closed
 
-        self.assertTrue(len(fragment_list) > 0)
+        self.assertTrue(int(avg_fragment_length) > 0)
 
 
 #    @unittest.skip("for faster testing")
@@ -181,10 +196,11 @@ class FamaReportTest(unittest.TestCase):
         for sample_id in self.project.list_samples():
         #sample_id = 'sample1'
             self.project.import_reads_json(sample_id, self.project.ENDS)
-            avg_fragment_length = self.project.find_fragment_length(self.project.samples[sample_id])
-            print('Fragment length for',sample_id,'is',str(avg_fragment_length))
+            #avg_fragment_length = self.project.find_fragment_length(self.project.samples[sample_id])
+            avg_fragment_length = self.project.samples[sample_id].estimate_average_insert_size(self.project.config.get_length_cutoff(self.project.options.get_collection(sample_id)))
+            print('Insert size for',sample_id,'is',str(avg_fragment_length))
         
-        self.assertEqual(avg_fragment_length, 245)
+        self.assertTrue(int(avg_fragment_length) > 0)
 
 
 

@@ -45,7 +45,7 @@ def main():
         if os.path.exists(args.project + '.new.' + str(i)):
             i += 1
         else:
-            project.options.save_options(args.project + '.new.' + str(i)) # Create copy of project.ini with new parameters
+            project.save_project_options(args.project + '.new.' + str(i)) # Create copy of project.ini with new parameters
             break
 
     print('Done!')

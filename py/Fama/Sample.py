@@ -1,13 +1,15 @@
 import os
 from collections import defaultdict
 
+from Fama.lib_est import get_lib_est
+
 class Sample(object):
 
     def __init__(self, sample_id = '', sample_name = None, is_paired_end = True, \
                 fastq_fwd_path = None, fastq_rev_path = None, fastq_fwd_readcount = 0, \
                 fastq_rev_readcount = 0, rpkm_scaling_factor = 0.0, \
                 fastq_fwd_basecount = 0, fastq_rev_basecount = 0, \
-                rpkg_scaling_factor = 0.0, fragment_length = None,\
+                rpkg_scaling_factor = 0.0, insert_size = None,\
                 work_directory = None, replicate = '0'):
         self.sample_id = sample_id
         self.sample_name = sample_name
@@ -22,7 +24,7 @@ class Sample(object):
         self.rpkm_scaling_factor = rpkm_scaling_factor
         self.rpkg_scaling_factor = rpkg_scaling_factor
         self.replicate = replicate
-        self.fragment_length = fragment_length
+        self.insert_size = insert_size
         self.reads = defaultdict(dict)
         
     def load_sample(self,options):
@@ -41,7 +43,7 @@ class Sample(object):
         if self.fastq_fwd_readcount > 0:
             self.rpkm_scaling_factor = 1000000/self.fastq_fwd_readcount
         if self.is_paired_end:
-            self.fragment_length = options.parser.getint(self.sample_id,'fragment_length')
+            self.insert_size = options.parser.getint(self.sample_id,'insert_size', fallback=0)
         self.rpkg_scaling_factor = options.parser.getfloat(self.sample_id,'rpkg_scaling', fallback=0.0)
         self.replicate = options.parser.get(self.sample_id,'replicate')
         
@@ -70,4 +72,62 @@ class Sample(object):
         else:
             return 0.0
 
-        
+    def estimate_average_insert_size(self, alignment_length_threshold):
+        if not self.is_paired_end:
+            return None
+        if len(self.reads['pe1']) == 0:
+            return None
+        if len(self.reads['pe2']) == 0:
+            return None
+        gene_length_threshold = self.get_avg_read_length('pe1')
+        print('gene_length_threshold', gene_length_threshold)
+        print('alignment_length_threshold',alignment_length_threshold)
+        read_data = defaultdict(dict)
+        print ('pe1 reads', str(len(self.reads['pe1'])))
+        print ('pe2 reads', str(len(self.reads['pe2'])))
+        for read_id,read1 in self.reads['pe1'].items():
+            if read1.get_status() != 'function':
+                continue
+            if read_id not in self.reads['pe2']:
+                continue
+#            print ('Found read with two mapped ends')
+            read2 =self.reads['pe2'][read_id]
+            if read2.get_status() != 'function':
+                continue
+            for hit in read1.get_hit_list().get_hits():
+                if hit.get_subject_id() not in [h.get_subject_id() for h in read2.get_hit_list().get_hits()]:
+#                    print ('Different target proteins: skipped')
+                    continue
+                if hit.s_len*3 < gene_length_threshold:
+#                    print ('Target protein shorter than threshold: skipped')
+                    continue
+                if hit.s_end - hit.s_start < alignment_length_threshold:
+                    continue
+                for hit2 in read2.get_hit_list().get_hits():
+                    if hit.get_subject_id() != hit2.get_subject_id():
+                        continue
+#                    print ('Found read with two hits in one protein')
+                    if hit2.s_end - hit2.s_start < alignment_length_threshold:
+                        continue
+#                    print ('Found read with two hits in one protein longer than alignment cutoff')
+                    if (hit.s_end - hit2.s_start) > (hit2.s_end - hit.s_start):
+                        # Do not count overhangs
+                        #fragment_length = 3 * (hit.s_end - hit2.s_start)
+                        # Count overhangs
+                        insert_size = 3 * (hit.s_end - hit2.s_start) + hit2.q_start - 1 + len(read2.sequence)  - hit.q_end
+                    else:
+                        # Do not count overhangs
+                        #fragment_length = 3 * (hit2.s_end - hit.s_start)
+                        # Count overhangs
+                        insert_size = 3 * (hit2.s_end - hit.s_start) + hit.q_start - 1 + len(read1.sequence)  - hit2.q_end
+                    if insert_size > alignment_length_threshold * 3:
+                        read_data[read_id]['tlen'] = insert_size
+                        read_data[read_id]['rlen'] = (len(read1.sequence) + len(read2.sequence)) / 2
+                        read_data[read_id]['ref_len'] = hit.s_len*3
+                        read_data[read_id]['ref_name'] = hit.get_subject_id()
+                    break
+        print(str(len(read_data)), 'fragments found')
+        avg_insert_size = get_lib_est(read_data, self.work_directory)
+        self.insert_size = avg_insert_size
+        return avg_insert_size
+
