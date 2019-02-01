@@ -30,8 +30,8 @@ end = 'pe1'
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'protein_project_EB271_assembly.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen8test_t.ini')
 #sample_id = 'sample1'
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_universal1_lca.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_universal1_lca_test.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen9_lca.ini')
 sample_id = 'sample6'
 
@@ -1592,14 +1592,14 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
         for sample_id in self.project.list_samples():
             self.project.import_reads_json(sample_id, self.project.ENDS)
         
-        metrics = 'fpkg'
+        metrics = 'fpk'
         
-        rank = 'phylum'
+        #rank = 'phylum'
         #ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus']
         scores = get_function_taxonomy_scores(self.project,sample_id=None,metrics=metrics)
         #for rank in ranks:
-        generate_sample_taxonomy_function_xlsx(self.project, scores, metrics=metrics, function_id='RP-S3', rank = None)
-        #generate_function_taxonomy_sample_xlsx(self.project, scores, metrics=metrics, sample_id=None, rank = None)
+        #generate_sample_taxonomy_function_xlsx(self.project, scores, metrics=metrics, function_id='RP-S3', rank = None)
+        generate_function_taxonomy_sample_xlsx(self.project, scores, metrics=metrics, sample_id=None, rank = None)
         
         self.assertTrue(scores)
 

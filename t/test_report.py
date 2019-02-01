@@ -5,22 +5,23 @@ from collections import Counter,defaultdict
 from fpdf import FPDF
 
 from context import Fama
+from Fama.utils import autovivify,cleanup_protein_id,sanitize_file_name
 from Fama.DiamondParser.DiamondParser import DiamondParser
 from Fama.Project import Project
 from Fama.OutputUtil.PdfReport import generate_pdf_report
 from Fama.OutputUtil.KronaXMLWriter import generate_functions_chart
 from Fama.OutputUtil.PdfReport import generate_pdf_report
-from Fama.OutputUtil.XlsxUtil import create_functions_xlsx
-from Fama.OutputUtil.Report import create_functions_markdown_document
+from Fama.OutputUtil.XlsxUtil import generate_function_sample_xlsx
+from Fama.OutputUtil.Report import generate_project_markdown_document,get_function_scores
 from Fama.lib_est import get_lib_est
 
 data_dir = 'data'
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen9_lca.ini')
-#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_universal1_lca.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen9_lca.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_universal1_lca_test.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
-sample_id = 'test_sample'
+#sample_id = 'test_sample'
 sample_id = 'sample1'
 end = 'pe1'
 
@@ -83,8 +84,14 @@ class FamaReportTest(unittest.TestCase):
     def test_5_generate_functions_xlsx(self):
         for sample_id in self.project.list_samples():
             self.project.import_reads_json(sample_id, self.project.ENDS)
-        create_functions_xlsx(self.project, 'Read count')
-        #create_functions_xlsx(self.project, 'RPKM')
+        metrics = 'efpkg'
+        scores = get_function_scores(self.project, sample_id=None, metrics=metrics)
+        generate_function_sample_xlsx(self.project, 
+                            scores, 
+                            metrics=metrics, 
+                            sample_id = None)
+        self.assertTrue(len(scores) > 0)
+
 
 #    @unittest.skip("for faster testing")
     def test_6_generate_functions_markdown(self):
@@ -202,6 +209,20 @@ class FamaReportTest(unittest.TestCase):
         
         self.assertTrue(int(avg_fragment_length) > 0)
 
+#    @unittest.skip("for faster testing")
+    def test_10_generate_markdown(self):
+
+        #for sample_id in self.project.list_samples():
+        sample_id = 'sample1'
+        metrics = 'efpkg'
+        self.project.import_reads_json(sample_id, self.project.ENDS)
+        scores = get_function_scores(self.project, sample_id=sample_id, metrics=metrics)
+        generate_project_markdown_document(self.project, scores, sample_id = sample_id, metrics = metrics)
+        outfile = sanitize_file_name(os.path.join(self.project.options.get_work_dir(), 'index.md'))
+        with open (outfile, 'r') as f:
+            line = f.readline()
+            f.close()
+        self.assertEqual(line, '# ' + self.project.options.get_name() + '\n')
 
 
     def tearDown(self):

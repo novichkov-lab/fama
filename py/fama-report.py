@@ -12,6 +12,8 @@ def get_args():
     parser.add_argument('-p', dest='project', type=str, help='Path to project.ini')
     parser.add_argument('-s', dest='sample', type=str, default=None,
                         help='Sample ID (optional)')
+    parser.add_argument('-m', dest='metrics', type=str, default='efpkg',
+                        help='Metrics (optional). Acceptable values: readcount, fragmentcount, fpk, fpkm, fpkg, erpk, erpkm, erpkg, efpk, efpkm, efpkg. Default values: efpkg for paired-end prohjects, erkpg for single-end projects.')
     args = parser.parse_args()
     if len(sys.argv) == 1:
         parser.print_help()
@@ -36,9 +38,9 @@ def main():
             is_paired_end = True
         project.import_reads_json(sample_id, project.ENDS)
         print ('Generating report for',sample_id)
-        generate_sample_report(project, sample_id)
+        generate_sample_report(project, sample_id, metrics=args.metrics)
     print ('Generating report for project')
-    project.generate_report()
+    project.generate_report(metrics=args.metrics)
         
     i = 0
     while True:
@@ -46,6 +48,7 @@ def main():
             i += 1
         else:
             project.save_project_options(args.project + '.new.' + str(i)) # Create copy of project.ini with new parameters
+            print ('Updated project file saved as ' + args.project + '.new.' + str(i))
             break
 
     print('Done!')

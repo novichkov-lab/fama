@@ -76,7 +76,7 @@ class Project(object):
         # TODO
         pass
 
-    def generate_report(self):
+    def generate_report(self, metrics = None):
         outfile = os.path.join(self.options.get_work_dir(), 'project_report.txt')
         with open (outfile, 'w') as of:
             of.write(self.options.get_name() + '\n\n')
@@ -86,7 +86,7 @@ class Project(object):
                     of.write('\tpe2 reads: ' + str(len(self.samples[sample_id].reads['pe2'])))
                 of.write('\n')
             of.closed
-        generate_project_report(self)
+        generate_project_report(self, metrics)
 
     def check_project(self):
         problems = defaultdict(list)

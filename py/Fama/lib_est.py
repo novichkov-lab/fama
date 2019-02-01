@@ -109,7 +109,7 @@ class LibrarySampler(object):
         cdf_list = [ self.full_ECDF( x_min) * self.get_weight(int(round(x_min+stepsize/2.0,0)), read_len, softclipps)  ] #[ self.full_ECDF( 2*(read_len-softclipps)) * self.get_weight(2*(read_len-softclipps), gap_coordinates, read_len, softclipps) ]
 
         # create weigted (true) distribution
-        print('x_min:',x_min,',x_max:',x_max,',stepsize:',stepsize)
+        # print('x_min:',x_min,',x_max:',x_max,',stepsize:',stepsize)
         for x in range( x_min + stepsize , x_max, stepsize):
             increment_area = self.get_weight(int((x+stepsize/2)), read_len, softclipps) * (self.full_ECDF(x) - self.full_ECDF(x-stepsize))
             cdf_list.append( cdf_list[-1] + increment_area)
@@ -162,7 +162,7 @@ class LibrarySampler(object):
             reads_processed += 1
             if reads_processed >= SAMPLE_SIZE:
                 break
-        print(reads_processed, 'reads processed')
+        #print(reads_processed, 'reads processed')
         # for sample_nr,read in enumerate(bam_filtered):
      #            ## add do insert size distribution calculation if proper pair
         #    if is_proper_aligned_unique_innie(read) and not  read.is_reverse:
@@ -201,14 +201,14 @@ class LibrarySampler(object):
         params = dict()
         params["sample-nr"] = reads_processed # sample_nr
         
-        print ('isize_list before filter', str(len(isize_list)))
+        #print ('isize_list before filter', str(len(isize_list)))
         #isize_list = filter(lambda x: 0 < x - 2*self.read_length,isize_list)
         #isize_list = list(filter(lambda x: 0 < x - 2*self.read_length,isize_list))
-        print ('after:', str(len(isize_list)))
+        #print ('after:', str(len(isize_list)))
         
         
         n_isize = len(isize_list)
-        print ('n_isize', n_isize)
+        #print ('n_isize', n_isize)
         mean_isize = sum(list(isize_list))/n_isize
         std_dev_isize =  (sum(list(map((lambda x: x ** 2 - 2 * x * mean_isize + mean_isize ** 2), isize_list))) / (n_isize - 1)) ** 0.5
         params["mu-raw"] = mean_isize
@@ -216,7 +216,7 @@ class LibrarySampler(object):
         extreme_obs_occur = True
         while extreme_obs_occur:
             #print 'HERE!!'
-            print(mean_isize, std_dev_isize, str(len(isize_list)))
+            #print(mean_isize, std_dev_isize, str(len(isize_list)))
             extreme_obs_occur, filtered_list = AdjustInsertsizeDist(mean_isize, std_dev_isize, isize_list)
             n_isize = float(len(filtered_list))
             mean_isize = sum(filtered_list) / n_isize
@@ -294,7 +294,7 @@ class LibrarySampler(object):
         info["mu-naive"] = mu_naive
         info["sd-naive"] = sigma_naive
         mu_sophisticated = param_est.mean_given_d(self.mean, self.stddev, self.read_length, total_basepairs, total_basepairs, 0)
-        print('Mean insert size (mu_sophisticated)', str(mu_sophisticated))
+        print('Average insert size:', str(mu_sophisticated))
         sigma_sophisticated = param_est.stddev_given_d(self.mean, self.stddev, self.read_length, total_basepairs, total_basepairs, 0)
         info["mu-sophisticated"] = mu_sophisticated
         self.mu_sophisticated = mu_sophisticated

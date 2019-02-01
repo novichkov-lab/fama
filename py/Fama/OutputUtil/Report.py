@@ -2,7 +2,7 @@ import os
 from collections import defaultdict,Counter,OrderedDict
 
 from Fama.utils import autovivify,cleanup_protein_id,sanitize_file_name
-from Fama.DiamondParser.hit_utils import get_efpk_score
+from Fama.DiamondParser.hit_utils import get_efpk_score,get_fpk_score
 from Fama.TaxonomyProfile import TaxonomyProfile
 from Fama.OutputUtil.XlsxUtil import generate_function_sample_xlsx, generate_function_taxonomy_sample_xlsx, generate_sample_taxonomy_function_xlsx
 from Fama.OutputUtil.KronaXMLWriter import generate_functional_taxonomy_chart,generate_taxonomy_series_chart
@@ -305,10 +305,10 @@ def get_function_scores(project, sample_id = None, metrics=None):
     # This function actually returns read counts for readcount metrics,
     # RPK for rpkm and rpkg
     # or FPK for fpkm and fpkg
-    # it also returns read count as 'count' metrics, sum of identity % of 
+    # it also always returns read count as 'count' metrics, sum of identity % of 
     # all best hits as 'identity' and number of best hits as 'hit_count' 
     # for calculation of average identity %
-    # resulting data structure is ret_val[function_id][sample_id][metrics/'count'/'identity'/'hit_count']
+    # resulting data structure is ret_val[function_id][sample_id][metrics|'count'|'identity'|'hit_count']
     
     ret_val = autovivify(3,float)
     for s in project.list_samples():
@@ -325,37 +325,40 @@ def get_function_scores(project, sample_id = None, metrics=None):
                 raise ValueError ('No reads data loaded for sample',s,'end pe2')
 
         norm_factor = 0.0
-        if metrics == 'readcount':
+        if metrics in ['readcount','erpk','fragmentcount','fpk','efpk']:
             norm_factor = 1.0
-        elif metrics in ['rpkm','fpkm','erpkm','efpkm']:
+        elif metrics in ['fpkm','erpkm','efpkm']:
             norm_factor = project.samples[s].rpkm_scaling_factor
-        elif metrics in ['rpkg','fpkg','erpkg','efpkg']:
+        elif metrics in ['fpkg','erpkg','efpkg']:
             norm_factor = project.samples[s].rpkg_scaling_factor
+        else:
+            raise ValueError('Unknown metrics:' + metrics)
         
         if norm_factor == 0.0:
             raise ValueError('Cannot get normalization factor')
 
         # Calculate scores
-        if metrics in ['readcount','rpkg','rpkm','erpkg','erpkm']:
+        if metrics in ['readcount','erpk','erpkg','erpkm']:
             if project.samples[s].is_paired_end:
                 raise ValueError('Read count, RPKG and RPKM metrics provided only for single-end sequences')
             
             for read_id, read in project.samples[s].reads['pe1'].items():
                 if read.get_status() != 'function': # Filter unmapped reads
                     continue
-                read_rpk_scores = read.get_functions()
-                for function in read_rpk_scores:
+                read_erpk_scores = read.get_functions()
+                for function in read_erpk_scores:
                     if metrics == 'readcount':
+                        ret_val[function][s]['count'] += 1.0
                         ret_val[function][s][metrics] += 1.0
                     else:
                         ret_val[function][s]['count'] += 1.0
-                        ret_val[function][s][metrics] += norm_factor * read_rpk_scores[function]
+                        ret_val[function][s][metrics] += norm_factor * read_erpk_scores[function]
                         
                 function_maxbitscores = defaultdict(dict)
                 hits = [hit for hit in read.get_hit_list().get_hits()]
                 # Find max. bitscore for each function
                 for hit in hits:
-                    for hit_function in [function for function in hit.get_functions() if function in read_rpk_scores]:
+                    for hit_function in [function for function in hit.get_functions() if function in read_erpk_scores]:
                         if hit_function in function_maxbitscores:
                             if hit.get_bitscore() > function_maxbitscores[hit_function]['bitscore']:
                                 function_maxbitscores[hit_function]['bitscore'] = hit.get_bitscore()
@@ -364,16 +367,16 @@ def get_function_scores(project, sample_id = None, metrics=None):
                             function_maxbitscores[hit_function]['bitscore'] = hit.get_bitscore()
                             function_maxbitscores[hit_function]['identity'] = hit.get_identity()
                 # Count hits and sum identity
-                for function in read_rpk_scores:
+                for function in read_erpk_scores:
                     if function in function_maxbitscores:
                             ret_val[function][s]['hit_count'] += 1.0 
                             ret_val[function][s]['identity'] += function_maxbitscores[function]['identity']
                     else:
                         print('Function',function,'not found in hits of read', read_id)
                         
-        elif metrics in ['fpkg','fpkm','efpkg','efpkm']:
+        elif metrics in ['fragmentcount','fpk','efpk','fpkg','fpkm','efpkg','efpkm']:
             if not project.samples[s].is_paired_end:
-                raise ValueError('FPKG and FPKM metrics require paired-end sequences')
+                raise ValueError('Metrics based on fragment count require paired-end sequences')
             insert_size = project.get_insert_size(project.samples[s])
             reads_processed = set()
             
@@ -439,7 +442,12 @@ def get_function_scores(project, sample_id = None, metrics=None):
                             if function in function_maxbitscores:
                                     ret_val[function][s]['hit_count'] += 1.0 
                                     ret_val[function][s]['identity'] += function_maxbitscores[function]['identity']
-                                    ret_val[function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
+                                    if metrics == 'fragmentcount':
+                                        ret_val[function][s][metrics] += 1
+                                    elif metrics in ['fpk','fpkg','fpkm']:
+                                        ret_val[function][s][metrics] += norm_factor * get_fpk_score(function_maxbitscores[function]['length'])
+                                    else:
+                                        ret_val[function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
                             else:
                                 print('Function',function,'not found in hits of read', read_id)
                                     
@@ -472,7 +480,12 @@ def get_function_scores(project, sample_id = None, metrics=None):
                         if function in function_maxbitscores:
                             ret_val[function][s]['hit_count'] += 1.0 
                             ret_val[function][s]['identity'] += function_maxbitscores[function]['identity']
-                            ret_val[function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
+                            if metrics == 'fragmentcount':
+                                ret_val[function][s][metrics] += 1
+                            elif metrics in ['fpk','fpkg','fpkm']:
+                                ret_val[function][s][metrics] += norm_factor * get_fpk_score(function_maxbitscores[function]['length'])
+                            else:
+                                ret_val[function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
                         else:
                             print('Function',function,'not found in hits of read', read_id)
 
@@ -514,7 +527,12 @@ def get_function_scores(project, sample_id = None, metrics=None):
                     if function in function_maxbitscores:
                         ret_val[function][s]['hit_count'] += 1.0 
                         ret_val[function][s]['identity'] += function_maxbitscores[function]['identity']
-                        ret_val[function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
+                        if metrics == 'fragmentcount':
+                            ret_val[function][s][metrics] += 1
+                        elif metrics in ['fpk','fpkg','fpkm']:
+                            ret_val[function][s][metrics] += norm_factor * get_fpk_score(function_maxbitscores[function]['length'])
+                        else:
+                            ret_val[function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
                     else:
                         print('Function',function,'not found in hits of read', read_id)
 
@@ -542,7 +560,7 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
                 raise ValueError ('No reads data loaded for sample',s,'end pe2')
 
         norm_factor = 0.0
-        if metrics == 'readcount':
+        if metrics in ['readcount','erpk','fragmentcount','fpk','efpk']:
             norm_factor = 1.0
         elif metrics in ['rpkm','fpkm','erpkm','efpkm']:
             norm_factor = project.samples[s].rpkm_scaling_factor
@@ -554,17 +572,17 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
 
 
         # Calculate scores
-        if metrics in ['readcount','rpkg','rpkm','erpkg','erpkm']:
+        if metrics in ['readcount','rpkg','rpkm','erpk','erpkg','erpkm']:
             if project.samples[s].is_paired_end:
                 raise ValueError('Read count, RPKG and RPKM metrics provided only for single-end sequences')
             
             for read_id, read in project.samples[s].reads['pe1'].items():
                 if read.get_status() != 'function': # Filter unmapped reads
                     continue
-                read_rpk_scores = read.get_functions()
-                for function in read_rpk_scores:
+                read_erpk_scores = read.get_functions()
+                for function in read_erpk_scores:
                     ret_val[read.taxonomy][function][s]['count'] += 1.0
-                    ret_val[read.taxonomy][function][s][metrics] += norm_factor * read_rpk_scores[function]
+                    ret_val[read.taxonomy][function][s][metrics] += norm_factor * read_erpk_scores[function]
                         
                 function_maxbitscores = {}
                 hits = [hit for hit in read.get_hit_list().get_hits()]
@@ -584,7 +602,7 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
                             ret_val[read.taxonomy][function][s]['identity'] += hit.get_identity()
                             del function_maxbitscores[hit_function]
         
-        elif metrics in ['fpkg','fpkm','efpkg','efpkm']:
+        elif metrics in ['fragmentcount','fpk','efpk','fpkg','fpkm','efpkg','efpkm']:
             if not project.samples[s].is_paired_end:
                 raise ValueError('FPKG and FPKM metrics require paired-end sequences')
             insert_size = project.get_insert_size(project.samples[s])
@@ -657,7 +675,12 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
                                 ret_val[fragment_taxonomy][function][s]['count'] += 1
                                 ret_val[fragment_taxonomy][function][s]['hit_count'] += 1.0 
                                 ret_val[fragment_taxonomy][function][s]['identity'] += function_maxbitscores[function]['identity']
-                                ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
+                                if metrics == 'fragmentcount':
+                                    ret_val[fragment_taxonomy][function][s][metrics] += 1
+                                elif metrics in ['fpk','fpkg','fpkm']:
+                                    ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_fpk_score(function_maxbitscores[function]['length'])
+                                else:
+                                    ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
                             else:
                                 print('Function',function,'not found in hits of read', read_id)
 
@@ -690,7 +713,12 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
                             ret_val[fragment_taxonomy][function][s]['count'] += 1
                             ret_val[fragment_taxonomy][function][s]['hit_count'] += 1.0 
                             ret_val[fragment_taxonomy][function][s]['identity'] += function_maxbitscores[function]['identity']
-                            ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
+                            if metrics == 'fragmentcount':
+                                ret_val[fragment_taxonomy][function][s][metrics] += 1
+                            elif metrics in ['fpk','fpkg','fpkm']:
+                                ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_fpk_score(function_maxbitscores[function]['length'])
+                            else:
+                                ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
                         else:
                             print('Function',function,'not found in hits of read', read_id)
 
@@ -732,12 +760,23 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
                         ret_val[fragment_taxonomy][function][s]['count'] += 1
                         ret_val[fragment_taxonomy][function][s]['hit_count'] += 1.0 
                         ret_val[fragment_taxonomy][function][s]['identity'] += function_maxbitscores[function]['identity']
-                        ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
+                        if metrics == 'fragmentcount':
+                            ret_val[fragment_taxonomy][function][s][metrics] += 1
+                        elif metrics in ['fpk','fpkg','fpkm']:
+                            ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_fpk_score(function_maxbitscores[function]['length'])
+                        else:
+                            ret_val[fragment_taxonomy][function][s][metrics] += norm_factor * get_efpk_score(function_maxbitscores[function]['length'], average_read_length, length_cutoff, insert_size=insert_size)
                     else:
                         print('Function',function,'not found in hits of read', read_id)
     return ret_val
 
-def generate_sample_report(project, sample_id):
+def generate_sample_report(project, sample_id, metrics = None):
+    # This function creates output files only in project's working directory
+    if metrics is None:
+        if project.samples[sample_id].is_paired_end:
+            metrics = 'efpkg'
+        else:
+            metrics = 'erpkg'
     #outfile = os.path.join(project.samples[sample_id].work_directory, sample_id + '_report.txt')
     outfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), sample_id + '_report.txt'))
     with open(outfile, 'w') as of:
@@ -772,21 +811,11 @@ def generate_sample_report(project, sample_id):
             of.write('FASTQ file 2:\t' + str(len(project.samples[sample_id].reads['pe2'])) + '\n')
 
         of.closed
-    
-    if project.samples[sample_id].is_paired_end:
-        if not project.samples[sample_id].rpkg_scaling_factor is None:
-            metrics = 'efpkg'
-        elif not project.samples[sample_id].rpkm_scaling_factor is None:
-            metrics = 'efpkm'
-        else:
-            metrics = 'readcount'
-    else:
-        if not project.samples[sample_id].rpkg_scaling_factor is None:
-            metrics = 'erpkg'
-        elif not project.samples[sample_id].rpkm_scaling_factor is None:
-            metrics = 'erpkm'
-        else:
-            metrics = 'readcount'
+
+    if project.samples[sample_id].rpkg_scaling_factor is None and metrics in ['efpkg', 'fpkg', 'erpkg', 'rpkg']:
+        raise ValueError('Not enough data to normalize by average genome size')
+    if project.samples[sample_id].rpkm_scaling_factor is None and metrics in ['efpkm', 'fpkm', 'erpkm', 'rpkm']:
+        raise ValueError('Not enough data to normalize by sample size')
 
     scores_function = get_function_scores(project, sample_id, metrics=metrics)
     scores_function_taxonomy = get_function_taxonomy_scores(project, sample_id, metrics=metrics)
@@ -809,7 +838,7 @@ def generate_sample_report(project, sample_id):
     generate_taxonomy_series_chart(tax_profile, function_list, outfile, score=metrics)
 
     
-def generate_project_report(project):
+def generate_project_report(project, metrics = None):
     is_paired_end = None
     for sample_id in project.list_samples():
         if project.samples[sample_id].is_paired_end:
@@ -829,38 +858,21 @@ def generate_project_report(project):
         if len(project.samples[sample_id].reads) == 0:
             project.import_reads_json(sample_id, project.ENDS)
     print ('Generating spreadsheets and interactive diagrams for the project...')
-    if is_paired_end:
-        metrics = 'efpkm'
-        scores = get_function_scores(project, sample_id=None, metrics=metrics)
-        generate_function_sample_xlsx(project, scores, metrics=metrics)
-        scores_function_taxonomy = get_function_taxonomy_scores(project, sample_id=None, metrics=metrics)
-        generate_function_taxonomy_sample_xlsx(project, scores_function_taxonomy, metrics=metrics, sample_id=None)
-        generate_sample_taxonomy_function_xlsx(project, scores_function_taxonomy, metrics=metrics, function_id=None)
-        metrics = 'efpkg'
-        scores = get_function_scores(project, sample_id=None, metrics=metrics)
-        generate_function_sample_xlsx(project, scores, metrics=metrics)
-        scores_function_taxonomy = get_function_taxonomy_scores(project, sample_id=None, metrics=metrics)
-        generate_function_taxonomy_sample_xlsx(project, scores_function_taxonomy, metrics=metrics, sample_id=None)
-        generate_sample_taxonomy_function_xlsx(project, scores_function_taxonomy, metrics=metrics, function_id=None)
-    else:
-        metrics = 'erpkm'
-        scores = get_function_scores(project, sample_id=None, metrics=metrics)
-        generate_function_sample_xlsx(project, scores, metrics=metrics)
-        scores_function_taxonomy = get_function_taxonomy_scores(project, sample_id=None, metrics=metrics)
-        generate_function_taxonomy_sample_xlsx(project, scores_function_taxonomy, metrics=metrics, sample_id=None)
-        generate_sample_taxonomy_function_xlsx(project, scores_function_taxonomy, metrics=metrics, function_id=None)
-        metrics = 'erpkg'
-        scores = get_function_scores(project, sample_id=None, metrics=metrics)
-        generate_function_sample_xlsx(project, scores, metrics=metrics)
-        scores_function_taxonomy = get_function_taxonomy_scores(project, sample_id=None, metrics=metrics)
-        generate_function_taxonomy_sample_xlsx(project, scores_function_taxonomy, metrics=metrics, sample_id=None)
-        generate_sample_taxonomy_function_xlsx(project, scores_function_taxonomy, metrics=metrics, function_id=None)
-        metrics = 'readcount'
-        scores = get_function_scores(project, sample_id=None, metrics=metrics)
-        generate_function_sample_xlsx(project, scores, metrics=metrics)
-        scores_function_taxonomy = get_function_taxonomy_scores(project, sample_id=None, metrics=metrics)
-        generate_function_taxonomy_sample_xlsx(project, scores_function_taxonomy, metrics=metrics, sample_id=None)
-        generate_sample_taxonomy_function_xlsx(project, scores_function_taxonomy, metrics=metrics, function_id=None)
+    
+    if metrics is None: 
+        if is_paired_end:
+            metrics = 'efpkg'
+        else:
+            metrics = 'erpkg'
+    
+    scores = get_function_scores(project, sample_id=None, metrics=metrics)
+    generate_function_sample_xlsx(project, scores, metrics=metrics)
+    scores_function_taxonomy = get_function_taxonomy_scores(project, sample_id=None, metrics=metrics)
+    generate_function_taxonomy_sample_xlsx(project, scores_function_taxonomy, metrics=metrics, sample_id=None)
+    generate_sample_taxonomy_function_xlsx(project, scores_function_taxonomy, metrics=metrics, function_id=None)
+
+    generate_project_markdown_document(project, scores, metrics=metrics)
+
 
 def generate_protein_project_report(project):
     for sample_id in project.list_samples():
@@ -884,134 +896,16 @@ def generate_protein_project_report(project):
     generate_sample_taxonomy_function_xlsx(project, scores_function_taxonomy, metrics=metrics, function_id=None)
 
 
-def generate_functions_scores_table(project):
-    functions_list = set()
-    scores = defaultdict(lambda : defaultdict(float))
-    read_counts = defaultdict(lambda : defaultdict(float))
-    
-    # fill tables of scores and read counts
-    for sample in project.list_samples():
-        for end in ENDS:
-            project.import_reads_json(sample, [end,]) # Lazy load
-            scaling_factor = 1.0
-            if end == 'pe1':
-                scaling_factor = project.options.get_fastq1_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
-            elif end == 'pe2':
-                scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
-            else:
-                raise Exception('Unknown identifier of read end: ' + end)
-            for read_id in project.samples[sample].reads[end]:
-                read = project.samples[sample].reads[end][read_id]
-                if read.get_status() == 'function,besthit' or read.get_status() == 'function':
-                    for function in read.functions:
-                        functions_list.add(function)
-                        scores[function][sample] += scaling_factor * read.functions[function]
-                        read_counts[function][sample] += 1.0/len(read.functions)
-            project.samples[sample].reads[end] = None
+def generate_project_markdown_document(project, scores, sample_id = None, metrics = None):
 
-    # generate output
-    samples_list = sorted(project.samples.keys())
-    lines = ['Function\t' + '\t'.join(samples_list) + '\tDefinition',]
-    for function in sorted(functions_list):
-        line = function
-        for sample in samples_list:
-            if sample in scores[function]:
-                line += '\t' + '{0:.2f}'.format(scores[function][sample])
-            else:
-                line += '\t0.00'
-        line += '\t' + project.ref_data.lookup_function_name(function)
-        lines.append(line)
+    functions_list = sorted(scores.keys())
     
-    lines.append('\nFunction\t' + '\t'.join(samples_list) + '\tDefinition')
-    for function in sorted(functions_list):
-        line = function
-        for sample in samples_list:
-            if sample in read_counts[function]:
-                line += '\t' + str(read_counts[function][sample])
-            else:
-                line += '\t0'
-        line += '\t' + project.ref_data.lookup_function_name(function)
-        lines.append(line)
-    
-    return '\n'.join(lines)
-    
-def generate_functions_scores_list(project):
-    functions = defaultdict(dict)
-    protein_counts = defaultdict(dict)
-    # initialize list of functions
-    for sample in project.list_samples():
-        for end in project.samples[sample].reads:
-            for read in project.samples[sample].reads[end]:
-                if read.get_status() == 'function,besthit' or read.get_status() == 'function':
-                    for function in read.functions:
-                        if sample in functions[function]:
-                            functions[function][sample] += read.functions[function]
-                            protein_counts[function][sample] += 1
-                        else:
-                            functions[function][sample] = read.functions[function]
-                            protein_counts[function][sample] = 1
-    
-    samples_list = sorted(project.samples.keys())
-    lines = ['Function\tSample\tScore\tDefinition',]
-    for sample in samples_list:
-        for function in sorted(functions.keys()):
-            line = sample
-            if sample in functions[function]:
-                line +=  '\t' + function + '\t' + '{0:.2f}'.format(functions[function][sample])
-            else:
-                line +=  '\t' + function + '\t0.00'
-            line += '\t' + project.ref_data.lookup_function_name(function)
-            lines.append(line)
-    
-    lines.append('\nFunction\tSample\tCount\tDefinition')
-    for sample in samples_list:
-        for function in sorted(functions.keys()):
-            line = sample
-            if sample in functions[function]:
-                line +=  '\t' + function + '\t' + str(protein_counts[function][sample])
-            else:
-                line +=  '\t' + function + '\t0'
-            line += '\t' + project.ref_data.lookup_function_name(function)
-            lines.append(line)
-    
-    return '\n'.join(lines)
-
-
-def create_functions_markdown_document(project):
-
-    functions_list = set()
-    categories_list = set()
-    scores = defaultdict(lambda : defaultdict(float))
-    scores_cat = defaultdict(lambda : defaultdict(float))
-    
-    # calculate scores
-
-    for sample in project.list_samples():
-        for end in project.ENDS:
-            project.samples[sample].reads[end] = None
-            if end == 'pe2' and not project.samples[sample].is_paired_end:
-                continue
-            project.import_reads_json(sample, [end,])
-            scaling_factor = 1.0
-            if end == 'pe1':
-                scaling_factor = project.options.get_fastq1_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
-            elif end == 'pe2':
-                scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
-            else:
-                raise Exception('Unknown identifier of read end: ' + end)
-            for read_id in project.samples[sample].reads[end]:
-                read = project.samples[sample].reads[end][read_id]
-                if read.get_status() == 'function,besthit' or read.get_status() == 'function':
-                    for function in read.functions:
-                        functions_list.add(function)
-                        scores[function][sample] += scaling_factor * read.functions[function]
-                        category = project.ref_data.lookup_function_group(function)
-                        categories_list.add(category)
-                        scores_cat[category][sample] += scaling_factor * read.functions[function]
-            project.samples[sample].reads[end] = None
-
     # write output
-    samples_list = sorted(project.list_samples())
+    if sample_id is None:
+        samples_list = sorted(project.list_samples())
+    else:
+        samples_list = [sample_id]
+
     outfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), 'index.md'))
 
     with open(outfile, 'w') as of:
@@ -1019,25 +913,25 @@ def create_functions_markdown_document(project):
         of.write(project.options.get_name())
         of.write('\n\n')
 
-        of.write('## Categories\n\nAbundance of functional categories (RPKM score)\n\n')
+        #~ of.write('## Categories\n\nAbundance of functional categories (RPKM score)\n\n')
 
-        of.write('Category|')
-        of.write('|'.join(samples_list))
-        of.write('|\n')
-        of.write('|---'*(len(samples_list) + 1))
-        of.write('|\n')
+        #~ of.write('Category|')
+        #~ of.write('|'.join(samples_list))
+        #~ of.write('|\n')
+        #~ of.write('|---'*(len(samples_list) + 1))
+        #~ of.write('|\n')
         
-        for category in sorted(categories_list):
-            of.write(category)
-            for sample in samples_list:
-                of.write('|')
-                if sample in scores_cat[category]:
-                    of.write('{0:.3f}'.format(scores_cat[category][sample]))
-                else:
-                    of.write('0.000')
-            of.write('|\n')
+        #~ for category in sorted(categories_list):
+            #~ of.write(category)
+            #~ for sample in samples_list:
+                #~ of.write('|')
+                #~ if sample in scores_cat[category]:
+                    #~ of.write('{0:.3f}'.format(scores_cat[category][sample]))
+                #~ else:
+                    #~ of.write('0.000')
+            #~ of.write('|\n')
 
-        of.write('\n## Functions\n\nAbundance of individual functions (RPKM score)\n\n')
+        of.write('\n## Functions\n\n' + metrics + ' scores of individual functions\n\n')
 
 
         of.write('Function|')
@@ -1050,8 +944,8 @@ def create_functions_markdown_document(project):
             of.write(function)
             for sample in samples_list:
                 of.write('|')
-                if sample in scores[function]:
-                    of.write('{0:.3f}'.format(scores[function][sample]))
+                if function in scores and sample in scores[function]:
+                    of.write('{0:.3f}'.format(scores[function][sample][metrics]))
                 else:
                     of.write('0.000')
             of.write('|')
@@ -1122,6 +1016,249 @@ def create_functions_markdown_document(project):
                 of.write(targetfile)
                 of.write('">Download report for read end 2 (PDF format)</a>\n<br>\n')
             of.closed
+            
+
+
+
+
+#~ def generate_functions_scores_table(project):
+    #~ functions_list = set()
+    #~ scores = defaultdict(lambda : defaultdict(float))
+    #~ read_counts = defaultdict(lambda : defaultdict(float))
+    
+    #~ # fill tables of scores and read counts
+    #~ for sample in project.list_samples():
+        #~ for end in ENDS:
+            #~ project.import_reads_json(sample, [end,]) # Lazy load
+            #~ scaling_factor = 1.0
+            #~ if end == 'pe1':
+                #~ scaling_factor = project.options.get_fastq1_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
+            #~ elif end == 'pe2':
+                #~ scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
+            #~ else:
+                #~ raise Exception('Unknown identifier of read end: ' + end)
+            #~ for read_id in project.samples[sample].reads[end]:
+                #~ read = project.samples[sample].reads[end][read_id]
+                #~ if read.get_status() == 'function,besthit' or read.get_status() == 'function':
+                    #~ for function in read.functions:
+                        #~ functions_list.add(function)
+                        #~ scores[function][sample] += scaling_factor * read.functions[function]
+                        #~ read_counts[function][sample] += 1.0/len(read.functions)
+            #~ project.samples[sample].reads[end] = None
+
+    #~ # generate output
+    #~ samples_list = sorted(project.samples.keys())
+    #~ lines = ['Function\t' + '\t'.join(samples_list) + '\tDefinition',]
+    #~ for function in sorted(functions_list):
+        #~ line = function
+        #~ for sample in samples_list:
+            #~ if sample in scores[function]:
+                #~ line += '\t' + '{0:.2f}'.format(scores[function][sample])
+            #~ else:
+                #~ line += '\t0.00'
+        #~ line += '\t' + project.ref_data.lookup_function_name(function)
+        #~ lines.append(line)
+    
+    #~ lines.append('\nFunction\t' + '\t'.join(samples_list) + '\tDefinition')
+    #~ for function in sorted(functions_list):
+        #~ line = function
+        #~ for sample in samples_list:
+            #~ if sample in read_counts[function]:
+                #~ line += '\t' + str(read_counts[function][sample])
+            #~ else:
+                #~ line += '\t0'
+        #~ line += '\t' + project.ref_data.lookup_function_name(function)
+        #~ lines.append(line)
+    
+    #~ return '\n'.join(lines)
+    
+#~ def generate_functions_scores_list(project):
+    #~ functions = defaultdict(dict)
+    #~ protein_counts = defaultdict(dict)
+    #~ # initialize list of functions
+    #~ for sample in project.list_samples():
+        #~ for end in project.samples[sample].reads:
+            #~ for read in project.samples[sample].reads[end]:
+                #~ if read.get_status() == 'function,besthit' or read.get_status() == 'function':
+                    #~ for function in read.functions:
+                        #~ if sample in functions[function]:
+                            #~ functions[function][sample] += read.functions[function]
+                            #~ protein_counts[function][sample] += 1
+                        #~ else:
+                            #~ functions[function][sample] = read.functions[function]
+                            #~ protein_counts[function][sample] = 1
+    
+    #~ samples_list = sorted(project.samples.keys())
+    #~ lines = ['Function\tSample\tScore\tDefinition',]
+    #~ for sample in samples_list:
+        #~ for function in sorted(functions.keys()):
+            #~ line = sample
+            #~ if sample in functions[function]:
+                #~ line +=  '\t' + function + '\t' + '{0:.2f}'.format(functions[function][sample])
+            #~ else:
+                #~ line +=  '\t' + function + '\t0.00'
+            #~ line += '\t' + project.ref_data.lookup_function_name(function)
+            #~ lines.append(line)
+    
+    #~ lines.append('\nFunction\tSample\tCount\tDefinition')
+    #~ for sample in samples_list:
+        #~ for function in sorted(functions.keys()):
+            #~ line = sample
+            #~ if sample in functions[function]:
+                #~ line +=  '\t' + function + '\t' + str(protein_counts[function][sample])
+            #~ else:
+                #~ line +=  '\t' + function + '\t0'
+            #~ line += '\t' + project.ref_data.lookup_function_name(function)
+            #~ lines.append(line)
+    
+    #~ return '\n'.join(lines)
+
+
+#~ def create_functions_markdown_document(project):
+
+    #~ functions_list = set()
+    #~ categories_list = set()
+    #~ scores = defaultdict(lambda : defaultdict(float))
+    #~ scores_cat = defaultdict(lambda : defaultdict(float))
+    
+    #~ # calculate scores
+
+    #~ for sample in project.list_samples():
+        #~ for end in project.ENDS:
+            #~ project.samples[sample].reads[end] = None
+            #~ if end == 'pe2' and not project.samples[sample].is_paired_end:
+                #~ continue
+            #~ project.import_reads_json(sample, [end,])
+            #~ scaling_factor = 1.0
+            #~ if end == 'pe1':
+                #~ scaling_factor = project.options.get_fastq1_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
+            #~ elif end == 'pe2':
+                #~ scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
+            #~ else:
+                #~ raise Exception('Unknown identifier of read end: ' + end)
+            #~ for read_id in project.samples[sample].reads[end]:
+                #~ read = project.samples[sample].reads[end][read_id]
+                #~ if read.get_status() == 'function,besthit' or read.get_status() == 'function':
+                    #~ for function in read.functions:
+                        #~ functions_list.add(function)
+                        #~ scores[function][sample] += scaling_factor * read.functions[function]
+                        #~ category = project.ref_data.lookup_function_group(function)
+                        #~ categories_list.add(category)
+                        #~ scores_cat[category][sample] += scaling_factor * read.functions[function]
+            #~ project.samples[sample].reads[end] = None
+
+    #~ # write output
+    #~ samples_list = sorted(project.list_samples())
+    #~ outfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), 'index.md'))
+
+    #~ with open(outfile, 'w') as of:
+        #~ of.write('# ')
+        #~ of.write(project.options.get_name())
+        #~ of.write('\n\n')
+
+        #~ of.write('## Categories\n\nAbundance of functional categories (RPKM score)\n\n')
+
+        #~ of.write('Category|')
+        #~ of.write('|'.join(samples_list))
+        #~ of.write('|\n')
+        #~ of.write('|---'*(len(samples_list) + 1))
+        #~ of.write('|\n')
+        
+        #~ for category in sorted(categories_list):
+            #~ of.write(category)
+            #~ for sample in samples_list:
+                #~ of.write('|')
+                #~ if sample in scores_cat[category]:
+                    #~ of.write('{0:.3f}'.format(scores_cat[category][sample]))
+                #~ else:
+                    #~ of.write('0.000')
+            #~ of.write('|\n')
+
+        #~ of.write('\n## Functions\n\nAbundance of individual functions (RPKM score)\n\n')
+
+
+        #~ of.write('Function|')
+        #~ of.write('|'.join(samples_list))
+        #~ of.write('|Definition|\n')
+        #~ of.write('|---'*(len(samples_list) + 2))
+        #~ of.write('|\n')
+        
+        #~ for function in sorted(functions_list):
+            #~ of.write(function)
+            #~ for sample in samples_list:
+                #~ of.write('|')
+                #~ if sample in scores[function]:
+                    #~ of.write('{0:.3f}'.format(scores[function][sample]))
+                #~ else:
+                    #~ of.write('0.000')
+            #~ of.write('|')
+            #~ of.write(project.ref_data.lookup_function_name(function))
+            #~ of.write('|\n')
+
+        #~ targetfile = sanitize_file_name(os.path.join('data', project.options.get_name() + '_functions.xlsx'))
+
+        #~ of.write('\n<a href="')
+        #~ of.write(targetfile)
+        #~ of.write('" target="_blank">Download table of RPKM scores and read counts in XLSX format</a>\n\n')
+
+        #~ of.write('## Taxonomy profile for all reads mapped to nitrogen cycle genes\n\n')
+
+        #~ targetfile = sanitize_file_name(os.path.join('data', project.options.get_name() + '_taxonomy_profile.xml.html'))
+        #~ of.write('<div class="krona-wrapper">\n<iframe src="')
+        #~ of.write(targetfile)
+        #~ of.write('" height="800" width="100%">')
+        #~ of.write(project.options.get_name())
+        #~ of.write(' taxonomy profile</iframe>\n<br>\n<a href="')
+        #~ of.write(targetfile)
+        #~ of.write('" target="_blank">Open chart in a new window</a>\n</div>\n\n')
+        
+        #~ of.write('## Taxonomy profiles for individual functions\n\n')
+
+        #~ targetfile = sanitize_file_name(os.path.join('data', project.options.get_name() + '_functions_taxonomy.xlsx'))
+        #~ of.write('<a href="')
+        #~ of.write(targetfile)
+        #~ of.write('" target="_blank">Download detailed taxonomic profile for all functions in all samples (XLSX format)</a>\n\n<div>\n')
+        #~ for sample in samples_list:
+            #~ targetfile = sanitize_file_name(os.path.join('data', sample + '_functional_taxonomy_profile.xml.html'))
+            #~ of.write('<a href="')
+            #~ of.write(targetfile)
+            #~ of.write('" target="_blank">Taxonomy profile for individual functions in sample ')
+            #~ of.write(sample)
+            #~ of.write(' (interactive chart)</a><br>\n')
+        #~ of.write('</div>\n')
+        #~ of.closed
+
+    #~ # write files for samples
+    #~ for sample in samples_list:
+        #~ outfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), sample + '.md'))
+        #~ with open(outfile, 'w') as of:
+            #~ of.write('# Sample ')
+            #~ of.write(sample)
+            #~ of.write('\n\n## Functional taxonomy profile for reads mapped to ')
+            #~ of.write(os.path.join(project.options.get_collection()))
+            #~ of.write(' dataset\n\n')
+            
+            #~ targetfile = sanitize_file_name(os.path.join('..','data', sample + '_functional_taxonomy_profile.xml.html'))
+            #~ of.write('<div class="krona-wrapper">\n<iframe src="')
+            #~ of.write(targetfile)
+            #~ of.write('" height="800" width="100%">')
+            #~ of.write(project.options.get_name())
+            #~ of.write(' taxonomy profile</iframe>\n<br>\n<a href="')
+            #~ of.write(targetfile)
+            #~ of.write('" target="_blank">Open chart in a new window</a>\n</div>\n\n')
+            
+            #~ of.write('## Reports for FASTQ files\n\n')
+            #~ if os.path.exists(os.path.join(project.options.get_project_dir(sample), project.options.get_output_subdir(sample),sample + '_pe1_'+ project.options.get_report_name() + '.pdf')):
+                #~ targetfile = os.path.join('..','data', sample + '_pe1_'+ project.options.get_report_name() + '.pdf')
+                #~ of.write('<a href="')
+                #~ of.write(targetfile)
+                #~ of.write('">Download report for read end 1 (PDF format)</a>\n<br>\n')
+            #~ if os.path.exists(os.path.join(project.options.get_project_dir(sample), project.options.get_output_subdir(sample),sample + '_pe2_'+ project.options.get_report_name() + '.pdf')):
+                #~ targetfile = os.path.join('..','data', sample + '_pe2_'+ project.options.get_report_name() + '.pdf')
+                #~ of.write('<a href="')
+                #~ of.write(targetfile)
+                #~ of.write('">Download report for read end 2 (PDF format)</a>\n<br>\n')
+            #~ of.closed
             
 
 

@@ -178,6 +178,7 @@ def run_fastq_pipeline(project, sample, end_id):
             sample.fastq_fwd_readcount = read_count
         if sample.fastq_fwd_basecount == 0:
             sample.fastq_fwd_basecount = base_count
+            
     elif end_id == 'pe2':
         if sample.fastq_rev_readcount == 0:
             sample.fastq_rev_readcount = read_count
@@ -189,7 +190,7 @@ def run_fastq_pipeline(project, sample, end_id):
     if sample.rpkg_scaling_factor == 0.0:
         run_microbecensus(sample=sample, threads=project.config.get_threads())
         sample.import_rpkg_scaling_factor()
-
+    project.options.set_sample_data(sample)
     
     print ('Exporting FASTQ ')
     parser.export_hit_fastq()

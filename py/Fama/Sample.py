@@ -35,7 +35,7 @@ class Sample(object):
             self.is_paired_end = False
         else:
             self.is_paired_end = True
-        self.fastq_fwd_readcount = options.parser.getint(self.sample_id,'fastq_pe1_readcount')
+        self.fastq_fwd_readcount = options.parser.getint(self.sample_id,'fastq_pe1_readcount', fallback=0)
         self.fastq_rev_readcount = options.parser.getint(self.sample_id,'fastq_pe2_readcount', fallback=0)
         self.fastq_fwd_basecount = options.parser.getint(self.sample_id,'fastq_pe1_basecount', fallback=0)
         self.fastq_rev_basecount = options.parser.getint(self.sample_id,'fastq_pe2_basecount', fallback=0)
@@ -43,7 +43,7 @@ class Sample(object):
         if self.fastq_fwd_readcount > 0:
             self.rpkm_scaling_factor = 1000000/self.fastq_fwd_readcount
         if self.is_paired_end:
-            self.insert_size = options.parser.getint(self.sample_id,'insert_size', fallback=0)
+            self.insert_size = options.parser.getfloat(self.sample_id,'insert_size', fallback=0)
         self.rpkg_scaling_factor = options.parser.getfloat(self.sample_id,'rpkg_scaling', fallback=0.0)
         self.replicate = options.parser.get(self.sample_id,'replicate')
         

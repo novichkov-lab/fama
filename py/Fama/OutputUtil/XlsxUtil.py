@@ -265,380 +265,380 @@ def generate_sample_taxonomy_function_xlsx(project, scores, metrics, function_id
 
     writer.save()
 
-def create_functions_xlsx(project, metrics, sample_id_only = None):
-    xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_' + metrics + '_functions.xlsx'))    
-    xlsxfile = xlsxfile.replace(' ', '_')
-    xlsxfile = xlsxfile.replace("'", "")
-    xlsxfile = xlsxfile.replace('"', '')
-    workbook = xlsxwriter.Workbook(xlsxfile)
-    bold = workbook.add_format({'bold': True})
+#~ def create_functions_xlsx(project, metrics, sample_id_only = None):
+    #~ xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_' + metrics + '_functions.xlsx'))    
+    #~ xlsxfile = xlsxfile.replace(' ', '_')
+    #~ xlsxfile = xlsxfile.replace("'", "")
+    #~ xlsxfile = xlsxfile.replace('"', '')
+    #~ workbook = xlsxwriter.Workbook(xlsxfile)
+    #~ bold = workbook.add_format({'bold': True})
     
-    functions_list = set()
-    categories_list = set()
-    scores = autovivify(3,float)
-    scores_cat = autovivify(3,float)
-    samples_list = []
-    # calculate scores
+    #~ functions_list = set()
+    #~ categories_list = set()
+    #~ scores = autovivify(3,float)
+    #~ scores_cat = autovivify(3,float)
+    #~ samples_list = []
+    #~ # calculate scores
 
-    for sample_id in project.list_samples():
-        if not sample_id_only is None and sample_id_only != sample_id:
-            continue
-        samples_list.append(sample_id)
-        for end in project.ENDS:
-            # Skip reverse read for single-end samples
-            if end =='pe2' and not project.samples[sample_id].is_paired_end:
-                continue
+    #~ for sample_id in project.list_samples():
+        #~ if not sample_id_only is None and sample_id_only != sample_id:
+            #~ continue
+        #~ samples_list.append(sample_id)
+        #~ for end in project.ENDS:
+            #~ # Skip reverse read for single-end samples
+            #~ if end =='pe2' and not project.samples[sample_id].is_paired_end:
+                #~ continue
             
-            # If there are no read data, import annotated reads from JSON
-            if end not in project.samples[sample_id].reads or project.samples[sample_id].reads[end] is None:
-                project.import_reads_json(sample_id, [end,])
+            #~ # If there are no read data, import annotated reads from JSON
+            #~ if end not in project.samples[sample_id].reads or project.samples[sample_id].reads[end] is None:
+                #~ project.import_reads_json(sample_id, [end,])
 
-        norm_factor = 0.0
-        if metrics == 'Read count':
+        #~ norm_factor = 0.0
+        #~ if metrics == 'Read count':
             
-            for end in project.samples[sample_id].reads.keys():
+            #~ for end in project.samples[sample_id].reads.keys():
 
-                for read_id,read in project.samples[sample_id].reads[end].items():
-                    if read.get_status() == 'function,besthit' or read.get_status() == 'function':
-                        for function in read.functions:
-                            functions_list.add(function)
-                            scores[function][sample_id][end] += 1.0/len(read.functions)
-                            category = project.ref_data.lookup_function_group(function)
-                            categories_list.add(category)
-                            scores_cat[category][sample_id][end] += 1.0/len(read.functions)
+                #~ for read_id,read in project.samples[sample_id].reads[end].items():
+                    #~ if read.get_status() == 'function,besthit' or read.get_status() == 'function':
+                        #~ for function in read.functions:
+                            #~ functions_list.add(function)
+                            #~ scores[function][sample_id][end] += 1.0/len(read.functions)
+                            #~ category = project.ref_data.lookup_function_group(function)
+                            #~ categories_list.add(category)
+                            #~ scores_cat[category][sample_id][end] += 1.0/len(read.functions)
             
-        elif metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
-            if not project.samples[sample_id].is_paired_end:
-                continue
-            if metrics in ['fpkm', 'efpkm']:
-                norm_factor = project.samples[sample_id].rpkm_scaling_factor
-                if norm_factor == 0.0:
-                    norm_factor = 1000000/project.options.get_fastq1_readcount(sample_id)
-            elif metrics in ['fpkg', 'efpkg']:
-                norm_factor = project.samples[sample_id].rpkg_scaling_factor
-                if norm_factor == 0.0:
-                    raise ValueError('FPKG scaling factor is missing')
+        #~ elif metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
+            #~ if not project.samples[sample_id].is_paired_end:
+                #~ continue
+            #~ if metrics in ['fpkm', 'efpkm']:
+                #~ norm_factor = project.samples[sample_id].rpkm_scaling_factor
+                #~ if norm_factor == 0.0:
+                    #~ norm_factor = 1000000/project.options.get_fastq1_readcount(sample_id)
+            #~ elif metrics in ['fpkg', 'efpkg']:
+                #~ norm_factor = project.samples[sample_id].rpkg_scaling_factor
+                #~ if norm_factor == 0.0:
+                    #~ raise ValueError('FPKG scaling factor is missing')
 
-            reads_processed = set()
-            for read_id,read_fwd in project.samples[sample_id].reads['pe1'].items():
-                if read.get_status() == 'function':
-                    reads_processed.add(read)
+            #~ reads_processed = set()
+            #~ for read_id,read_fwd in project.samples[sample_id].reads['pe1'].items():
+                #~ if read.get_status() == 'function':
+                    #~ reads_processed.add(read)
                                             
-                    if read_id in project.samples[sample_id].reads['pe2']: 
-                        read_rev = project.samples[sample_id].reads['pe2'][read_id]
-                        if read_rev.get_status() == 'function':
-                            # Both ends are mapped
-                            fragment_scores = defaultdict(float) # Stores scores for the current read
-                            fragment_functions = set() # List of functions assigned to the current read
-                            if have_similar_functions(read_fwd, read_rev): # Ends have overlapping functions, count them together
+                    #~ if read_id in project.samples[sample_id].reads['pe2']: 
+                        #~ read_rev = project.samples[sample_id].reads['pe2'][read_id]
+                        #~ if read_rev.get_status() == 'function':
+                            #~ # Both ends are mapped
+                            #~ fragment_scores = defaultdict(float) # Stores scores for the current read
+                            #~ fragment_functions = set() # List of functions assigned to the current read
+                            #~ if have_similar_functions(read_fwd, read_rev): # Ends have overlapping functions, count them together
 
-                                read1_functions = read_fwd.get_functions()
-                                read2_functions = read_rev.get_functions()
+                                #~ read1_functions = read_fwd.get_functions()
+                                #~ read2_functions = read_rev.get_functions()
 
-                                fragment_functions.update(read1_functions.keys())
-                                fragment_functions.update(read2_functions.keys())
-                                # We filled list of functions. Let's calculate the score
+                                #~ fragment_functions.update(read1_functions.keys())
+                                #~ fragment_functions.update(read2_functions.keys())
+                                #~ # We filled list of functions. Let's calculate the score
                                 
-                                for fragment_function in fragment_functions:
-                                    if fragment_function in read1_functions and fragment_function in read2_functions: # Calculate average score
-                                        fragment_scores[fragment_function] = max(read1_functions[fragment_function], read2_functions[fragment_function])
-                                    elif fragment_function in read1_functions:
-                                        fragment_scores[fragment_function] += read1_functions[fragment_function]
-                                    elif fragment_function in read2_functions:
-                                        fragment_scores[fragment_function] += read2_functions[fragment_function]
-                            else:
-                                fragment_functions = read_fwd.get_functions()
-                                for fragment_function in fragment_functions:
-                                    fragment_scores[fragment_function] += fragment_functions[fragment_function]
-                                fragment_functions = read_rev.get_functions()
-                                for fragment_function in fragment_functions:
-                                    fragment_scores[fragment_function] += fragment_functions[fragment_function]
+                                #~ for fragment_function in fragment_functions:
+                                    #~ if fragment_function in read1_functions and fragment_function in read2_functions: # Calculate average score
+                                        #~ fragment_scores[fragment_function] = max(read1_functions[fragment_function], read2_functions[fragment_function])
+                                    #~ elif fragment_function in read1_functions:
+                                        #~ fragment_scores[fragment_function] += read1_functions[fragment_function]
+                                    #~ elif fragment_function in read2_functions:
+                                        #~ fragment_scores[fragment_function] += read2_functions[fragment_function]
+                            #~ else:
+                                #~ fragment_functions = read_fwd.get_functions()
+                                #~ for fragment_function in fragment_functions:
+                                    #~ fragment_scores[fragment_function] += fragment_functions[fragment_function]
+                                #~ fragment_functions = read_rev.get_functions()
+                                #~ for fragment_function in fragment_functions:
+                                    #~ fragment_scores[fragment_function] += fragment_functions[fragment_function]
                             
-                            # Add FPKM score of the read to FPKM score of the sample
-                            for function in fragment_scores.keys():
-                                functions_list.add(function)
-                                scores[function][sample_id][''] += norm_factor * fragment_scores[function]
-                                category = project.ref_data.lookup_function_group(function)
-                                categories_list.add(category)
-                                scores_cat[category][sample_id][''] += norm_factor * fragment_scores[function]
+                            #~ # Add FPKM score of the read to FPKM score of the sample
+                            #~ for function in fragment_scores.keys():
+                                #~ functions_list.add(function)
+                                #~ scores[function][sample_id][''] += norm_factor * fragment_scores[function]
+                                #~ category = project.ref_data.lookup_function_group(function)
+                                #~ categories_list.add(category)
+                                #~ scores_cat[category][sample_id][''] += norm_factor * fragment_scores[function]
                             
-                    else: #Only end1 is mapped
-                        for function,rpk_score in read_fwd.get_functions().items():
-                            functions_list.add(function)
-                            scores[function][sample_id][''] += norm_factor * rpk_score
-                            category = project.ref_data.lookup_function_group(function)
-                            categories_list.add(category)
-                            scores_cat[category][sample_id][''] += norm_factor * rpk_score
+                    #~ else: #Only end1 is mapped
+                        #~ for function,rpk_score in read_fwd.get_functions().items():
+                            #~ functions_list.add(function)
+                            #~ scores[function][sample_id][''] += norm_factor * rpk_score
+                            #~ category = project.ref_data.lookup_function_group(function)
+                            #~ categories_list.add(category)
+                            #~ scores_cat[category][sample_id][''] += norm_factor * rpk_score
 
-            for read_id,read_rev in project.samples[sample_id].reads['pe2'].items():
-                if read_id not in reads_processed: #Only end2 was mapped
-                    if read_rev.get_status() == 'function':
-                        read_functions = read_rev.get_functions()
-                        # Count FPKM
-                        for function,rpk_score in read_rev.get_functions().items():
-                            functions_list.add(function)
-                            scores[function][sample_id][''] += norm_factor * rpk_score
-                            category = project.ref_data.lookup_function_group(function)
-                            categories_list.add(category)
-                            scores_cat[category][sample_id][''] += norm_factor * rpk_score
+            #~ for read_id,read_rev in project.samples[sample_id].reads['pe2'].items():
+                #~ if read_id not in reads_processed: #Only end2 was mapped
+                    #~ if read_rev.get_status() == 'function':
+                        #~ read_functions = read_rev.get_functions()
+                        #~ # Count FPKM
+                        #~ for function,rpk_score in read_rev.get_functions().items():
+                            #~ functions_list.add(function)
+                            #~ scores[function][sample_id][''] += norm_factor * rpk_score
+                            #~ category = project.ref_data.lookup_function_group(function)
+                            #~ categories_list.add(category)
+                            #~ scores_cat[category][sample_id][''] += norm_factor * rpk_score
                             
-        elif metrics in ['rpkm', 'erpkm', 'rpkg', 'erpkg']:
-            if metrics in ['rpkm', 'erpkm']:
-                norm_factor = project.samples[sample_id].rpkm_scaling_factor
-                if norm_factor == 0.0:
-                    norm_factor = 1000000/project.options.get_fastq1_readcount(sample_id)
-            elif metrics in ['rpkg', 'erpkg']:
-                norm_factor = project.samples[sample_id].rpkg_scaling_factor
-                if norm_factor == 0.0:
-                    raise ValueError('RPKG scaling factor is missing')
+        #~ elif metrics in ['rpkm', 'erpkm', 'rpkg', 'erpkg']:
+            #~ if metrics in ['rpkm', 'erpkm']:
+                #~ norm_factor = project.samples[sample_id].rpkm_scaling_factor
+                #~ if norm_factor == 0.0:
+                    #~ norm_factor = 1000000/project.options.get_fastq1_readcount(sample_id)
+            #~ elif metrics in ['rpkg', 'erpkg']:
+                #~ norm_factor = project.samples[sample_id].rpkg_scaling_factor
+                #~ if norm_factor == 0.0:
+                    #~ raise ValueError('RPKG scaling factor is missing')
 
-            for end in project.samples[sample_id].reads.keys():
-                for read_id,read in project.samples[sample_id].reads[end].items():
-                    if read.get_status() == 'function':
-                        for function in read.functions:
-                            functions_list.add(function)
-                            scores[function][sample_id][end] += norm_factor * read.functions[function]
-                            category = project.ref_data.lookup_function_group(function)
-                            categories_list.add(category)
-                            scores_cat[category][sample_id][end] += norm_factor * read.functions[function]
-        else:
-            raise ValueError('Unknown metrics: ' + metrics)
-        # Free memory
-        project.samples[sample_id].reads = None
+            #~ for end in project.samples[sample_id].reads.keys():
+                #~ for read_id,read in project.samples[sample_id].reads[end].items():
+                    #~ if read.get_status() == 'function':
+                        #~ for function in read.functions:
+                            #~ functions_list.add(function)
+                            #~ scores[function][sample_id][end] += norm_factor * read.functions[function]
+                            #~ category = project.ref_data.lookup_function_group(function)
+                            #~ categories_list.add(category)
+                            #~ scores_cat[category][sample_id][end] += norm_factor * read.functions[function]
+        #~ else:
+            #~ raise ValueError('Unknown metrics: ' + metrics)
+        #~ # Free memory
+        #~ project.samples[sample_id].reads = None
             
-    # generate output
+    #~ # generate output
     
-    # generate tables for functions
-    scores_worksheet = workbook.add_worksheet('Functions ' + metrics)
+    #~ # generate tables for functions
+    #~ scores_worksheet = workbook.add_worksheet('Functions ' + metrics)
     
-    row = 0
-    col = 0
+    #~ row = 0
+    #~ col = 0
     
-    scores_worksheet.write(row, col, 'Function', bold)
+    #~ scores_worksheet.write(row, col, 'Function', bold)
     
-    for sample_id in samples_list:
-        if metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
-            col += 1
-            scores_worksheet.write(row, col, sample_id, bold)
-        else:
-            for end in project.ENDS:
-                if end == 'pe2' and not project.samples[sample_id].is_paired_end:
-                    continue
-                col += 1
-                scores_worksheet.write(row, col, sample_id + '_' + end , bold)
+    #~ for sample_id in samples_list:
+        #~ if metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
+            #~ col += 1
+            #~ scores_worksheet.write(row, col, sample_id, bold)
+        #~ else:
+            #~ for end in project.ENDS:
+                #~ if end == 'pe2' and not project.samples[sample_id].is_paired_end:
+                    #~ continue
+                #~ col += 1
+                #~ scores_worksheet.write(row, col, sample_id + '_' + end , bold)
     
-    col += 1
-    scores_worksheet.write(row, col, 'Definition', bold)
+    #~ col += 1
+    #~ scores_worksheet.write(row, col, 'Definition', bold)
     
-    for function in sorted(functions_list):
-        row += 1
-        col = 0
-        scores_worksheet.write(row, col, function, bold)
-        for sample_id in samples_list:
-            if metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
-                col += 1
-                if sample_id in scores[function]:
-                    scores_worksheet.write(row, col, scores[function][sample_id][''])
-                else:
-                    scores_worksheet.write(row, col, 0.0)
-            else:
-                for end in project.ENDS:
-                    if end == 'pe2' and not project.samples[sample_id].is_paired_end:
-                        continue
-                    col += 1
-                    if sample_id in scores[function] and end in scores[function][sample_id]:
-                        scores_worksheet.write(row, col, scores[function][sample_id][end])
-                    else:
-                        scores_worksheet.write(row, col, 0.0)
-        col += 1
-        scores_worksheet.write(row, col, project.ref_data.lookup_function_name(function))
+    #~ for function in sorted(functions_list):
+        #~ row += 1
+        #~ col = 0
+        #~ scores_worksheet.write(row, col, function, bold)
+        #~ for sample_id in samples_list:
+            #~ if metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
+                #~ col += 1
+                #~ if sample_id in scores[function]:
+                    #~ scores_worksheet.write(row, col, scores[function][sample_id][''])
+                #~ else:
+                    #~ scores_worksheet.write(row, col, 0.0)
+            #~ else:
+                #~ for end in project.ENDS:
+                    #~ if end == 'pe2' and not project.samples[sample_id].is_paired_end:
+                        #~ continue
+                    #~ col += 1
+                    #~ if sample_id in scores[function] and end in scores[function][sample_id]:
+                        #~ scores_worksheet.write(row, col, scores[function][sample_id][end])
+                    #~ else:
+                        #~ scores_worksheet.write(row, col, 0.0)
+        #~ col += 1
+        #~ scores_worksheet.write(row, col, project.ref_data.lookup_function_name(function))
 
-    # adjust column width
-    scores_worksheet.set_column(0, 0, 10)
-    scores_worksheet.set_column(col, col, 50)
+    #~ # adjust column width
+    #~ scores_worksheet.set_column(0, 0, 10)
+    #~ scores_worksheet.set_column(col, col, 50)
 
-    # generate tables for categories
-    scores_cat_worksheet = workbook.add_worksheet('Categories RPKM')
+    #~ # generate tables for categories
+    #~ scores_cat_worksheet = workbook.add_worksheet('Categories RPKM')
     
-    row = 0
-    col = 0
+    #~ row = 0
+    #~ col = 0
     
-    scores_cat_worksheet.write(row, col, 'Category', bold)
+    #~ scores_cat_worksheet.write(row, col, 'Category', bold)
     
-    for sample_id in samples_list:
-        if metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
-            col += 1
-            scores_cat_worksheet.write(row, col, sample_id , bold)
-        else:
-            for end in project.ENDS:
-                if end == 'pe2' and not project.samples[sample_id].is_paired_end:
-                    continue
-                col += 1
-                scores_cat_worksheet.write(row, col, sample_id + '_' + end , bold)
+    #~ for sample_id in samples_list:
+        #~ if metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
+            #~ col += 1
+            #~ scores_cat_worksheet.write(row, col, sample_id , bold)
+        #~ else:
+            #~ for end in project.ENDS:
+                #~ if end == 'pe2' and not project.samples[sample_id].is_paired_end:
+                    #~ continue
+                #~ col += 1
+                #~ scores_cat_worksheet.write(row, col, sample_id + '_' + end , bold)
     
-#    col += 1
+#~ #    col += 1
     
-    for category in sorted(categories_list):
-        row += 1
-        col = 0
-        scores_cat_worksheet.write(row, col, category, bold)
+    #~ for category in sorted(categories_list):
+        #~ row += 1
+        #~ col = 0
+        #~ scores_cat_worksheet.write(row, col, category, bold)
 
 
-        for sample_id in samples_list:
-            if metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
-                col += 1
-                if sample_id in scores_cat[category]:
-                   scores_cat_worksheet.write(row, col, scores_cat[category][sample_id][''])
-                else:
-                    scores_cat_worksheet.write(row, col, 0.0)
+        #~ for sample_id in samples_list:
+            #~ if metrics in ['fpkm', 'efpkm', 'fpkg', 'efpkg']:
+                #~ col += 1
+                #~ if sample_id in scores_cat[category]:
+                   #~ scores_cat_worksheet.write(row, col, scores_cat[category][sample_id][''])
+                #~ else:
+                    #~ scores_cat_worksheet.write(row, col, 0.0)
             
-            else:
-                for end in project.ENDS:
-                    if end == 'pe2' and not project.samples[sample_id].is_paired_end:
-                        continue
-                    col += 1
-                    if sample_id in scores_cat[category] and end in scores_cat[category][sample_id]:
-                       scores_cat_worksheet.write(row, col, scores_cat[category][sample_id][end])
-                    else:
-                        scores_cat_worksheet.write(row, col, 0.0)
+            #~ else:
+                #~ for end in project.ENDS:
+                    #~ if end == 'pe2' and not project.samples[sample_id].is_paired_end:
+                        #~ continue
+                    #~ col += 1
+                    #~ if sample_id in scores_cat[category] and end in scores_cat[category][sample_id]:
+                       #~ scores_cat_worksheet.write(row, col, scores_cat[category][sample_id][end])
+                    #~ else:
+                        #~ scores_cat_worksheet.write(row, col, 0.0)
 
-    # adjust column width
-    scores_cat_worksheet.set_column(0, 0, 40)
+    #~ # adjust column width
+    #~ scores_cat_worksheet.set_column(0, 0, 40)
 
-    workbook.close()
+    #~ workbook.close()
 
 
-def create_functions_rpkm_xlsx(project):
-    xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_functions.xlsx'))    
-    xlsxfile = xlsxfile.replace(' ', '_')
-    xlsxfile = xlsxfile.replace("'", "")
-    xlsxfile = xlsxfile.replace('"', '')
-    workbook = xlsxwriter.Workbook(xlsxfile)
-    bold = workbook.add_format({'bold': True})
+#~ def create_functions_rpkm_xlsx(project):
+    #~ xlsxfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_functions.xlsx'))    
+    #~ xlsxfile = xlsxfile.replace(' ', '_')
+    #~ xlsxfile = xlsxfile.replace("'", "")
+    #~ xlsxfile = xlsxfile.replace('"', '')
+    #~ workbook = xlsxwriter.Workbook(xlsxfile)
+    #~ bold = workbook.add_format({'bold': True})
     
-    functions_list = set()
-    categories_list = set()
-    scores = autovivify(3, float)#defaultdict(lambda : defaultdict(float))
-    read_counts = autovivify(3, float)#defaultdict(lambda : defaultdict(float))
-    scores_cat = autovivify(3, float)#defaultdict(lambda : defaultdict(float))
-    read_counts_cat = autovivify(3, float)#defaultdict(lambda : defaultdict(float))
+    #~ functions_list = set()
+    #~ categories_list = set()
+    #~ scores = autovivify(3, float)#defaultdict(lambda : defaultdict(float))
+    #~ read_counts = autovivify(3, float)#defaultdict(lambda : defaultdict(float))
+    #~ scores_cat = autovivify(3, float)#defaultdict(lambda : defaultdict(float))
+    #~ read_counts_cat = autovivify(3, float)#defaultdict(lambda : defaultdict(float))
     
-    # calculate scores
+    #~ # calculate scores
 
-    for sample in project.list_samples():
-        for end in project.ENDS:
-            if end == 'pe2' and not project.samples[sample].is_paired_end:
-                continue
-            project.import_reads_json(sample, [end,])
-            scaling_factor = 1.0
-            if end == 'pe1':
-                scaling_factor = project.options.get_fastq1_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
-            elif end == 'pe2':
-                scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
-            else:
-                raise Exception('Unknown identifier of read end: ' + end)
-            for read_id in project.samples[sample].reads[end]:
-                read = project.samples[sample][end].reads[read_id]
-                if read.get_status() == 'function,besthit' or read.get_status() == 'function':
-                    for function in read.functions:
-                        functions_list.add(function)
-                        scores[function][sample][end] += scaling_factor * read.functions[function]
-                        read_counts[function][sample][end] += 1.0/len(read.functions)
-                        category = project.ref_data.lookup_function_group(function)
-                        categories_list.add(category)
-                        scores_cat[category][sample][end] += scaling_factor * read.functions[function]
-                        read_counts_cat[category][sample][end] += 1.0/len(read.functions)
-            project.samples[sample].reads[end] = None
+    #~ for sample in project.list_samples():
+        #~ for end in project.ENDS:
+            #~ if end == 'pe2' and not project.samples[sample].is_paired_end:
+                #~ continue
+            #~ project.import_reads_json(sample, [end,])
+            #~ scaling_factor = 1.0
+            #~ if end == 'pe1':
+                #~ scaling_factor = project.options.get_fastq1_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
+            #~ elif end == 'pe2':
+                #~ scaling_factor = project.options.get_fastq2_readcount(sample)/(project.options.get_fastq1_readcount(sample) + project.options.get_fastq2_readcount(sample))
+            #~ else:
+                #~ raise Exception('Unknown identifier of read end: ' + end)
+            #~ for read_id in project.samples[sample].reads[end]:
+                #~ read = project.samples[sample][end].reads[read_id]
+                #~ if read.get_status() == 'function,besthit' or read.get_status() == 'function':
+                    #~ for function in read.functions:
+                        #~ functions_list.add(function)
+                        #~ scores[function][sample][end] += scaling_factor * read.functions[function]
+                        #~ read_counts[function][sample][end] += 1.0/len(read.functions)
+                        #~ category = project.ref_data.lookup_function_group(function)
+                        #~ categories_list.add(category)
+                        #~ scores_cat[category][sample][end] += scaling_factor * read.functions[function]
+                        #~ read_counts_cat[category][sample][end] += 1.0/len(read.functions)
+            #~ project.samples[sample].reads[end] = None
             
-    # generate output
-    samples_list = sorted(project.list_samples())
+    #~ # generate output
+    #~ samples_list = sorted(project.list_samples())
     
-    # generate tables for functions
-    scores_worksheet = workbook.add_worksheet('Functions RPKM')
-    counts_worksheet = workbook.add_worksheet('Functions read count')
+    #~ # generate tables for functions
+    #~ scores_worksheet = workbook.add_worksheet('Functions RPKM')
+    #~ counts_worksheet = workbook.add_worksheet('Functions read count')
     
-    row = 0
-    col = 0
+    #~ row = 0
+    #~ col = 0
     
-    scores_worksheet.write(row, col, 'Function', bold)
-    counts_worksheet.write(row, col, 'Function', bold)
+    #~ scores_worksheet.write(row, col, 'Function', bold)
+    #~ counts_worksheet.write(row, col, 'Function', bold)
     
-    for sample in samples_list:
-        for end in ENDS:
-            col += 1
-            scores_worksheet.write(row, col, sample, bold)
-            counts_worksheet.write(row, col, sample, bold)
+    #~ for sample in samples_list:
+        #~ for end in ENDS:
+            #~ col += 1
+            #~ scores_worksheet.write(row, col, sample, bold)
+            #~ counts_worksheet.write(row, col, sample, bold)
     
-    col += 1
-    scores_worksheet.write(row, col, 'Definition', bold)
-    counts_worksheet.write(row, col, 'Definition', bold)
+    #~ col += 1
+    #~ scores_worksheet.write(row, col, 'Definition', bold)
+    #~ counts_worksheet.write(row, col, 'Definition', bold)
     
-    for function in sorted(functions_list):
-        row += 1
-        col = 0
-        scores_worksheet.write(row, col, function, bold)
-        counts_worksheet.write(row, col, function, bold)
-        for sample in samples_list:
-            for end in ENDS:
-                col += 1
-                if sample in scores[function]:
-                    #scores_worksheet.write(row, col, '{0:.3f}'.format(scores[function][sample]))
-                    #counts_worksheet.write(row, col, '{0:.0f}'.format(read_counts[function][sample]))
-                    scores_worksheet.write(row, col, scores[function][sample][end])
-                    counts_worksheet.write(row, col, read_counts[function][sample][end])
-                else:
-                    scores_worksheet.write(row, col, 0.0)
-                    counts_worksheet.write(row, col, 0)
-        col += 1
-        scores_worksheet.write(row, col, project.ref_data.lookup_function_name(function))
-        counts_worksheet.write(row, col, project.ref_data.lookup_function_name(function))
+    #~ for function in sorted(functions_list):
+        #~ row += 1
+        #~ col = 0
+        #~ scores_worksheet.write(row, col, function, bold)
+        #~ counts_worksheet.write(row, col, function, bold)
+        #~ for sample in samples_list:
+            #~ for end in ENDS:
+                #~ col += 1
+                #~ if sample in scores[function]:
+                    #~ #scores_worksheet.write(row, col, '{0:.3f}'.format(scores[function][sample]))
+                    #~ #counts_worksheet.write(row, col, '{0:.0f}'.format(read_counts[function][sample]))
+                    #~ scores_worksheet.write(row, col, scores[function][sample][end])
+                    #~ counts_worksheet.write(row, col, read_counts[function][sample][end])
+                #~ else:
+                    #~ scores_worksheet.write(row, col, 0.0)
+                    #~ counts_worksheet.write(row, col, 0)
+        #~ col += 1
+        #~ scores_worksheet.write(row, col, project.ref_data.lookup_function_name(function))
+        #~ counts_worksheet.write(row, col, project.ref_data.lookup_function_name(function))
 
-    # adjust column width
-    scores_worksheet.set_column(0, 0, 10)
-    counts_worksheet.set_column(0, 0, 10)    
-    scores_worksheet.set_column(col, col, 50)
-    counts_worksheet.set_column(col, col, 50)
+    #~ # adjust column width
+    #~ scores_worksheet.set_column(0, 0, 10)
+    #~ counts_worksheet.set_column(0, 0, 10)    
+    #~ scores_worksheet.set_column(col, col, 50)
+    #~ counts_worksheet.set_column(col, col, 50)
 
-    # generate tables for categories
-    scores_cat_worksheet = workbook.add_worksheet('Categories RPKM')
-    counts_cat_worksheet = workbook.add_worksheet('Categories read count')
+    #~ # generate tables for categories
+    #~ scores_cat_worksheet = workbook.add_worksheet('Categories RPKM')
+    #~ counts_cat_worksheet = workbook.add_worksheet('Categories read count')
     
-    row = 0
-    col = 0
+    #~ row = 0
+    #~ col = 0
     
-    scores_cat_worksheet.write(row, col, 'Category', bold)
-    counts_cat_worksheet.write(row, col, 'Category', bold)
+    #~ scores_cat_worksheet.write(row, col, 'Category', bold)
+    #~ counts_cat_worksheet.write(row, col, 'Category', bold)
     
-    for sample in samples_list:
-        for end in ENDS:
-            col += 1
-            scores_cat_worksheet.write(row, col, sample, bold)
-            counts_cat_worksheet.write(row, col, sample, bold)
+    #~ for sample in samples_list:
+        #~ for end in ENDS:
+            #~ col += 1
+            #~ scores_cat_worksheet.write(row, col, sample, bold)
+            #~ counts_cat_worksheet.write(row, col, sample, bold)
     
-    col += 1
+    #~ col += 1
     
-    for category in sorted(categories_list):
-        row += 1
-        col = 0
-        scores_cat_worksheet.write(row, col, category, bold)
-        counts_cat_worksheet.write(row, col, category, bold)
-        for sample in samples_list:
-            for end in ENDS:
-                col += 1
-                if sample in scores_cat[category]:
-    #                scores_cat_worksheet.write(row, col, '{0:.3f}'.format(scores_cat[category][sample]))
-    #                counts_cat_worksheet.write(row, col, '{0:.0f}'.format(read_counts_cat[category][sample]))
-                    scores_cat_worksheet.write(row, col, scores_cat[category][sample][end])
-                    counts_cat_worksheet.write(row, col, read_counts_cat[category][sample][end])
-                else:
-                    scores_cat_worksheet.write(row, col, 0.0)
-                    counts_cat_worksheet.write(row, col, 0)
+    #~ for category in sorted(categories_list):
+        #~ row += 1
+        #~ col = 0
+        #~ scores_cat_worksheet.write(row, col, category, bold)
+        #~ counts_cat_worksheet.write(row, col, category, bold)
+        #~ for sample in samples_list:
+            #~ for end in ENDS:
+                #~ col += 1
+                #~ if sample in scores_cat[category]:
+    #~ #                scores_cat_worksheet.write(row, col, '{0:.3f}'.format(scores_cat[category][sample]))
+    #~ #                counts_cat_worksheet.write(row, col, '{0:.0f}'.format(read_counts_cat[category][sample]))
+                    #~ scores_cat_worksheet.write(row, col, scores_cat[category][sample][end])
+                    #~ counts_cat_worksheet.write(row, col, read_counts_cat[category][sample][end])
+                #~ else:
+                    #~ scores_cat_worksheet.write(row, col, 0.0)
+                    #~ counts_cat_worksheet.write(row, col, 0)
 
-    # adjust column width
-    scores_cat_worksheet.set_column(0, 0, 40)
-    counts_cat_worksheet.set_column(0, 0, 40)    
+    #~ # adjust column width
+    #~ scores_cat_worksheet.set_column(0, 0, 40)
+    #~ counts_cat_worksheet.set_column(0, 0, 40)    
 
-    workbook.close()
+    #~ workbook.close()
 
 def create_assembly_xlsx(assembler, taxonomy_data):
     xlsxfile = sanitize_file_name(os.path.join(assembler.project.options.get_assembly_dir(), assembler.project.options.get_name() + '_assembly.xlsx'))    
