@@ -64,10 +64,12 @@ In the Default section of config.ini, you can also change paths to programs util
 
 The second configuration file, project ini file, keeps parameters of analyzed metagenomic dataset. So, there should be separate project files for each dataset. 
 Project file contains Default section followed by sample sections. The Default section can be copied from the py/project.ini file, and only three paramters are normally would be edited:
+* threads
 * project_name
 * collection
 * work_dir
 
+The threads parameter indicates number of threads used by DIAMOND.
 The collection parameter indicates reference dataset name and must be the same as one of sections in config.ini.
 The work_dir parameter is a path where project output files will be written.
 
