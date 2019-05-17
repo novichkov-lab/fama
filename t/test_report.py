@@ -11,18 +11,25 @@ from Fama.Project import Project
 from Fama.OutputUtil.PdfReport import generate_pdf_report
 from Fama.OutputUtil.KronaXMLWriter import generate_functions_chart
 from Fama.OutputUtil.PdfReport import generate_pdf_report
-from Fama.OutputUtil.XlsxUtil import generate_function_sample_xlsx
-from Fama.OutputUtil.Report import generate_project_markdown_document,get_function_scores
+from Fama.OutputUtil.XlsxUtil import generate_function_sample_xlsx,generate_sample_taxonomy_function_xlsx
+from Fama.OutputUtil.Report import generate_project_markdown_document,get_function_scores,get_function_taxonomy_scores,generate_functions_stamp_input,generate_functions_taxonomy_stamp_input
 from Fama.lib_est import get_lib_est
 
 data_dir = 'data'
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen9_lca.ini')
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_universal1_lca_test.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_universal1_lca_test.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_EB271-ZV-D103_nitrogen9.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_EB271_nitrogen9.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_freshwater_isolates_universal1.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_benchmark_universal1.ini')
 #sample_id = 'test_sample'
-sample_id = 'sample1'
+#sample_id = 'sample1'
+#sample_id = 'FW306-4701'
+#sample_id = 'HL1G'
+#sample_id = 'A1'
 end = 'pe1'
 
 class FamaReportTest(unittest.TestCase):
@@ -30,15 +37,15 @@ class FamaReportTest(unittest.TestCase):
     def setUp(self):
         self.project = Project(config_file=config_path, project_file=project_path)
         self.project.load_project()
-        self.parser = DiamondParser(config = self.project.config, 
-                            options=self.project.options, 
-                            taxonomy_data=self.project.taxonomy_data,
-                            ref_data=self.project.ref_data,
-                            sample=self.project.samples[sample_id], 
-                            end=end)
+        #~ self.parser = DiamondParser(config = self.project.config, 
+                            #~ options=self.project.options, 
+                            #~ taxonomy_data=self.project.taxonomy_data,
+                            #~ ref_data=self.project.ref_data,
+                            #~ sample=self.project.samples[sample_id], 
+                            #~ end=end)
 
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_1_collection_pdf_output(self):
         outfile = os.path.join(data_dir,'collection_list.pdf')
         if (os.path.exists(outfile)):
@@ -64,23 +71,23 @@ class FamaReportTest(unittest.TestCase):
         self.assertTrue(os.path.exists(outfile))
         # if this test fails, function names may contain 'bad' symbols 
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_2_get_functions_in_group(self):
         urease_list = self.parser.ref_data.get_functions_in_group('Urease')
         self.assertEqual(len(urease_list), 3)
         self.assertEqual(sorted(urease_list)[0], 'UreA')
         
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_3_generate_pdf_report(self):
         self.parser.parse_background_output()
         generate_pdf_report(self.parser)
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_4_generate_functions_chart(self):
         self.parser.parse_background_output()
         generate_functions_chart(self.parser)
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_5_generate_functions_xlsx(self):
         for sample_id in self.project.list_samples():
             self.project.import_reads_json(sample_id, self.project.ENDS)
@@ -93,13 +100,13 @@ class FamaReportTest(unittest.TestCase):
         self.assertTrue(len(scores) > 0)
 
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_6_generate_functions_markdown(self):
         for sample_id in self.project.list_samples():
             self.project.import_reads_json(sample_id, self.project.ENDS)
         create_functions_markdown_document(self.project)
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_7_generate_function_table(self):
         function = 'AmoA'
         for sample_id in self.project.list_samples():
@@ -114,7 +121,7 @@ class FamaReportTest(unittest.TestCase):
                         of.write(('\t').join([read_id, function, read.status, hit.get_subject_id()]) + '\n')
             of.closed
             
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_8_predict_insert_size(self):
         
         #Should take into account https://github.com/ksahlin/GetDistr/blob/master/getdistr/model.py
@@ -197,7 +204,7 @@ class FamaReportTest(unittest.TestCase):
         self.assertTrue(int(avg_fragment_length) > 0)
 
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_9_find_fragment_length(self):
 
         for sample_id in self.project.list_samples():
@@ -209,7 +216,7 @@ class FamaReportTest(unittest.TestCase):
         
         self.assertTrue(int(avg_fragment_length) > 0)
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_10_generate_markdown(self):
 
         #for sample_id in self.project.list_samples():
@@ -224,6 +231,37 @@ class FamaReportTest(unittest.TestCase):
             f.close()
         self.assertEqual(line, '# ' + self.project.options.get_name() + '\n')
 
+    @unittest.skip("for faster testing")
+    def test_11_generate_functions_stamp_input(self):
+
+        for sample_id in self.project.list_samples():
+            self.project.import_reads_json(sample_id, self.project.ENDS)
+        metrics = 'efpkg'
+#        metrics = 'fragmentcount'
+        scores = get_function_scores(self.project, metrics=metrics)
+        generate_functions_stamp_input(self.project, scores, metrics)
+
+    @unittest.skip("for faster testing")
+    def test_12_generate_functions_taxonomy_stamp_input(self):
+
+        for sample_id in self.project.list_samples():
+            self.project.import_reads_json(sample_id, self.project.ENDS)
+        metrics = 'efpkg'
+#        metrics = 'fragmentcount'
+        scores = get_function_taxonomy_scores(self.project,metrics=metrics)
+        generate_functions_taxonomy_stamp_input(self.project, scores, metrics)
+
+#    @unittest.skip("for faster testing")
+    def test_5_generate_functions_samples_xlsx(self):
+        for sample_id in self.project.list_samples():
+            self.project.import_reads_json(sample_id, self.project.ENDS)
+        metrics = 'efpkg'
+        scores = get_function_taxonomy_scores(self.project, metrics=metrics)
+        generate_sample_taxonomy_function_xlsx(self.project, 
+                            scores, 
+                            metrics=metrics, 
+                            rank = None)
+        self.assertTrue(len(scores) > 0)
 
     def tearDown(self):
         self.parser = None

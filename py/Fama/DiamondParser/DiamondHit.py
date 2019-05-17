@@ -54,6 +54,12 @@ class DiamondHit:
 
     def get_functions(self):
         return self.functions
+
+    def set_query_start(self, pos):
+        self.q_start = pos
+
+    def set_query_end(self, pos):
+        self.q_end = pos
     
     def create_hit(self, tabular_output_fields):
         # Takes list of tabular output fields

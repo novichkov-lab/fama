@@ -28,7 +28,7 @@ class Project(object):
         self.options = ProjectOptions(project_file)
         collection = self.options.get_collection()
         if collection not in self.config.list_collections():
-            raise Exception ('Collection ' + collection + ' not found. Available collections are: ' + (',').join(colelctions))
+            raise Exception ('Collection ' + collection + ' not found. Available collections are: ' + (',').join(collections))
         self.collection = collection
         self.ref_data = ReferenceData(self.config)
         self.ref_data.load_reference_data(self.collection)
@@ -40,10 +40,10 @@ class Project(object):
     def list_samples(self):
         return self.options.list_samples()
 
-    def save_project_options(self, options_path):
+    def save_project_options(self):
         for sample_id in self.samples:
             self.options.set_sample_data(self.samples[sample_id])
-        self.options.save_options(options_path)
+        self.options.save_options()
 
     def load_project(self):
         for sample_id in self.list_samples():
@@ -71,10 +71,6 @@ class Project(object):
             return sample.insert_size
         else: # that was not expected
             return None
-
-    def export_comparative_table(self):
-        # TODO
-        pass
 
     def generate_report(self, metrics = None):
         outfile = os.path.join(self.options.get_work_dir(), 'project_report.txt')

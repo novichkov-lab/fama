@@ -66,7 +66,10 @@ class Sample(object):
     
     def get_avg_read_length(self,end):
         if end == 'pe1':
-            return self.fastq_fwd_basecount / self.fastq_fwd_readcount
+            if self.fastq_fwd_readcount == 0:
+                return 0.0
+            else:
+                return self.fastq_fwd_basecount / self.fastq_fwd_readcount
         elif end == 'pe2' and self.fastq_rev_readcount != 0.0:
             return self.fastq_rev_basecount / self.fastq_rev_readcount
         else:
@@ -112,14 +115,14 @@ class Sample(object):
 #                    print ('Found read with two hits in one protein longer than alignment cutoff')
                     if (hit.s_end - hit2.s_start) > (hit2.s_end - hit.s_start):
                         # Do not count overhangs
-                        #fragment_length = 3 * (hit.s_end - hit2.s_start)
+                        insert_size = 3 * (hit.s_end - hit2.s_start)
                         # Count overhangs
-                        insert_size = 3 * (hit.s_end - hit2.s_start) + hit2.q_start - 1 + len(read2.sequence)  - hit.q_end
+                        #insert_size = 3 * (hit.s_end - hit2.s_start) + hit2.q_start - 1 + len(read1.sequence)  - hit.q_end
                     else:
                         # Do not count overhangs
-                        #fragment_length = 3 * (hit2.s_end - hit.s_start)
+                        insert_size = 3 * (hit2.s_end - hit.s_start)
                         # Count overhangs
-                        insert_size = 3 * (hit2.s_end - hit.s_start) + hit.q_start - 1 + len(read1.sequence)  - hit2.q_end
+                        #insert_size = 3 * (hit2.s_end - hit.s_start) + hit.q_start - 1 + len(read2.sequence)  - hit2.q_end
                     if insert_size > alignment_length_threshold * 3:
                         read_data[read_id]['tlen'] = insert_size
                         read_data[read_id]['rlen'] = (len(read1.sequence) + len(read2.sequence)) / 2

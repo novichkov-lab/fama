@@ -122,7 +122,7 @@ def export_annotated_reads(parser):
         of.closed
 
 def export_sample(sample):
-    outfile = os.path.join(sample.work_directory, sample.sample_id + '_' + 'sample.json')
+    outfile = os.path.join(sample.work_directory, sample.sample_id + '_sample.json')
     #print pretty JSON: print(json.dumps(parser.reads,indent=4, cls=CustomEncoder))
     with open (outfile, 'w') as of:
         #of.write(json.dumps(sample,indent=4, cls=CustomEncoder))

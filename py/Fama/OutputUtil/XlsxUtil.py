@@ -143,42 +143,47 @@ def generate_function_taxonomy_sample_xlsx(project, scores, metrics, sample_id =
             df_filtered = df[df[('','Rank')] == rank]
             df_filtered.to_excel(writer, sheet_name=s, merge_cells=False)
 
-        workbook  = writer.book
-        worksheet = writer.sheets[s]
-        superkingdom_format = workbook.add_format({'bg_color': '#FF6666'})
-        phylum_format = workbook.add_format({'bg_color': '#FF9900'})
-        class_format = workbook.add_format({'bg_color': '#FFCC99'})
-        order_format = workbook.add_format({'bg_color': '#FFFFCC'})
-        family_format = workbook.add_format({'bg_color': '#99FFCC'})
-    #    genus_format = workbook.add_format({'bg_color': '#99FFFF'})
-        worksheet.conditional_format('B4:B1048560', {'type':     'text',
-                               'criteria': 'containing',
-                               'value':    'superkingdom',
-                               'format':   superkingdom_format})
-        worksheet.conditional_format('B4:B1048560', {'type':     'text',
-                               'criteria': 'containing',
-                               'value':    'phylum',
-                               'format':   phylum_format})
-        worksheet.conditional_format('B4:B1048560', {'type':     'text',
-                               'criteria': 'containing',
-                               'value':    'class',
-                               'format':   class_format})
-        worksheet.conditional_format('B4:B1048560', {'type':     'text',
-                               'criteria': 'containing',
-                               'value':    'order',
-                               'format':   order_format})
-        worksheet.conditional_format('B4:B1048560', {'type':     'text',
-                               'criteria': 'containing',
-                               'value':    'family',
-                               'format':   family_format})
-        #~ worksheet.conditional_format('B4:B1048560', {'type':     'text',
-                               #~ 'criteria': 'containing',
-                               #~ 'value':    'genus',
-                               #~ 'format':   genus_format})
-        worksheet.set_column(1, 1, 15)
-        worksheet.set_column(2, 2, 30)
+        format_taxonomy_worksheet(writer, s)
 
     writer.save()
+
+def format_taxonomy_worksheet(xlsx_writer, worksheet_label):
+    workbook  = xlsx_writer.book
+    worksheet = xlsx_writer.sheets[worksheet_label]
+    superkingdom_format = workbook.add_format({'bg_color': '#FF6666'})
+    phylum_format = workbook.add_format({'bg_color': '#FF9900'})
+    class_format = workbook.add_format({'bg_color': '#FFCC99'})
+    order_format = workbook.add_format({'bg_color': '#FFFFCC'})
+    family_format = workbook.add_format({'bg_color': '#99FFCC'})
+#    genus_format = workbook.add_format({'bg_color': '#99FFFF'})
+    worksheet.conditional_format('B4:B1048560', {'type':     'text',
+                           'criteria': 'containing',
+                           'value':    'superkingdom',
+                           'format':   superkingdom_format})
+    worksheet.conditional_format('B4:B1048560', {'type':     'text',
+                           'criteria': 'containing',
+                           'value':    'phylum',
+                           'format':   phylum_format})
+    worksheet.conditional_format('B4:B1048560', {'type':     'text',
+                           'criteria': 'containing',
+                           'value':    'class',
+                           'format':   class_format})
+    worksheet.conditional_format('B4:B1048560', {'type':     'text',
+                           'criteria': 'containing',
+                           'value':    'order',
+                           'format':   order_format})
+    worksheet.conditional_format('B4:B1048560', {'type':     'text',
+                           'criteria': 'containing',
+                           'value':    'family',
+                           'format':   family_format})
+    #~ worksheet.conditional_format('B4:B1048560', {'type':     'text',
+                           #~ 'criteria': 'containing',
+                           #~ 'value':    'genus',
+                           #~ 'format':   genus_format})
+    worksheet.set_column(1, 1, 15)
+    worksheet.set_column(2, 2, 35)
+    
+
     
 def generate_sample_taxonomy_function_xlsx(project, scores, metrics, function_id = None, rank = None):
     # This function generates XLSX file for taxa scores in all samples for one or more functions.
@@ -216,7 +221,6 @@ def generate_sample_taxonomy_function_xlsx(project, scores, metrics, function_id
                     else:
                         sample_scores[tax][s][metrics] = 0.0
                 
-
         tax_profile = TaxonomyProfile()
         tax_profile.build_functional_taxonomy_profile(project.taxonomy_data, sample_scores)
 
@@ -227,42 +231,38 @@ def generate_sample_taxonomy_function_xlsx(project, scores, metrics, function_id
         else:
             df_filtered = df[df[('','Rank')] == rank]
             df_filtered.to_excel(writer, sheet_name=function, merge_cells=False)
+        
+        format_taxonomy_worksheet(writer, function)
+    
+    # Make 'Average' sheet
+    if function_id is None:
+        sample_scores = autovivify(3, float)
+        for tax in scores.keys():
+            for function in sorted(project.ref_data.functions_dict.keys()):
+                if function in scores[tax].keys():
+                    for s in project.list_samples():
+                        if s in scores[tax][function]:
+                            for k,v in scores[tax][function][s].items():
+                                sample_scores[tax][s][k] += v
+                        else:
+                            sample_scores[tax][s][metrics] += 0.0
+        for tax in sample_scores:
+            for s in sample_scores[tax]:
+                sample_scores[tax][s][metrics] = sample_scores[tax][s][metrics]/len(project.ref_data.functions_dict.keys())
 
-        workbook  = writer.book
-        worksheet = writer.sheets[function]
-        superkingdom_format = workbook.add_format({'bg_color': '#FF6666'})
-        phylum_format = workbook.add_format({'bg_color': '#FF9900'})
-        class_format = workbook.add_format({'bg_color': '#FFCC99'})
-        order_format = workbook.add_format({'bg_color': '#FFFFCC'})
-        family_format = workbook.add_format({'bg_color': '#99FFCC'})
-    #    genus_format = workbook.add_format({'bg_color': '#99FFFF'})
-        worksheet.conditional_format('B4:B1048560', {'type':     'text',
-                               'criteria': 'containing',
-                               'value':    'superkingdom',
-                               'format':   superkingdom_format})
-        worksheet.conditional_format('B4:B1048560', {'type':     'text',
-                               'criteria': 'containing',
-                               'value':    'phylum',
-                               'format':   phylum_format})
-        worksheet.conditional_format('B4:B1048560', {'type':     'text',
-                               'criteria': 'containing',
-                               'value':    'class',
-                               'format':   class_format})
-        worksheet.conditional_format('B4:B1048560', {'type':     'text',
-                               'criteria': 'containing',
-                               'value':    'order',
-                               'format':   order_format})
-        worksheet.conditional_format('B4:B1048560', {'type':     'text',
-                               'criteria': 'containing',
-                               'value':    'family',
-                               'format':   family_format})
-        #~ worksheet.conditional_format('B4:B1048560', {'type':     'text',
-                               #~ 'criteria': 'containing',
-                               #~ 'value':    'genus',
-                               #~ 'format':   genus_format})
-        worksheet.set_column(1, 1, 15)
-        worksheet.set_column(2, 2, 35)
+        tax_profile = TaxonomyProfile()
+        tax_profile.build_functional_taxonomy_profile(project.taxonomy_data, sample_scores)
 
+        df = tax_profile.convert_taxonomic_profile_into_score_df(score=metrics)
+        
+        if rank is None:
+            df.to_excel(writer, sheet_name='Average', merge_cells=False)
+        else:
+            df_filtered = df[df[('','Rank')] == rank]
+            df_filtered.to_excel(writer, sheet_name='Average', merge_cells=False)
+        
+        format_taxonomy_worksheet(writer, 'Average')
+    
     writer.save()
 
 #~ def create_functions_xlsx(project, metrics, sample_id_only = None):
@@ -886,7 +886,7 @@ def create_assembly_xlsx(assembler, taxonomy_data):
                     genes_worksheet.write(row, col, gene_read_count, cell_numformat1)
                     col += 1
                     # Write RPKM
-                    gene_rpkm = assembler.assembly.contigs[function][contig].get_rpkm(total_read_count) * len(gene.protein_sequence) * 3 / len(assembler.assembly.contigs[function][contig].sequence)
+                    gene_rpkm = assembler.assembly.contigs[function][contig].get_rpkm(total_read_count) 
                     genes_worksheet.write(row, col, gene_rpkm, cell_numformat5)
                     col += 1
                     # Write coverage
@@ -905,8 +905,8 @@ def create_assembly_xlsx(assembler, taxonomy_data):
                         genes_worksheet.write(row, col, sum (gene_identity) / len (gene_identity), cell_numformat1)
                         col += 1
                         # Write CDS completeness
-                        ref_length = [x.get_subject_length() for x in gene.hit_list.get_hits()]
-                        genes_worksheet.write(row, col, len (gene.protein_sequence) * 100 / sum (ref_length), cell_numformat1)
+                        ref_lengths = [x.get_subject_length() for x in gene.hit_list.get_hits()]
+                        genes_worksheet.write(row, col, len (gene.protein_sequence) * 100 * len(ref_lengths) / sum (ref_lengths), cell_numformat1)
                         col += 1
                         # Write FAMA best hits
                         fama_hits = [cleanup_protein_id(x.get_subject_id()) for x in gene.hit_list.get_hits()]
@@ -967,7 +967,7 @@ def create_assembly_xlsx(assembler, taxonomy_data):
                         gene_read_count = assembler.assembly.contigs[function][contig].get_read_count(sample) * len(gene.protein_sequence) * 3 / len(assembler.assembly.contigs[function][contig].sequence)
                         genes_worksheet.write(row, col, gene_read_count, cell_numformat1)
                         col += 1
-                        gene_rpkm = assembler.assembly.contigs[function][contig].get_rpkm(assembler.project.options.get_fastq1_readcount(sample),sample) * len(gene.protein_sequence) * 3 / len(assembler.assembly.contigs[function][contig].sequence)
+                        gene_rpkm = assembler.assembly.contigs[function][contig].get_rpkm(assembler.project.options.get_fastq1_readcount(sample),sample) #* len(gene.protein_sequence) * 3 / len(assembler.assembly.contigs[function][contig].sequence)
                         genes_worksheet.write(row, col, gene_rpkm, cell_numformat5)
                         col += 1
                         genes_worksheet.write(row, col, assembler.assembly.contigs[function][contig].get_coverage(sample), cell_numformat1)

@@ -56,7 +56,9 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
     # assigns RPKM score to each function of the read
     #
     # Find best hit
-    for hit in read.get_hit_list().get_hits():
+    old_hit_list = read.get_hit_list().get_hits()
+    
+    for hit in old_hit_list:
         #print(str(hit))
         #print (str(hit.get_query_start()), str(hit_start), str(hit.get_query_end()), str(hit_end))
         #print (type(hit.get_query_start()), type(hit_start), type(hit.get_query_end()), type(hit_end))
@@ -119,19 +121,23 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
             read.append_functions(new_functions)
 
             # Set new list of hits
-            _hit_list = DiamondHitList(read.get_read_id())
+            #_hit_list = DiamondHitList(read.get_read_id())
             for f in new_functions_dict:
                 if f == '':
                     continue
                 good_hit = new_functions_dict[f]['hit']
                 good_hit.query_id = read.get_read_id()
+                good_hit.set_query_start(hit_start)
+                good_hit.set_query_end(hit_end)
                 good_hit.annotate_hit(ref_data)
-                _hit_list.add_hit(good_hit)
+                #_hit_list.add_hit(good_hit)
+                read.hit_list.add_hit(good_hit)
             
-            read.set_hit_list(_hit_list)
+            #read.set_hit_list(_hit_list)
 
             # Set read taxonomy ID 
             read.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
+            break
 
 
 def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, fastq_readcount, taxonomy_data, ref_data):
@@ -174,7 +180,7 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                 return
 #            print('Best hit:', str(best_hit))
 #            print('Best bit score:', str(best_bitscore))
-            bitscore_lower_cutoff = best_bitscore * (1 - bitscore_range_cutoff)
+            bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
 #            print('Bit score cutoff:', str(bitscore_lower_cutoff))
             new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() > bitscore_lower_cutoff]
             #new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() == best_bitscore]

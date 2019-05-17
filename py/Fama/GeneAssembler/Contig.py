@@ -37,11 +37,20 @@ class Contig:
     def get_rpkm(self, sample_readcount, sample = None):
         if sample:
             if sample in self.read_count:
-                return self.read_count[sample] * 1000000 / len(self.sequence) / sample_readcount
+                return self.read_count[sample] * 1000000000 / len(self.sequence) / sample_readcount
             else:
                 return 0.0
         else:
-            return len(self.reads) * 1000000 / len(self.sequence) / sample_readcount
+            return len(self.reads) * 1000000000 / len(self.sequence) / sample_readcount
+
+    def get_rpm(self, sample_readcount, sample = None):
+        if sample:
+            if sample in self.read_count:
+                return self.read_count[sample] * 1000000 / sample_readcount
+            else:
+                return 0.0
+        else:
+            return len(self.reads) * 1000000 / sample_readcount
 
     def get_read_count(self, sample = None):
         if sample:

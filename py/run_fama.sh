@@ -1,9 +1,64 @@
 #!/bin/sh
 #python fama.py --config config.ini --project project.ini --sample test_sample --end pe1
 
+# ENIGMA isolates from water, Enterobacteria
+#~ python3 fama.py -c config.ini -p project_water_isolates_nitrogen9.ini --prot
+#~ python3 fama.py -c config.ini -p project_water_isolates_universal1.ini --prot
+
+# ENIGMA pilot
+#~ python3 fama.py -c config.ini -p project_EB271-ZV-D103_universal1.ini
+#~ python3 fama.py -c config.ini -p project_EB271-ZV-D103_nitrogen9.ini
+
+#~ python3 fama.py -c config.ini -p project_EB271-ZV-D126_universal1.ini
+#~ python3 fama.py -c config.ini -p project_EB271-ZV-D126_nitrogen9.ini
+
+#~ python3 fama.py -c config.ini -p project_EB271-ZV-D142_universal1.ini
+#~ python3 fama.py -c config.ini -p project_EB271-ZV-D142_nitrogen9.ini
+
+#~ python3 fama.py -c config.ini -p project_EB271-ZV-D194_universal1.ini
+#~ python3 fama.py -c config.ini -p project_EB271-ZV-D194_nitrogen9.ini
+
+#~ python3 fama.py -c config.ini -p project_EB271-ZV-D217_universal1.ini
+#~ python3 fama.py -c config.ini -p project_EB271-ZV-D217_nitrogen9.ini
+
+#~ python3 fama.py -c config.ini -p project_EB271-ZV-D243_universal1.ini
+#~ python3 fama.py -c config.ini -p project_EB271-ZV-D243_nitrogen9.ini
+
+#~ python3 fama.py -c config.ini -p project_EB271-ZC-D286_universal1.ini
+#~ python3 fama.py -c config.ini -p project_EB271-ZC-D286_nitrogen9.ini
+
+#~ python3 fama.py -c config.ini -p project_EB271-ZC-D309_universal1.ini
+#~ python3 fama.py -c config.ini -p project_EB271-ZC-D309_nitrogen9.ini
+
+#~ python3 fama.py -c config.ini -p project_EB271-ZC-D331_universal1.ini
+#~ python3 fama.py -c config.ini -p project_EB271-ZC-D331_nitrogen9.ini
+
+#~ python3 fama.py -c config.ini -p project_EB271-ZC-D353_universal1.ini
+#~ python3 fama.py -c config.ini -p project_EB271-ZC-D353_nitrogen9.ini
+
+#~ python3 fama.py -c config.ini -p project_EB271-ZS-D377_universal1.ini
+#~ python3 fama.py -c config.ini -p project_EB271-ZS-D377_nitrogen9.ini
+
+#~ python3 fama.py -c config.ini -p project_EB271-ZS-D399_universal1.ini
+#~ python3 fama.py -c config.ini -p project_EB271-ZS-D399_nitrogen9.ini
+
+#~ python3 fama.py -c config.ini -p project_EB271-ZS-D421_universal1.ini
+#~ python3 fama.py -c config.ini -p project_EB271-ZS-D421_nitrogen9.ini
+
+python3 fama.py -c config.ini -p project_EB271-ZS-D444_universal1.ini
+python3 fama.py -c config.ini -p project_EB271-ZS-D444_nitrogen9.ini
+
 # Test groundwater metagenomes
-python3 fama_se.py --config config.ini --project project_fw106_fw301_nitrogen9.ini --sample fw106
-python3 fama_se.py --config config.ini --project project_fw106_fw301_nitrogen9.ini --sample fw301
+# This project is for wrong FW301 fastq file. Use fw106 single project instead
+#python3 fama_se.py --config config.ini --project project_fw106_fw301_nitrogen9.ini --sample fw106
+#File deleted python3 fama_se.py --config config.ini --project project_fw106_fw301_nitrogen9.ini --sample fw301
+
+#~ python3 fama.py -c config.ini -p project_fw301_nitrogen9.ini
+#~ python3 fama.py -c config.ini -p project_fw301_universal1.ini
+
+# Benchmark
+#python3 fama.py -c config.ini -p project_benchmark_nitrogen9.ini
+#python3 fama.py -c config.ini -p project_benchmark_universal1.ini
 
 # 12wells groundwater samples
 #python fama.py --config config.ini --project project_12wells_nitrogen.ini --sample DP16D_1 --end pe1

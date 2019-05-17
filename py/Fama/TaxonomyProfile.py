@@ -356,7 +356,7 @@ class TaxonomyProfile:
                 function_list.add(function) 
         root_id = '1'
         line_number = 1
-        print ('Start converting tax.profile into dict')
+        #print ('Start converting tax.profile into dict')
         tax_dict, _ = self.convert_node_into_dict(root_id, function_list, line_number, score=score)
         #print(tax_dict)
         with open('out.txt', 'w') as of:
@@ -402,13 +402,19 @@ class TaxonomyProfile:
                     line_dict[(function, '1.Score')] = self.tree.data[taxid].attributes[function][score]#format((self.tree.data[taxid].attributes[function][score]), "0.3f")
                     if 'identity' in self.tree.data[taxid].attributes[function]:
                         line_dict[(function, '2.Identity')] = self.tree.data[taxid].attributes[function]['identity']/self.tree.data[taxid].attributes[function]['hit_count']#format((self.tree.data[taxid].attributes[function]['identity']/self.tree.data[taxid].attributes[function]['hit_count']), "0.1f") + '%'
+#                        line_dict[(function, '4.Identity_sum')] = self.tree.data[taxid].attributes[function]['identity']#format((self.tree.data[taxid].attributes[function]['identity']/self.tree.data[taxid].attributes[function]['hit_count']), "0.1f") + '%'
+#                        line_dict[(function, '5.Hit_count')] = self.tree.data[taxid].attributes[function]['hit_count']
                     else:
                         line_dict[(function, '2.Identity')] = 0.0#''
+#                        line_dict[(function, '4.Identity_sum')] = 0.0
+#                        line_dict[(function, '5.Hit_count')] = 0.0
                     line_dict[(function, '3.Read count')] = self.tree.data[taxid].attributes[function]['count'] #format(self.tree.data[taxid].attributes[function]['count'], "0.0f")
                 else:
                     line_dict[(function, '1.Score')] = 0.0#''
                     line_dict[(function, '2.Identity')] = 0.0#''
                     line_dict[(function, '3.Read count')] = 0.0#''
+#                    line_dict[(function, '4.Identity_sum')] = 0.0
+#                    line_dict[(function, '5.Hit_count')] = 0.0
             ret_val[line_number] = line_dict
             line_number += 1
             if self.tree.data[taxid].children:
@@ -441,13 +447,19 @@ class TaxonomyProfile:
                             line_dict[(function, '1.Score')] = self.tree.data[taxid].attributes[function][score] - children_values[function][score]#format((self.tree.data[taxid].attributes[function][score] - children_values[function][score]), "0.3f")
                             if 'identity' in self.tree.data[taxid].attributes[function] and self.tree.data[taxid].attributes[function]['hit_count'] > children_values[function]['hit_count']:
                                 line_dict[(function, '2.Identity')] = (self.tree.data[taxid].attributes[function]['identity'] - children_values[function]['identity'])/(self.tree.data[taxid].attributes[function]['hit_count'] - children_values[function]['hit_count'])#format((self.tree.data[taxid].attributes[function]['identity'] - children_values[function]['identity'])/(self.tree.data[taxid].attributes[function]['hit_count'] - children_values[function]['hit_count']), "0.1f") + '%'
+ #                               line_dict[(function, '4.Identity_sum')] = self.tree.data[taxid].attributes[function]['identity']#format((self.tree.data[taxid].attributes[function]['identity']/self.tree.data[taxid].attributes[function]['hit_count']), "0.1f") + '%'
+ #                               line_dict[(function, '5.Hit_count')] = self.tree.data[taxid].attributes[function]['hit_count']
                             else:
                                 line_dict[(function, '2.Identity')] = 0.0#''
+#                                line_dict[(function, '4.Identity_sum')] = 0.0
+#                                line_dict[(function, '5.Hit_count')] = 0.0
                             line_dict[(function, '3.Read count')] = self.tree.data[taxid].attributes[function]['count'] - children_values[function]['count']#format((self.tree.data[taxid].attributes[function]['count'] - children_values[function]['count']), "0.0f")
                         else:
                             line_dict[(function, '1.Score')] = 0.0#''
                             line_dict[(function, '2.Identity')] = 0.0#''
                             line_dict[(function, '3.Read count')] = 0.0#''
+#                            line_dict[(function, '4.Identity_sum')] = 0.0
+#                            line_dict[(function, '5.Hit_count')] = 0.0
                     ret_val[line_number] = line_dict
                     line_number += 1
                 
@@ -468,7 +480,7 @@ class TaxonomyProfile:
                 function_list.add(function) 
         root_id = '1'
         line_number = 1
-        print ('Start converting tax.profile into dict')
+        #print ('Start converting tax.profile into dict')
         tax_dict, _ = self.convert_node_into_values_dict(root_id, function_list, line_number, score=score)
         #print(tax_dict)
         with open('out.txt', 'w') as of:
@@ -482,7 +494,7 @@ class TaxonomyProfile:
         # df = pd.DataFrame(self.convert_node_into_dict(root_id, function_list, line_number, score=score))
         return df.transpose()
 
-    def convert_node_into_values_dict(self, taxid, function_list, line_number, score='rpkm'):
+    def convert_node_into_values_dict(self, taxid, function_list, line_number, score='efpkg'):
         # Collect all attributes for reporting to the upper level
         attribute_values = defaultdict(dict)
         for function in function_list:

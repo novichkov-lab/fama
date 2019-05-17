@@ -80,3 +80,7 @@ class ReferenceData:
 
     def get_functions_in_group(self, group):
         return [function for function in self.functions_dict if self.functions_dict[function]['group'] == group]
+        
+    def list_functions(self):
+        return sorted(self.functions_dict.keys())
+        

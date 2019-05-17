@@ -9,6 +9,7 @@ class ProjectOptions:
         return cls.instance
 
     def __init__(self, project_file):
+        self.project_file = project_file
         self.parser.read(project_file)
     
     def load_project(self, project_file):
@@ -73,8 +74,10 @@ class ProjectOptions:
                 return None
     
     def get_coverage_path(self, sample):
-        if self.parser[sample]['coverage']:
+        if self.parser.has_option(sample, 'coverage'):
             return self.parser[sample]['coverage']
+        elif self.parser.has_option('', 'coverage'):
+            return self.parser['DEFAULT']['coverage']
         else:
             return None
 
@@ -143,12 +146,23 @@ class ProjectOptions:
             self.parser[sample.sample_id]['fastq_pe2_readcount'] = str(sample.fastq_rev_readcount)
             self.parser[sample.sample_id]['fastq_pe2_basecount'] = str(sample.fastq_rev_basecount)
         self.parser[sample.sample_id]['sample_dir'] = sample.work_directory
-        self.parser[sample.sample_id]['rpkg_scaling'] = str(sample.rpkg_scaling_factor)
+        if sample.rpkg_scaling_factor is not None:
+            self.parser[sample.sample_id]['rpkg_scaling'] = str(sample.rpkg_scaling_factor)
         self.parser[sample.sample_id]['replicate'] = sample.replicate
-        self.parser[sample.sample_id]['insert_size'] = str(sample.insert_size)
+        if sample.insert_size is not None:
+            self.parser[sample.sample_id]['insert_size'] = str(sample.insert_size)
         
-    def save_options(self, project_file):
-        with open (project_file, 'w') as f:
+    def save_options(self):
+        i = 0
+        while True:
+            if os.path.exists(self.project_file + '.old.' + str(i)):
+                i += 1
+            else:
+                backup_file = self.project_file + '.old.' + str(i)
+                break
+        os.rename(self.project_file, backup_file)
+        with open (self.project_file, 'w') as f:
             self.parser.write(f)
             f.closed
+        print('Old version of the project file copied to',backup_file)
         

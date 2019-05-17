@@ -95,4 +95,26 @@ class ProgramConfig:
     def list_collections(self):
         return self.config.sections()
     
+    def get_uniprot_diamond_db(self):
+        return self.config['DEFAULT']['uniprot_db_path']
     
+    def get_diamond_path(self):
+        return self.config['DEFAULT']['aligner_path']
+
+    def get_krona_path(self):
+        return self.config['DEFAULT']['krona_path']
+
+    def get_megahit_path(self):
+        return self.config['DEFAULT']['megahit_path']
+
+    def get_metaspades_path(self):
+        return self.config['DEFAULT']['metaspades_path']
+
+    def get_bowtie_indexer_path(self):
+        return self.config['DEFAULT']['bowtie_indexer_path']
+
+    def get_bowtie_path(self):
+        return self.config['DEFAULT']['bowtie_path']
+
+    def get_prodigal_path(self):
+        return self.config['DEFAULT']['prodigal_path']

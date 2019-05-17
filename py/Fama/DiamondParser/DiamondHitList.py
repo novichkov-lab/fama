@@ -6,12 +6,18 @@ class DiamondHitList:
         self.data = []
 
     def add_hit(self, hit):
-        # this function adds a hit into the list. After adding a hit, the list 
-        # may need filtering, since this function performs no checks for overlap. 
+        # this function adds a hit to the list. After hit with such coordinates and subject ID already exists in the list, it will not be added. 
         if hit.get_query_id() == self.query_id:
-            self.data.append(hit)
+            hit_exists = False
+            for h in self.data:
+                if h.get_subject_id() == hit.get_subject_id() and h.get_query_start() == hit.get_query_start() and h.get_query_end() == hit.get_query_end():
+                    hit_exists = True
+                    #print ('Diamond hit was not added to the list: such hit already exists')
+                    break
+            if not hit_exists:
+                self.data.append(hit)
         else:
-            print ('Diamond hit was not added into the list: different query IDs:' + self.query_id + ',' + hit.get_query_id())
+            print ('Diamond hit was not added to the list: different query IDs:' + self.query_id + ',' + hit.get_query_id())
 
     def get_hits(self):
         return self.data

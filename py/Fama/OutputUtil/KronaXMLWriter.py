@@ -4,8 +4,6 @@ from subprocess import Popen, PIPE, CalledProcessError
 from Fama.utils import autovivify
 
 def generate_functions_chart(parser, score='efpkg'):
-    
-    
     outfile = os.path.join(parser.options.get_project_dir(parser.sample.sample_id), parser.options.get_output_subdir(parser.sample.sample_id),parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_xml_name())
     
     with open(outfile, 'w') as of:
@@ -13,7 +11,8 @@ def generate_functions_chart(parser, score='efpkg'):
         of.write('<krona key="false">\n')
         of.write('\t<attributes magnitude="' + score + '">\n')
         of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
-        of.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
+        if score != 'readcount':
+            of.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
         of.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
         of.write('\t</attributes>\n')
         of.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" hueEnd="240" default="true"></color>\n')
@@ -49,13 +48,15 @@ def generate_functions_chart(parser, score='efpkg'):
         # Write nodes
         # Write top-level node
         of.write('\t<node name="' + parser.sample.sample_id + '_' + parser.end + '">\n')
-        of.write('\t\t<readcount><val>' + str(read_count) + '</val></readcount>\n')
+        if score != 'readcount':
+            of.write('\t\t<readcount><val>' + str(read_count) + '</val></readcount>\n')
         of.write('\t\t<' + score + '><val>' + str(total_rpkm) + '</val></' + score + '>\n')
         
         for group in groups_rpkm:
             # Write group-level node
             of.write('\t\t<node name="' + group + '">\n')
-            of.write('\t\t\t<readcount><val>' + str(len(groups_counts[group])) + '</val></readcount>\n')
+            if score != 'readcount':
+                of.write('\t\t\t<readcount><val>' + str(len(groups_counts[group])) + '</val></readcount>\n')
             of.write('\t\t\t<' + score + '><val>' + str(groups_rpkm[group]) + '</val></' + score + '>\n')
             if group in groups_identity:
                 of.write('\t\t\t<identity><val>' + str(sum(groups_identity[group])/len(groups_identity[group])) + '</val></identity>\n')
@@ -65,7 +66,8 @@ def generate_functions_chart(parser, score='efpkg'):
                 if function in functions_rpkm:
                     # Write function-level node
                     of.write('\t\t\t<node name="' + function + '">\n')
-                    of.write('\t\t\t\t<readcount><val>' + str(len(functions_counts[function])) + '</val></readcount>\n')
+                    if score != 'readcount':
+                        of.write('\t\t\t\t<readcount><val>' + str(len(functions_counts[function])) + '</val></readcount>\n')
                     of.write('\t\t\t\t<' + score + '><val>' + str(functions_rpkm[function]) + '</val></' + score + '>\n')
                     if function in functions_identity:
                         of.write('\t\t\t\t<identity><val>' + str(sum(functions_identity[function])/len(functions_identity[function])) + '</val></identity>\n')
@@ -83,7 +85,8 @@ def generate_functions_chart(parser, score='efpkg'):
 
     # Run Krona
     html_file = os.path.join(parser.options.get_project_dir(parser.sample.sample_id), parser.options.get_output_subdir(parser.sample.sample_id),parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_html_name())
-    krona_cmd = ['ktImportXML', '-o', html_file, outfile]
+#    krona_cmd = ['ktImportXML', '-o', html_file, outfile]
+    krona_cmd = [parser.config.get_krona_path(), '-o', html_file, outfile]
 
     with Popen(krona_cmd, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
         for line in p.stdout:
@@ -98,11 +101,13 @@ def print_tax_xml(tax_profile, taxid, offset, score='efpkg'):
     ret_val = '\t'*offset + '<node name="' + tax_profile.tree.data[taxid].name + '">\n'
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
-        ret_val += '\t'*offset + '<readcount><val>' + format(tax_profile.tree.data[taxid].attributes['count'], "0.0f") + '</val></readcount>\n'
+        if score != 'readcount':
+            ret_val += '\t'*offset + '<readcount><val>' + format(tax_profile.tree.data[taxid].attributes['count'], "0.0f") + '</val></readcount>\n'
         ret_val += '\t'*offset + '<' + score + '><val>' + format((tax_profile.tree.data[taxid].attributes[score]), "0.2f") + '</val></' + score + '>\n'
         ret_val += '\t'*offset + '<identity><val>' + format((tax_profile.tree.data[taxid].attributes['identity']/tax_profile.tree.data[taxid].attributes['hit_count']), "0.1f") + '</val></identity>\n'
     else:
-        ret_val += '\t'*offset + '<readcount><val>0</val></readcount>\n'
+        if score != 'readcount':
+            ret_val += '\t'*offset + '<readcount><val>0</val></readcount>\n'
         ret_val += '\t'*offset + '<' + score + '><val>0.0</val></' + score + '>\n'
         ret_val += '\t'*offset + '<identity><val>0.0</val></identity>\n'
         
@@ -157,11 +162,13 @@ def print_lca_tax_xml(tax_profile, taxid, offset, score='efpkg'):
     ret_val = '\t'*offset + '<node name="' + tax_profile.tree.data[taxid].name + '">\n'
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
-        ret_val += '\t'*offset + '<readcount><val>' + format(tax_profile.tree.data[taxid].attributes['count'], "0.0f") + '</val></readcount>\n'
+        if score != 'readcount':
+            ret_val += '\t'*offset + '<readcount><val>' + format(tax_profile.tree.data[taxid].attributes['count'], "0.0f") + '</val></readcount>\n'
         ret_val += '\t'*offset + '<' + score + '><val>' + format((tax_profile.tree.data[taxid].attributes[score]), "0.2f") + '</val></' + score + '>\n'
         ret_val += '\t'*offset + '<identity><val>' + format((tax_profile.tree.data[taxid].attributes['identity']/tax_profile.tree.data[taxid].attributes['hit_count']), "0.1f") + '</val></identity>\n'
     else:
-        ret_val += '\t'*offset + '<readcount><val>0</val></readcount>\n'
+        if score != 'readcount':
+            ret_val += '\t'*offset + '<readcount><val>0</val></readcount>\n'
         ret_val += '\t'*offset + '<' + score + '><val>0.0</val></' + score + '>\n'
         ret_val += '\t'*offset + '<identity><val>0.0</val></identity>\n'
         
@@ -180,7 +187,8 @@ def print_lca_tax_xml(tax_profile, taxid, offset, score='efpkg'):
             else:
                 ret_val += '\t'*offset + '<node name="Unidentified ' + tax_profile.tree.data[taxid].name + '">\n'
             offset += 1
-            ret_val += '\t'*offset + '<readcount><val>' + format((tax_profile.tree.data[taxid].attributes['count'] - attribute_values['count']), "0.0f") + '</val></readcount>\n'
+            if score != 'readcount':
+                ret_val += '\t'*offset + '<readcount><val>' + format((tax_profile.tree.data[taxid].attributes['count'] - attribute_values['count']), "0.0f") + '</val></readcount>\n'
             ret_val += '\t'*offset + '<' + score + '><val>' + format((tax_profile.tree.data[taxid].attributes[score] - attribute_values[score]), "0.2f") + '</val></' + score + '>\n'
             if tax_profile.tree.data[taxid].attributes['hit_count'] > attribute_values['hit_count']:
                 ret_val += '\t'*offset + '<identity><val>' + format(((tax_profile.tree.data[taxid].attributes['identity'] - attribute_values['identity'])/(tax_profile.tree.data[taxid].attributes['hit_count'] - attribute_values['hit_count'])), "0.1f") + '</val></identity>\n'
@@ -198,12 +206,13 @@ def print_lca_tax_xml(tax_profile, taxid, offset, score='efpkg'):
     attribute_values['hit_count'] = tax_profile.tree.data[taxid].attributes['hit_count']
     return ret_val, attribute_values
 
-def generate_taxonomy_chart(tax_profile, sample, outfile, score = 'efpkg'):
+def generate_taxonomy_chart(tax_profile, sample, outfile, krona_path, score = 'efpkg'):
     with open(outfile, 'w') as of:
         # Write header
         of.write('<krona key="false">\n')
         of.write('\t<attributes magnitude="' + score + '">\n')
-        of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
+        if score != 'readcount':
+            of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
         of.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
         of.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
         of.write('\t</attributes>\n')
@@ -226,7 +235,7 @@ def generate_taxonomy_chart(tax_profile, sample, outfile, score = 'efpkg'):
 
     # Run Krona
     html_file = outfile + '.html'
-    krona_cmd = ['ktImportXML', '-o', html_file, outfile]
+    krona_cmd = [krona_path, '-o', html_file, outfile]
 
     with Popen(krona_cmd, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
         for line in p.stdout:
@@ -234,12 +243,13 @@ def generate_taxonomy_chart(tax_profile, sample, outfile, score = 'efpkg'):
     if p.returncode != 0:
         raise CalledProcessError(p.returncode, p.args)
 
-def generate_taxonomy_series_chart(tax_profile, sample_list, outfile, score='efpkg'):
+def generate_taxonomy_series_chart(tax_profile, sample_list, outfile, krona_path, score='efpkg'):
     with open(outfile, 'w') as of:
         # Write header
         of.write('<krona key="false">\n')
         of.write('\t<attributes magnitude="' + score + '">\n')
-        of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
+        if score != 'readcount':
+            of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
         of.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
         of.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
         of.write('\t</attributes>\n')
@@ -265,7 +275,7 @@ def generate_taxonomy_series_chart(tax_profile, sample_list, outfile, score='efp
 
     # Run Krona
     html_file = outfile + '.html'
-    krona_cmd = ['ktImportXML', '-o', html_file, outfile]
+    krona_cmd = [krona_path, '-o', html_file, outfile]
 
     with Popen(krona_cmd, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
         for line in p.stdout:
@@ -282,13 +292,14 @@ def print_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
 #        print(tax_profile.tree.data[taxid].attributes)
-        ret_val += '\t'*offset + '<readcount>'
-        for datapoint in dataseries:
+        if score != 'readcount':
+            ret_val += '\t'*offset + '<readcount>'
             if datapoint in tax_profile.tree.data[taxid].attributes and 'count' in tax_profile.tree.data[taxid].attributes[datapoint]:
                 ret_val += '<val>' + format(tax_profile.tree.data[taxid].attributes[datapoint]['count'], "0.0f") + '</val>'
             else:
                 ret_val += '<val>0</val>'
-        ret_val += '</readcount>\n' + '\t'*offset + '<' + score + '>'
+            ret_val += '</readcount>\n' 
+        ret_val += '\t'*offset + '<' + score + '>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes and score in tax_profile.tree.data[taxid].attributes[datapoint]:
 #                print(datapoint, tax_profile.tree.data[taxid].attributes[datapoint][score])
@@ -305,9 +316,11 @@ def print_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='
                 ret_val += '<val>0.0</val>'
         ret_val += '</identity>\n'
     else:
-        ret_val += '\t'*offset + '<readcount>'
-        ret_val += '<val>0</val>'*len(dataseries)
-        ret_val += '</readcount>\n' + '\t'*offset + '<' + score + '>'
+        if score != 'readcount':
+            ret_val += '\t'*offset + '<readcount>'
+            ret_val += '<val>0</val>'*len(dataseries)
+            ret_val += '</readcount>\n'
+        ret_val += '\t'*offset + '<' + score + '>'
         ret_val += '<val>0.0</val>'*len(dataseries)
         ret_val += '<' + score + '>\n' + '\t'*offset + '<identity>'
         ret_val += '<val>0.0</val>'*len(dataseries)
@@ -337,13 +350,14 @@ def print_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='
             else:
                 ret_val += '\t'*offset + '<node name="Unclassified ' + tax_profile.tree.data[taxid].name + '">\n'
             offset += 1
-            ret_val += '\t'*offset + '<readcount>'
-            for datapoint in dataseries:
-                if datapoint in tax_profile.tree.data[taxid].attributes and attribute_values[datapoint]['count'] < tax_profile.tree.data[taxid].attributes[datapoint]['count']:
-                    ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint]['count'] - attribute_values[datapoint]['count']), "0.0f") + '</val>'
-                else:
-                    ret_val += '<val>0</val>'
-            ret_val += '</readcount>\n'
+            if score != 'readcount':
+                ret_val += '\t'*offset + '<readcount>'
+                for datapoint in dataseries:
+                    if datapoint in tax_profile.tree.data[taxid].attributes and attribute_values[datapoint]['count'] < tax_profile.tree.data[taxid].attributes[datapoint]['count']:
+                        ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint]['count'] - attribute_values[datapoint]['count']), "0.0f") + '</val>'
+                    else:
+                        ret_val += '<val>0</val>'
+                ret_val += '</readcount>\n'
             ret_val += '\t'*offset + '<' + score + '>'
             for datapoint in dataseries:
                 if datapoint in tax_profile.tree.data[taxid].attributes and attribute_values[datapoint]['count'] < tax_profile.tree.data[taxid].attributes[datapoint]['count']:
@@ -385,13 +399,15 @@ def print_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpk
     ret_val = '\t'*offset + '<node name="' + tax_profile.tree.data[taxid].name + '">\n'
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
-        ret_val += '\t'*offset + '<readcount>'
-        for datapoint in dataseries:
-            if datapoint in tax_profile.tree.data[taxid].attributes:
-                ret_val += '<val>' + format(tax_profile.tree.data[taxid].attributes[datapoint]['count'], "0.0f") + '</val>'
-            else:
-                ret_val += '<val>0</val>'
-        ret_val += '</readcount>\n' + '\t'*offset + '<' + score + '>'
+        if score != 'readcount':
+            ret_val += '\t'*offset + '<readcount>'
+            for datapoint in dataseries:
+                if datapoint in tax_profile.tree.data[taxid].attributes:
+                    ret_val += '<val>' + format(tax_profile.tree.data[taxid].attributes[datapoint]['count'], "0.0f") + '</val>'
+                else:
+                    ret_val += '<val>0</val>'
+            ret_val += '</readcount>\n'
+        ret_val +=  '\t'*offset + '<' + score + '>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
                 ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint][score]), "0.5f") + '</val>'
@@ -406,9 +422,11 @@ def print_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpk
                 ret_val += '<val>0.0</val>'
         ret_val += '</identity>\n'
     else:
-        ret_val += '\t'*offset + '<readcount>'
-        ret_val += '<val>0</val>'*len(dataseries)
-        ret_val += '</readcount>\n' + '\t'*offset + '<' + score + '>'
+        if score != 'readcount':
+            ret_val += '\t'*offset + '<readcount>'
+            ret_val += '<val>0</val>'*len(dataseries)
+            ret_val += '</readcount>\n'
+        ret_val += '\t'*offset + '<' + score + '>'
         ret_val += '<val>0.0</val>'*len(dataseries)
         ret_val += '<' + score + '>\n' + '\t'*offset + '<identity>'
         ret_val += '<val>0.0</val>'*len(dataseries)
@@ -422,12 +440,13 @@ def print_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpk
     ret_val += '\t'*offset + '</node>\n'
     return ret_val
 
-def generate_functional_taxonomy_chart(tax_profile, function_list, outfile, score='efpkg'):
+def generate_functional_taxonomy_chart(tax_profile, function_list, outfile, krona_path, score='efpkg'):
     with open(outfile, 'w') as of:
         # Write header
         of.write('<krona key="false">\n')
         of.write('\t<attributes magnitude="' + score + '">\n')
-        of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
+        if score != 'readcount':
+            of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
         of.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
         of.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
         of.write('\t</attributes>\n')
@@ -450,7 +469,7 @@ def generate_functional_taxonomy_chart(tax_profile, function_list, outfile, scor
 
     # Run Krona
     html_file = outfile + '.html'
-    krona_cmd = ['ktImportXML', '-o', html_file, outfile]
+    krona_cmd = [krona_path, '-o', html_file, outfile]
 
     with Popen(krona_cmd, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
         for line in p.stdout:
@@ -465,13 +484,14 @@ def print_genes_xml(gene_data, gene_ids, dataseries, offset, score):
         ret_val += '\t'*offset + '<node name="' + gene_id + '">\n'
         offset += 1
 
-        ret_val += '\t'*offset + '<readcount>'
-        for datapoint in dataseries:
-            if datapoint in gene_data[gene_id]:
-                ret_val += '<val>' + gene_data[gene_id][datapoint]['count'] + '</val>'
-            else:
-                ret_val += '<val>0</val>'
-        ret_val += '</readcount>\n'
+        if score != 'readcount':
+            ret_val += '\t'*offset + '<readcount>'
+            for datapoint in dataseries:
+                if datapoint in gene_data[gene_id]:
+                    ret_val += '<val>' + gene_data[gene_id][datapoint]['count'] + '</val>'
+                else:
+                    ret_val += '<val>0</val>'
+            ret_val += '</readcount>\n'
 
         ret_val += '\t'*offset + '<' + score + '>'
         for datapoint in dataseries:
@@ -535,13 +555,15 @@ def print_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score=
     ret_val = '\t'*offset + '<node name="' + taxid + ':' + tax_profile.tree.data[taxid].name + '">\n'
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
-        ret_val += '\t'*offset + '<readcount>'
-        for datapoint in dataseries:
-            if datapoint in tax_profile.tree.data[taxid].attributes:
-                ret_val += '<val>' + format(tax_profile.tree.data[taxid].attributes[datapoint]['count'], "0.0f") + '</val>'
-            else:
-                ret_val += '<val>0</val>'
-        ret_val += '</readcount>\n' + '\t'*offset + '<' + score + '>'
+        if score != 'readcount':
+            ret_val += '\t'*offset + '<readcount>'
+            for datapoint in dataseries:
+                if datapoint in tax_profile.tree.data[taxid].attributes:
+                    ret_val += '<val>' + format(tax_profile.tree.data[taxid].attributes[datapoint]['count'], "0.0f") + '</val>'
+                else:
+                    ret_val += '<val>0</val>'
+            ret_val += '</readcount>\n'
+        ret_val +=  '\t'*offset + '<' + score + '>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
                 ret_val += '<val>' + format((tax_profile.tree.data[taxid].attributes[datapoint][score]), "0.7f") + '</val>'
@@ -566,9 +588,11 @@ def print_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score=
             
         
     else:
-        ret_val += '\t'*offset + '<readcount>'
-        ret_val += '<val>0</val>'*len(dataseries)
-        ret_val += '</readcount>\n' + '\t'*offset + '<' + score + '>'
+        if score != 'readcount':
+            ret_val += '\t'*offset + '<readcount>'
+            ret_val += '<val>0</val>'*len(dataseries)
+            ret_val += '</readcount>\n'
+        ret_val +=  '\t'*offset + '<' + score + '>'
         ret_val += '<val>0.0</val>'*len(dataseries)
         ret_val += '</' + score + '>\n' + '\t'*offset + '<identity>'
         ret_val += '<val>0.0%</val>'*len(dataseries)
@@ -584,14 +608,15 @@ def print_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score=
     return ret_val
 
 
-def generate_assembly_taxonomy_chart(tax_profile, genes, function_list, outfile, score='efpkg'):
+def generate_assembly_taxonomy_chart(tax_profile, genes, function_list, outfile, krona_path, score='efpkg'):
     # genes contains gene data:, genes[gene_id][function][parameter] = parameter_value
     
     with open(outfile, 'w') as of:
         # Write header
         of.write('<krona key="false">\n')
         of.write('\t<attributes magnitude="' + score + '">\n')
-        of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
+        if score != 'readcount':
+            of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
         of.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
         of.write('\t\t<attribute display="Coverage" mono="true">coverage</attribute>\n')
         of.write('\t\t<attribute display="Length" mono="true">Length</attribute>\n')
@@ -618,7 +643,7 @@ def generate_assembly_taxonomy_chart(tax_profile, genes, function_list, outfile,
 
     # Run Krona
     html_file = outfile + '.html'
-    krona_cmd = ['ktImportXML', '-o', html_file, outfile]
+    krona_cmd = [krona_path, '-o', html_file, outfile]
 
     with Popen(krona_cmd, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
         for line in p.stdout:

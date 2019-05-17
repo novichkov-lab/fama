@@ -5,7 +5,7 @@ from Fama.utils import autovivify,cleanup_protein_id,sanitize_file_name
 from Fama.DiamondParser.hit_utils import get_efpk_score,get_fpk_score
 from Fama.TaxonomyProfile import TaxonomyProfile
 from Fama.OutputUtil.XlsxUtil import generate_function_sample_xlsx, generate_function_taxonomy_sample_xlsx, generate_sample_taxonomy_function_xlsx
-from Fama.OutputUtil.KronaXMLWriter import generate_functional_taxonomy_chart,generate_taxonomy_series_chart
+from Fama.OutputUtil.KronaXMLWriter import generate_taxonomy_series_chart
 
 #ENDS = ['pe1','pe2']
 def generate_fastq_report(parser):
@@ -176,7 +176,7 @@ def generate_fasta_report(parser):
         of.write('\nRun info\n\n')
         of.write('Sample ID:\t' + parser.options.get_sample_name(parser.sample.sample_id) + '\n')
         of.write('Sequence file:\t' + parser.options.get_fastq_path(parser.sample.sample_id, parser.end) + '\n')
-        of.write('Total number of reads:\t' + str(parser.options.get_fastq1_readcount(parser.sample.sample_id)) + '\n')
+        of.write('Total number of reads:\t' + str(parser.sample.fastq_fwd_readcount) + '\n')
         of.write('*****************************************\n\n')
 
         # Write read statistics
@@ -318,10 +318,10 @@ def get_function_scores(project, sample_id = None, metrics=None):
         length_cutoff = project.config.get_length_cutoff(project.options.get_collection(s))
         average_read_length = project.samples[s].get_avg_read_length('pe1')
         # Check if reads were processed or imported for this sample
-        if project.samples[s].reads is None or 'pe1' not in project.samples[s].reads or len(project.samples[s].reads['pe1']) == 0:
+        if project.samples[s].reads is None or 'pe1' not in project.samples[s].reads:
             raise ValueError ('No reads data loaded for sample',s,'end pe1')
         if project.samples[s].is_paired_end:
-            if 'pe2' not in project.samples[s].reads or len(project.samples[s].reads['pe2']) == 0:
+            if 'pe2' not in project.samples[s].reads:
                 raise ValueError ('No reads data loaded for sample',s,'end pe2')
 
         norm_factor = 0.0
@@ -553,10 +553,10 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
             continue
 
         # Check if reads were processed or imported for this sample
-        if project.samples[s].reads is None or 'pe1' not in project.samples[s].reads or len(project.samples[s].reads['pe1']) == 0:
+        if project.samples[s].reads is None or 'pe1' not in project.samples[s].reads:
             raise ValueError ('No reads data loaded for sample',s,'end pe1')
         if project.samples[s].is_paired_end:
-            if 'pe2' not in project.samples[s].reads or len(project.samples[s].reads['pe2']) == 0:
+            if 'pe2' not in project.samples[s].reads:
                 raise ValueError ('No reads data loaded for sample',s,'end pe2')
 
         norm_factor = 0.0
@@ -582,7 +582,10 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
                 read_erpk_scores = read.get_functions()
                 for function in read_erpk_scores:
                     ret_val[read.taxonomy][function][s]['count'] += 1.0
-                    ret_val[read.taxonomy][function][s][metrics] += norm_factor * read_erpk_scores[function]
+                    if metrics == 'readcount':
+                        ret_val[read.taxonomy][function][s][metrics] += 1
+                    else:
+                        ret_val[read.taxonomy][function][s][metrics] += norm_factor * read_erpk_scores[function]
                         
                 function_maxbitscores = {}
                 hits = [hit for hit in read.get_hit_list().get_hits()]
@@ -835,7 +838,67 @@ def generate_sample_report(project, sample_id, metrics = None):
     outfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), sample_id + '_' + metrics + '_functional_taxonomy_profile.xml'))
     tax_profile.build_functional_taxonomy_profile(project.taxonomy_data, sample_scores_taxonomy)
     function_list = sorted(project.ref_data.functions_dict.keys())
-    generate_taxonomy_series_chart(tax_profile, function_list, outfile, score=metrics)
+    generate_taxonomy_series_chart(tax_profile, function_list, outfile, project.config.get_krona_path(), score=metrics)
+
+def generate_protein_sample_report(project, sample_id, metrics = None):
+    # This function creates output files only in project's working directory
+    #outfile = os.path.join(project.samples[sample_id].work_directory, sample_id + '_report.txt')
+    outfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), sample_id + '_report.txt'))
+    with open(outfile, 'w') as of:
+        of.write('Report for ' + sample_id + '\n\n')
+        of.write('Sample ID:\t' + project.options.get_sample_name(sample_id) + '\n')
+        of.write('Replicate:\t' + str(project.samples[sample_id].replicate) + '\n\n')
+        of.write('Project name:\t' + project.options.get_name() + '\n\n')
+        of.write('Reference data set:\t' + project.options.get_collection(sample_id) + '\n\n')
+        
+        of.write('Source files\n')
+        of.write('Input file:\t' + project.options.get_fastq_path(sample_id, 'pe1') + '\n')
+        of.write('    Number of proteins:\t' + str(project.samples[sample_id].fastq_fwd_readcount) + '\n')
+        of.write('    Number of amino acids:\t' + str(project.samples[sample_id].fastq_fwd_basecount) + '\n')
+        
+        of.write('\nNumber of mapped proteins:' + str(len(project.samples[sample_id].reads['pe1'])) + '\n')
+
+        for read in sorted(project.samples[sample_id].reads['pe1'].keys()):
+            protein = project.samples[sample_id].reads['pe1'][read]
+            if protein.get_status() == 'nofunction':
+                continue
+#            if parser.reads[read].get_status() != 'nofunction':
+#                of.write(read + '\t' + parser.reads[read].get_status() + '\n')
+#                of.write('\t' + str(parser.reads[read].get_functions()) + '\n')
+            of.write(read + ': ' + ','.join(sorted(protein.get_functions().keys())))
+            tax_id = protein.taxonomy
+            if tax_id is None:
+                of.write(' No taxonomy\n')
+            else:
+                of.write(' Taxonomy :' + project.taxonomy_data.names[tax_id]['name'] + '(' + tax_id + ')\n')
+            of.write(' Hits:\n')
+            for hit in protein.get_hit_list().get_hits():
+                of.write('\t' + str(hit) + '\n')
+        
+        of.closed
+
+    if len(project.samples[sample_id].reads['pe1']) == 0:
+        return
+
+    scores_function = get_function_scores(project, sample_id, metrics=metrics)
+    scores_function_taxonomy = get_function_taxonomy_scores(project, sample_id, metrics=metrics)
+    generate_function_sample_xlsx(project, 
+                                scores_function, 
+                                metrics=metrics, 
+                                sample_id = sample_id)
+    generate_function_taxonomy_sample_xlsx(project, scores_function_taxonomy, metrics=metrics, sample_id = sample_id)
+    sample_scores_taxonomy = autovivify(3, float)
+    for tax in scores_function_taxonomy.keys():
+        for f in scores_function_taxonomy[tax].keys():
+            if sample_id in scores_function_taxonomy[tax][f]:
+                for k,v in scores_function_taxonomy[tax][f][sample_id].items():
+                    sample_scores_taxonomy[tax][f][k] = v
+
+    tax_profile = TaxonomyProfile()
+    outfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), sample_id + '_' + metrics + '_functional_taxonomy_profile.xml'))
+    tax_profile.build_functional_taxonomy_profile(project.taxonomy_data, sample_scores_taxonomy)
+    function_list = sorted(project.ref_data.functions_dict.keys())
+    generate_taxonomy_series_chart(tax_profile, function_list, outfile, project.config.get_krona_path(), score=metrics)
 
     
 def generate_project_report(project, metrics = None):
@@ -886,6 +949,15 @@ def generate_protein_project_report(project):
         for sample_id in project.list_samples():
             of.write(sample_id + ':\t' + project.samples[sample_id].sample_name + '\tproteins mapped: ' + str(len(project.samples[sample_id].reads['pe1'])))
             of.write('\n')
+        of.write('\nList of mapped proteins\n')
+
+        for sample_id in project.list_samples():
+            for protein_id in sorted(project.samples[sample_id].reads['pe1'].keys()):
+                protein = project.samples[sample_id].reads['pe1'][protein_id]
+                if protein.get_status() == 'nofunction':
+                    continue
+                for hit in protein.get_hit_list().get_hits():
+                    of.write('\t'.join([sample_id, protein_id, project.taxonomy_data.names[protein.taxonomy]['name'], str(hit)]) + '\n')
         of.closed
 
     metrics = 'readcount'
@@ -1017,7 +1089,205 @@ def generate_project_markdown_document(project, scores, sample_id = None, metric
                 of.write('">Download report for read end 2 (PDF format)</a>\n<br>\n')
             of.closed
             
+def generate_functions_stamp_input(project, scores, metrics):
+    scores_outfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_' + metrics + '_functions.stamp.tsv'))
+    metadata_outfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_functions.metadata.stamp.tsv'))
+    
+    with open(scores_outfile,'w') as of:
+        of.write('Category\tFunction\t' + '\t'.join(project.list_samples()) + '\n')
+        for function in sorted(scores.keys()):
+            of.write(project.ref_data.lookup_function_group(function) + '\t' + function)
+            for sample_id in project.list_samples():
+                if sample_id in scores[function]:
+                    #of.write('\t' + str(1000 * scores[function][sample_id][metrics]))
+                    of.write('\t' + str(scores[function][sample_id][metrics]))
+                else:
+                    of.write('\t0')
+            of.write('\n')
+        of.closed
+                
+    with open(metadata_outfile,'w') as of:
+        of.write('SampleID\tSample_name\tReplicate\n')
+        for sample_id in project.list_samples():
+            of.write(sample_id + '\t' + project.samples[sample_id].sample_name + '\t' + project.samples[sample_id].replicate + '\n')
+        of.closed
 
+
+def print_stamp_dataseries_taxonomy(tax_profile, sample_list, metrics, taxonomy_id='1', prefix='', taxonomy_level=0):
+    attribute_values = autovivify(2,float)
+    
+    if taxonomy_id not in tax_profile.tree.data:
+        raise ValueError (taxonomy_id,'not found in the tree!!!')
+    
+    if taxonomy_id == '1': # top level 
+        new_prefix = prefix
+    elif prefix == '': # superkingdom level: do not start with tab
+        new_prefix = tax_profile.tree.data[taxonomy_id].name
+    else:
+        new_prefix = prefix + '\t' + tax_profile.tree.data[taxonomy_id].name
+    new_taxonomy_level = taxonomy_level + 1
+    ret_val = ''
+    if tax_profile.tree.data[taxonomy_id].children:
+        for child_taxid in tax_profile.tree.data[taxonomy_id].children:
+            child_node, child_values = print_stamp_dataseries_taxonomy(tax_profile, 
+                                            sample_list, 
+                                            metrics, 
+                                            taxonomy_id=child_taxid, 
+                                            prefix=new_prefix, 
+                                            taxonomy_level=new_taxonomy_level)
+            ret_val += child_node
+            for datapoint in child_values.keys():
+                for k,v in child_values[datapoint].items():
+                    attribute_values[datapoint][k] += v
+
+        unclassified_flag = False
+#        print(tax_profile.tree.data[taxid].attributes)
+        for s in sample_list:
+            if s in tax_profile.tree.data[taxonomy_id].attributes:
+                if attribute_values[s][metrics] < tax_profile.tree.data[taxonomy_id].attributes[s][metrics]:
+                    unclassified_flag = True
+                    break
+
+        if unclassified_flag:
+            if taxonomy_id == '1': # line sohuld not start with tab symbol
+                ret_val += 'unclassified' + '\tunclassified' * (len(tax_profile.RANKS) - new_taxonomy_level - 1)
+            else:
+                ret_val += new_prefix + '\tUnclassified ' + tax_profile.tree.data[taxonomy_id].name + '\tunclassified' * (len(tax_profile.RANKS) - new_taxonomy_level - 1)
+            for s in sample_list:
+                if s in tax_profile.tree.data[taxonomy_id].attributes and attribute_values[s][metrics] < tax_profile.tree.data[taxonomy_id].attributes[s][metrics]:
+                    ret_val += '\t' + str(tax_profile.tree.data[taxonomy_id].attributes[s][metrics] - attribute_values[s][metrics])
+                else:
+                    ret_val += '\t0'
+            ret_val += '\n'
+
+    else:
+    #~ if new_taxonomy_level == len(tax_profile.RANKS):
+        #~ ret_val += new_prefix 
+    #~ else:
+        ret_val += new_prefix + '\tunclassified' * (len(tax_profile.RANKS) - new_taxonomy_level)
+        if tax_profile.tree.data[taxonomy_id].attributes:
+            for sample_id in sample_list:
+                if sample_id in tax_profile.tree.data[taxonomy_id].attributes and metrics in tax_profile.tree.data[taxonomy_id].attributes[sample_id]:
+                    ret_val += '\t' + str(tax_profile.tree.data[taxonomy_id].attributes[sample_id][metrics])
+                else:
+                    ret_val += '\t0'
+        else:
+            ret_val += '\t0' * len(sample_list)
+        ret_val += '\n'
+        
+    
+    attribute_values = autovivify(1)
+    for sample_id in sample_list:
+        if sample_id in tax_profile.tree.data[taxonomy_id].attributes and metrics in tax_profile.tree.data[taxonomy_id].attributes[sample_id]:
+            attribute_values[sample_id][metrics] = tax_profile.tree.data[taxonomy_id].attributes[sample_id][metrics]
+
+    return ret_val, attribute_values
+
+
+def generate_functions_taxonomy_stamp_input(project, scores, metrics):
+    metadata_outfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_functions_taxonomy.metadata.stamp.tsv'))
+    
+    sample_list = project.list_samples()
+    root_id = '1'
+
+    for function in project.ref_data.list_functions():
+
+        # Subsetting scores
+        sample_scores = autovivify(3, float)
+        for tax in scores.keys():
+            if function in scores[tax].keys():
+                for s in project.list_samples():
+                    if s in scores[tax][function] and metrics in scores[tax][function][s]:
+                        #sample_scores[tax][s][metrics] = 1000 * scores[tax][function][s][metrics]
+                        sample_scores[tax][s][metrics] = scores[tax][function][s][metrics]
+                    else:
+                        sample_scores[tax][s][metrics] = 0.0
+        
+        if len(sample_scores) == 0:
+            continue
+
+        scores_outfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), project.options.get_name() + '_' + metrics + '_' + function + '_taxonomy.stamp.tsv'))
+
+        with open(scores_outfile,'w') as of:
+            of.write('\t'.join(project.taxonomy_data.RANKS[1:-1]) + '\t' + '\t'.join(project.list_samples()) + '\n')
+            tax_profile = TaxonomyProfile()
+            tax_profile.build_functional_taxonomy_profile(project.taxonomy_data, sample_scores)
+            child_nodes, attribute_values = print_stamp_dataseries_taxonomy(tax_profile, sample_list, metrics, taxonomy_id=root_id, prefix='', taxonomy_level=0)
+            of.write(child_nodes)
+        of.closed
+                
+    with open(metadata_outfile,'w') as of:
+        of.write('SampleID\tSample_name\tReplicate\n')
+        for sample_id in project.list_samples():
+            of.write(sample_id + '\t' + project.samples[sample_id].sample_name + '\t' + project.samples[sample_id].replicate + '\n')
+        of.closed
+    
+def generate_sample_html_report(project, sample_id, metrics = None):
+    # This function creates output files only in project's working directory
+    if metrics is None:
+        if project.samples[sample_id].is_paired_end:
+            metrics = 'efpkg'
+        else:
+            metrics = 'erpkg'
+    #outfile = os.path.join(project.samples[sample_id].work_directory, sample_id + '_report.txt')
+    outfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), sample_id + '_report.txt'))
+    with open(outfile, 'w') as of:
+        of.write('Report for ' + sample_id + '\n\n')
+        of.write('Sample ID:\t' + project.options.get_sample_name(sample_id) + '\n')
+        of.write('Replicate:\t' + str(project.samples[sample_id].replicate) + '\n\n')
+        of.write('Project name:\t' + project.options.get_name() + '\n\n')
+        of.write('Reference data set:\t' + project.options.get_collection(sample_id) + '\n\n')
+        
+        of.write('Source files\n')
+        of.write('FASTQ file 1:\t' + project.options.get_fastq_path(sample_id, 'pe1') + '\n')
+        of.write('    Number of reads:\t' + str(project.samples[sample_id].fastq_fwd_readcount) + '\n')
+        of.write('    Number of bases:\t' + str(project.samples[sample_id].fastq_fwd_basecount) + '\n')
+        
+        if project.samples[sample_id].is_paired_end:
+            of.write('FASTQ file 2:\t' + project.options.get_fastq_path(sample_id, 'pe2') + '\n')
+            of.write('    Number of reads:\t' + str(project.samples[sample_id].fastq_rev_readcount) + '\n')
+            of.write('    Number of bases:\t' + str(project.samples[sample_id].fastq_rev_basecount) + '\n')
+        
+        of.write('\nNormalization\n')
+        if not project.samples[sample_id].rpkm_scaling_factor is None:
+            of.write('RPKM normalization factor:\t' + str(project.samples[sample_id].rpkm_scaling_factor) + '\n')
+        if not project.samples[sample_id].rpkg_scaling_factor is None:
+            of.write('Average genome size:\t' + format(project.samples[sample_id].rpkg_scaling_factor * project.samples[sample_id].fastq_fwd_basecount, "0.0f") + '\n')
+            of.write('RPKG normalization factor:\t' + str(project.samples[sample_id].rpkg_scaling_factor) + '\n')
+        if project.samples[sample_id].is_paired_end:
+            of.write('Average insert size:\t' + str(project.samples[sample_id].insert_size) + '\n')
+
+        of.write('\nNumber of mapped reads\n')
+        of.write('FASTQ file 1:\t' + str(len(project.samples[sample_id].reads['pe1'])) + '\n')
+        if project.samples[sample_id].is_paired_end:
+            of.write('FASTQ file 2:\t' + str(len(project.samples[sample_id].reads['pe2'])) + '\n')
+
+        of.closed
+
+    if project.samples[sample_id].rpkg_scaling_factor is None and metrics in ['efpkg', 'fpkg', 'erpkg', 'rpkg']:
+        raise ValueError('Not enough data to normalize by average genome size')
+    if project.samples[sample_id].rpkm_scaling_factor is None and metrics in ['efpkm', 'fpkm', 'erpkm', 'rpkm']:
+        raise ValueError('Not enough data to normalize by sample size')
+
+    scores_function = get_function_scores(project, sample_id, metrics=metrics)
+    scores_function_taxonomy = get_function_taxonomy_scores(project, sample_id, metrics=metrics)
+    generate_function_sample_xlsx(project, 
+                                scores_function, 
+                                metrics=metrics, 
+                                sample_id = sample_id)
+    generate_function_taxonomy_sample_xlsx(project, scores_function_taxonomy, metrics=metrics, sample_id = sample_id)
+    sample_scores_taxonomy = autovivify(3, float)
+    for tax in scores_function_taxonomy.keys():
+        for f in scores_function_taxonomy[tax].keys():
+            if sample_id in scores_function_taxonomy[tax][f]:
+                for k,v in scores_function_taxonomy[tax][f][sample_id].items():
+                    sample_scores_taxonomy[tax][f][k] = v
+
+    tax_profile = TaxonomyProfile()
+    outfile = sanitize_file_name(os.path.join(project.options.get_work_dir(), sample_id + '_' + metrics + '_functional_taxonomy_profile.xml'))
+    tax_profile.build_functional_taxonomy_profile(project.taxonomy_data, sample_scores_taxonomy)
+    function_list = sorted(project.ref_data.functions_dict.keys())
+    generate_taxonomy_series_chart(tax_profile, function_list, outfile, project.config.get_krona_path(), score=metrics)
 
 
 

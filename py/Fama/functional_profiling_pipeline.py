@@ -78,13 +78,17 @@ def run_bgr_search(parser,command):
 
 def run_microbecensus(sample, threads):
     print ('Starting MicrobeCensus')
-    mc_args = ['/home/aekazakov/Soft/MicrobeCensus/my_microbe_census/MicrobeCensus/scripts/run_microbe_census.py',
+    mc_args = ['python3', '/usr/local/bin/run_microbe_census.py',
                     '-e',
                     '-v',
                     '-t',
                     threads
                     ]
-    if sample.fastq_fwd_readcount < 3000000:
+
+    if sample.fastq_fwd_readcount < 300000:
+        mc_args.append('-n')
+        mc_args.append(str(sample.fastq_fwd_readcount // 2)) # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
+    elif sample.fastq_fwd_readcount < 3000000:
         mc_args.append('-n')
         mc_args.append(str(sample.fastq_fwd_readcount - 200000)) # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
     if sample.is_paired_end:
@@ -92,7 +96,7 @@ def run_microbecensus(sample, threads):
     else:
         mc_args.append(sample.fastq_fwd_path)
     mc_args.append(os.path.join(sample.work_directory, 'microbecensus.out.txt'))
-                    
+    print(mc_args)
 
     with Popen(mc_args, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
         for line in p.stdout:
@@ -139,13 +143,8 @@ def fastq_pipeline(config_file, project_file, sample_identifier, end_identifier)
     if sample_identifier is None:
         project.generate_report() # Skip project report if the pipeline is running for only one sample
     
-    i = 0
-    while True:
-        if os.path.exists(project_file + '.new.' + str(i)):
-            i += 1
-        else:
-            project.save_project_options(project_file + '.new.' + str(i)) # Create copy of project.ini with new parameters
-            break
+    # Rename existing project file and save current version
+    project.save_project_options() 
 
 def run_fastq_pipeline(project, sample, end_id):
 
