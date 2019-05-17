@@ -294,10 +294,11 @@ def print_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='
 #        print(tax_profile.tree.data[taxid].attributes)
         if score != 'readcount':
             ret_val += '\t'*offset + '<readcount>'
-            if datapoint in tax_profile.tree.data[taxid].attributes and 'count' in tax_profile.tree.data[taxid].attributes[datapoint]:
-                ret_val += '<val>' + format(tax_profile.tree.data[taxid].attributes[datapoint]['count'], "0.0f") + '</val>'
-            else:
-                ret_val += '<val>0</val>'
+            for datapoint in dataseries:
+                if datapoint in tax_profile.tree.data[taxid].attributes and 'count' in tax_profile.tree.data[taxid].attributes[datapoint]:
+                    ret_val += '<val>' + format(tax_profile.tree.data[taxid].attributes[datapoint]['count'], "0.0f") + '</val>'
+                else:
+                    ret_val += '<val>0</val>'
             ret_val += '</readcount>\n' 
         ret_val += '\t'*offset + '<' + score + '>'
         for datapoint in dataseries:

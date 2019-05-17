@@ -14,7 +14,7 @@ from Fama.OutputUtil.PdfReport import generate_pdf_report
 from Fama.OutputUtil.KronaXMLWriter import generate_functions_chart
 from Fama.OutputUtil.JSONUtil import export_annotated_reads
 from Fama.OutputUtil.JSONUtil import export_sample
-
+from Fama.MicrobeCensus.microbe_census import run_pipeline,report_results
 # This program runs functional profiling pipeline
 
 def run_ref_search(parser, command):
@@ -76,35 +76,56 @@ def run_bgr_search(parser,command):
 
     print ('DIAMOND finished')
 
-def run_microbecensus(sample, threads):
-    print ('Starting MicrobeCensus')
-    mc_args = ['python3', '/usr/local/bin/run_microbe_census.py',
-                    '-e',
-                    '-v',
-                    '-t',
-                    threads
-                    ]
-
-    if sample.fastq_fwd_readcount < 300000:
-        mc_args.append('-n')
-        mc_args.append(str(sample.fastq_fwd_readcount // 2)) # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
-    elif sample.fastq_fwd_readcount < 3000000:
-        mc_args.append('-n')
-        mc_args.append(str(sample.fastq_fwd_readcount - 200000)) # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
+def run_microbecensus(sample, config):
+    args = {}
     if sample.is_paired_end:
-        mc_args.append(','.join([sample.fastq_fwd_path,sample.fastq_rev_path]))
+        args['seqfiles'] = [sample.fastq_fwd_path,sample.fastq_rev_path]
     else:
-        mc_args.append(sample.fastq_fwd_path)
-    mc_args.append(os.path.join(sample.work_directory, 'microbecensus.out.txt'))
-    print(mc_args)
+        args['seqfiles'] = [sample.fastq_fwd_path]
+    args['verbose'] = True
+    args['diamond'] = config.get_diamond_path()
+    args['data_dir'] = config.get_microbecensus_datadir()
+    args['outfile'] = os.path.join(sample.work_directory, 'microbecensus.out.txt')
+    args['threads'] = int(config.get_threads())
+    args['no_equivs'] = True
+    if sample.fastq_fwd_readcount < 300000:
+        args['nreads'] = sample.fastq_fwd_readcount // 2 # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
+    elif sample.fastq_fwd_readcount < 3000000:
+        args['nreads'] = sample.fastq_fwd_readcount - 200000 # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
+    else:
+        args['nreads'] = 2000000
+    print(args)
+    est_ags, args = run_pipeline(args)
+    report_results(args, est_ags, None)
+    
+    #~ print ('Starting MicrobeCensus')
+    #~ mc_args = ['python3', '/usr/local/bin/run_microbe_census.py',
+                    #~ '-e',
+                    #~ '-v',
+                    #~ '-t',
+                    #~ threads
+                    #~ ]
 
-    with Popen(mc_args, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
-        for line in p.stdout:
-            print(line, end='')
-    if p.returncode != 0:
-        raise CalledProcessError(p.returncode, p.args)
+    #~ if sample.fastq_fwd_readcount < 300000:
+        #~ mc_args.append('-n')
+        #~ mc_args.append(str(sample.fastq_fwd_readcount // 2)) # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
+    #~ elif sample.fastq_fwd_readcount < 3000000:
+        #~ mc_args.append('-n')
+        #~ mc_args.append(str(sample.fastq_fwd_readcount - 200000)) # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
+    #~ if sample.is_paired_end:
+        #~ mc_args.append(','.join([sample.fastq_fwd_path,sample.fastq_rev_path]))
+    #~ else:
+        #~ mc_args.append(sample.fastq_fwd_path)
+    #~ mc_args.append(os.path.join(sample.work_directory, 'microbecensus.out.txt'))
+    #~ print(mc_args)
 
-    print ('MicrobeCensus finished')
+    #~ with Popen(mc_args, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
+        #~ for line in p.stdout:
+            #~ print(line, end='')
+    #~ if p.returncode != 0:
+        #~ raise CalledProcessError(p.returncode, p.args)
+
+    #~ print ('MicrobeCensus finished')
     
 
 def fastq_pipeline(config_file, project_file, sample_identifier, end_identifier):
@@ -187,7 +208,7 @@ def run_fastq_pipeline(project, sample, end_id):
     if sample.rpkg_scaling_factor == 0.0:
         sample.import_rpkg_scaling_factor()
     if sample.rpkg_scaling_factor == 0.0:
-        run_microbecensus(sample=sample, threads=project.config.get_threads())
+        run_microbecensus(sample=sample, config = project.config)
         sample.import_rpkg_scaling_factor()
     project.options.set_sample_data(sample)
     

@@ -101,6 +101,9 @@ class ProgramConfig:
     def get_diamond_path(self):
         return self.config['DEFAULT']['aligner_path']
 
+    def get_microbecensus_datadir(self):
+        return self.config['DEFAULT']['microbecensus_data']
+        
     def get_krona_path(self):
         return self.config['DEFAULT']['krona_path']
 
