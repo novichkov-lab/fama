@@ -860,7 +860,7 @@ def run_prodigal(infile, outfile, prodigal_path):
 
 def run_ref_search(project):
     print ('Starting DIAMOND')
-    diamond_args = ['/usr/bin/diamond',
+    diamond_args = [project.config.get_diamond_path(),
                     'blastp',
                     '--db',
                     project.config.get_reference_diamond_db(project.options.get_collection()),
@@ -887,7 +887,7 @@ def run_ref_search(project):
 
 def run_bgr_search(project):
     print ('Starting DIAMOND')
-    diamond_args = ['/usr/bin/diamond',
+    diamond_args = [project.config.get_diamond_path(),
                     'blastp',
                     '--db',
                     project.config.get_background_diamond_db(project.options.get_collection()),
@@ -918,7 +918,7 @@ def run_uniprot_search(project):
     print ('Starting DIAMOND')
     outfile = os.path.join(project.options.get_assembly_dir(), 'all_contigs_proteins.uniprot.diamondout.txt')
     
-    diamond_args = ['/usr/bin/diamond',
+    diamond_args = [project.config.get_diamond_path(),
                     'blastp',
                     '--db',
                     project.config.get_uniprot_diamond_db(),

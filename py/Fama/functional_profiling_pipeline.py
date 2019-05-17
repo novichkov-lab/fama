@@ -19,7 +19,7 @@ from Fama.MicrobeCensus.microbe_census import run_pipeline,report_results
 
 def run_ref_search(parser, command):
     print ('Starting DIAMOND')
-    diamond_args = ['/usr/bin/diamond',
+    diamond_args = [parser.config.get_diamond_path(),
                     command,
                     '--db',
                     parser.config.get_reference_diamond_db(parser.options.get_collection(parser.sample.sample_id)),
@@ -47,7 +47,7 @@ def run_ref_search(parser, command):
 
 def run_bgr_search(parser,command):
     print ('Starting DIAMOND')
-    diamond_args = ['/usr/bin/diamond',
+    diamond_args = [parser.config.get_diamond_path(),
                     command,
                     '--db',
                     parser.config.get_background_diamond_db(parser.options.get_collection(parser.sample.sample_id)),
@@ -97,36 +97,7 @@ def run_microbecensus(sample, config):
     print(args)
     est_ags, args = run_pipeline(args)
     report_results(args, est_ags, None)
-    
-    #~ print ('Starting MicrobeCensus')
-    #~ mc_args = ['python3', '/usr/local/bin/run_microbe_census.py',
-                    #~ '-e',
-                    #~ '-v',
-                    #~ '-t',
-                    #~ threads
-                    #~ ]
 
-    #~ if sample.fastq_fwd_readcount < 300000:
-        #~ mc_args.append('-n')
-        #~ mc_args.append(str(sample.fastq_fwd_readcount // 2)) # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
-    #~ elif sample.fastq_fwd_readcount < 3000000:
-        #~ mc_args.append('-n')
-        #~ mc_args.append(str(sample.fastq_fwd_readcount - 200000)) # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
-    #~ if sample.is_paired_end:
-        #~ mc_args.append(','.join([sample.fastq_fwd_path,sample.fastq_rev_path]))
-    #~ else:
-        #~ mc_args.append(sample.fastq_fwd_path)
-    #~ mc_args.append(os.path.join(sample.work_directory, 'microbecensus.out.txt'))
-    #~ print(mc_args)
-
-    #~ with Popen(mc_args, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
-        #~ for line in p.stdout:
-            #~ print(line, end='')
-    #~ if p.returncode != 0:
-        #~ raise CalledProcessError(p.returncode, p.args)
-
-    #~ print ('MicrobeCensus finished')
-    
 
 def fastq_pipeline(config_file, project_file, sample_identifier, end_identifier):
     
