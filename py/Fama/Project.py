@@ -28,7 +28,7 @@ class Project(object):
         self.options = ProjectOptions(project_file)
         collection = self.options.get_collection()
         if collection not in self.config.list_collections():
-            raise Exception ('Collection ' + collection + ' not found. Available collections are: ' + (',').join(collections))
+            raise Exception ('Collection ' + collection + ' not found. Available collections are: ' + (',').join(self.config.list_collections()))
         self.collection = collection
         self.ref_data = ReferenceData(self.config)
         self.ref_data.load_reference_data(self.collection)

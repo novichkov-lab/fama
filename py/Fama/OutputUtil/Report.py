@@ -806,7 +806,7 @@ def generate_sample_report(project, sample_id, metrics = None):
             of.write('Average genome size:\t' + format(project.samples[sample_id].rpkg_scaling_factor * project.samples[sample_id].fastq_fwd_basecount, "0.0f") + '\n')
             of.write('RPKG normalization factor:\t' + str(project.samples[sample_id].rpkg_scaling_factor) + '\n')
         if project.samples[sample_id].is_paired_end:
-            of.write('Average insert size:\t' + str(project.samples[sample_id].insert_size) + '\n')
+            of.write('Average insert size:\t' + str(project.get_insert_size(project.samples[sample_id])) + '\n')
 
         of.write('\nNumber of mapped reads\n')
         of.write('FASTQ file 1:\t' + str(len(project.samples[sample_id].reads['pe1'])) + '\n')
@@ -1255,7 +1255,7 @@ def generate_sample_html_report(project, sample_id, metrics = None):
             of.write('Average genome size:\t' + format(project.samples[sample_id].rpkg_scaling_factor * project.samples[sample_id].fastq_fwd_basecount, "0.0f") + '\n')
             of.write('RPKG normalization factor:\t' + str(project.samples[sample_id].rpkg_scaling_factor) + '\n')
         if project.samples[sample_id].is_paired_end:
-            of.write('Average insert size:\t' + str(project.samples[sample_id].insert_size) + '\n')
+            of.write('Average insert size:\t' + str(project.get_insert_size(project.samples[sample_id])) + '\n')
 
         of.write('\nNumber of mapped reads\n')
         of.write('FASTQ file 1:\t' + str(len(project.samples[sample_id].reads['pe1'])) + '\n')

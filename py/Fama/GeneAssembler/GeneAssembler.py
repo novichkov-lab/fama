@@ -165,13 +165,14 @@ class GeneAssembler:
                 self.project.samples[sample_id].reads[end] = None
         
         # Run Assembler ('megahit' for Megahit or 'metaSPAdes' for metaSPAdes)
-        run_assembler(sorted(self.assembly.reads.keys()), self.project.config.get_megahit_path(), self.assembly_dir, is_paired_end = self.is_paired_end)
-        #run_assembler(sorted(self.assembly.reads.keys()), self.project.config.get_metaspades_path(), self.assembly_dir, is_paired_end = self.is_paired_end)
+        #run_assembler(sorted(self.assembly.reads.keys()), self.project.config.get_megahit_path(), self.assembly_dir, is_paired_end = self.is_paired_end)
+        run_assembler(sorted(self.assembly.reads.keys()), self.project.config.get_metaspades_path(), self.assembly_dir, is_paired_end = self.is_paired_end)
         self.filter_contigs_by_length()
 
         # Run Bowtie
         contig_file = os.path.join(self.assembly_dir,'Coassembly','final.contigs.filtered.fa')
-        run_mapper_indexing(sorted(self.assembly.reads.keys()), self.project.config.get_bowtie_indexer_path(), self.assembly_dir)
+        print('Run read mapping')
+        run_mapper_indexing(sorted(self.assembly.reads.keys()), self.assembly_dir, self.project.config.get_bowtie_indexer_path())
         run_mapper(sorted(self.assembly.reads.keys()), self.assembly_dir, self.project.config.get_bowtie_path(), is_paired_end = self.is_paired_end)
 
         # Import contig sequences
@@ -748,7 +749,9 @@ def run_spades(functions, output_dir, assembler_command, is_paired_end = True):
                         '-t',
                         '12',
                         '-m',
-                        '50',
+                        '50', # TODO: make a parameter
+                        '-k',
+                        '33,55,71,91,111', # TODO: adjust automatically
                         '-o',
                         os.path.join(output_dir,function),
                         '--tmp-dir',
@@ -783,6 +786,7 @@ def run_mapper_indexing(functions, output_dir, mapper_command):
     
     for function in functions:
         if not os.path.exists(os.path.join(output_dir,function, 'final.contigs.filtered.fa')):
+            print ('Contigs file for function', function, 'not found')
             continue
         print ('Run indexing for function', function)
         if (os.path.getsize(os.path.join(output_dir,function, 'final.contigs.filtered.fa')) > 0):

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import sys,argparse
 from Fama.functional_profiling_pipeline import fastq_pipeline
 from Fama.protein_functional_pipeline import protein_pipeline
