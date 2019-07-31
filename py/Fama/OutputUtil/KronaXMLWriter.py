@@ -13,7 +13,7 @@ def generate_functions_chart(parser, score='efpkg'):
         of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
         if score != 'readcount':
             of.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
-        of.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
+        of.write('\t\t<attribute display="AAI %" mono="true">identity</attribute>\n')
         of.write('\t</attributes>\n')
         of.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" hueEnd="240" default="true"></color>\n')
         
@@ -214,7 +214,7 @@ def generate_taxonomy_chart(tax_profile, sample, outfile, krona_path, score = 'e
         if score != 'readcount':
             of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
         of.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
-        of.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
+        of.write('\t\t<attribute display="AAI %" mono="true">identity</attribute>\n')
         of.write('\t</attributes>\n')
         of.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" hueEnd="240" default="true"></color>\n')
         
@@ -251,7 +251,7 @@ def generate_taxonomy_series_chart(tax_profile, sample_list, outfile, krona_path
         if score != 'readcount':
             of.write('\t\t<attribute display="Read count">readcount</attribute>\n')
         of.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
-        of.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
+        of.write('\t\t<attribute display="AAI %" mono="true">identity</attribute>\n')
         of.write('\t</attributes>\n')
         of.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" hueEnd="240" default="true"></color>\n')
         

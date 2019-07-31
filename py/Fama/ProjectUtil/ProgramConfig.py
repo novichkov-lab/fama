@@ -59,6 +59,18 @@ class ProgramConfig:
         else:
             return float(self.config['DEFAULT']['biscore_range_cutoff'])
             
+    def get_ranks_cutoffs(self, collection):
+        ret_val = {}
+        if self.config[collection]['rank_cutoffs']:
+            cutoffs = self.config[collection]['rank_cutoffs']
+            vals = cutoffs.split(',')
+            for k_v in zip(vals[::2],vals[1::2]):
+                ret_val[k_v[0]] = float(k_v[1])
+            ret_val['norank'] = self.get_identity_cutoff(collection)
+        else:
+            pass
+        return ret_val
+        
     def get_reference_diamond_db(self, collection):
         if self.config[collection]['reference_diamond_db']:
             return self.config[collection]['reference_diamond_db']

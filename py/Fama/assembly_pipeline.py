@@ -6,7 +6,7 @@ from Fama.OutputUtil.JSONUtil import export_gene_assembly
 
 def assembly_pipeline(args):
     project = Project(config_file=args.config, project_file=args.project)
-    assembler = GeneAssembler(project)
+    assembler = GeneAssembler(project, assembler = args.assembler)
     if args.coassembly:
         assembler.coassemble_contigs()
     else:

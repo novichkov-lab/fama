@@ -11,6 +11,8 @@ def get_args():
                         help='Sample ID (optional)')
     parser.add_argument('-e', dest='end', type=str, default=None,
                         help='paired end ID (expected values: pe1 or pe2). Optional')
+    parser.add_argument('-a', dest='assembler', type=str, default='metaspades',
+                        help='contig assembler (expected values: metaspades or megahit). Optional, default:metaspades')
     parser.add_argument('--coassembly', dest='coassembly', action='store_true',
                         help='Coassemble reads for all functions (default: False)')
     parser.set_defaults(coassembly=False)

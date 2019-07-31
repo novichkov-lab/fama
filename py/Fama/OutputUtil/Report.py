@@ -1,6 +1,7 @@
 import os
 from collections import defaultdict,Counter,OrderedDict
 
+from Fama import const
 from Fama.utils import autovivify,cleanup_protein_id,sanitize_file_name
 from Fama.DiamondParser.hit_utils import get_efpk_score,get_fpk_score
 from Fama.TaxonomyProfile import TaxonomyProfile
@@ -138,7 +139,7 @@ def generate_fastq_report(parser):
         tax_data = parser.taxonomy_data
         counts_per_rank, identity_per_rank, rpkm_per_rank = tax_data.get_taxonomy_profile(counts=tax_stats, identity=identity_stats, scores = rpkm_stats)
 
-        ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus']
+        ranks = const.RANKS[1:]
         for rank in ranks:
             of.write('Taxonomy report for rank ' + rank + '\n\n')
             of.write('Taxon\tRead count\tRPKM score\tAverage identity\n')
@@ -378,6 +379,7 @@ def get_function_scores(project, sample_id = None, metrics=None):
             if not project.samples[s].is_paired_end:
                 raise ValueError('Metrics based on fragment count require paired-end sequences')
             insert_size = project.get_insert_size(project.samples[s])
+                
             reads_processed = set()
             
             for read_id in project.samples[s].reads['pe1'].keys():

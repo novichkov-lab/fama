@@ -1,5 +1,7 @@
 #!/usr/bin/python
+
 import os
+from Fama import const
 from Fama.Tree import Node,Tree
 from collections import defaultdict,Counter,OrderedDict
 import pandas as pd
@@ -9,25 +11,20 @@ class TaxonomyProfile:
     
     def __init__(self):
         self.tree = Tree()
-        self.RANKS = ['norank','superkingdom', 'phylum', 'class', 'order', 'family', 'genus']
-        self.LOWER_RANKS = {'norank':'superkingdom',
-                            'superkingdom':'phylum', 
-                            'phylum':'class', 
-                            'class':'order', 
-                            'order':'family', 
-                            'family':'genus'}
+        self.RANKS = const.RANKS
+        self.LOWER_RANKS = const.LOWER_RANKS
 
     def build_taxonomy_profile(self, taxonomy_data, scores):
         # scores is a dict of dicts of floats, like scores[taxonomy_id][attribute_name] = attribute_value
         # attribute_name can be read_count, identity, rpkm etc.
 
-        unknown_organism_id = '0'
+        unknown_organism_id = const.UNKNOWN_TAXONOMY_ID
         
         for taxid in sorted(scores.keys()):
             #print('1:', len(scores))
-            if taxid == '0':
+            if taxid == unknown_organism_id:
                 #print('2:', len(scores))
-                unknown_organisms = Node(rank = 'norank',name = 'Unknown', taxid = '0', parent = '1',children = set())
+                unknown_organisms = Node(rank = 'norank',name = 'Unknown', taxid = unknown_organism_id, parent = const.ROOT_TAXONOMY_ID,children = set())
                 self.tree.add_node(unknown_organisms)
                 for attribute_key in scores[taxid]:
                     self.tree.add_attribute_recursively(unknown_organism_id,attribute_key,scores[taxid][attribute_key],taxonomy_data)
@@ -68,12 +65,12 @@ class TaxonomyProfile:
         # scores is a dict of dicts of dicts of floats, like scores[taxonomy_id][function_id][attribute_name] = attribute_value
         # attribute_name can be read_count, identity, rpkm etc.
 
-        unknown_organism_id = '0'
+        unknown_organism_id = const.UNKNOWN_TAXONOMY_ID
         for taxid in sorted(scores.keys()):
             #print('1:', len(scores))
-            if taxid == '0':
+            if taxid == unknown_organism_id:
                 #print('2:', len(scores))
-                unknown_organisms = Node(rank = 'norank',name = 'Unknown', taxid = unknown_organism_id, parent = '1',children = set())
+                unknown_organisms = Node(rank = 'norank',name = 'Unknown', taxid = unknown_organism_id, parent = const.ROOT_TAXONOMY_ID, children = set())
                 self.tree.add_node(unknown_organisms)
                 for function in scores[taxid]:
                     self.tree.add_attribute_recursively(taxid,function, scores[taxid][function],taxonomy_data)
@@ -114,12 +111,12 @@ class TaxonomyProfile:
     def build_assembly_taxonomic_profile(self, taxonomy_data, scores):
         # scores is a dict of dicts of dicts of floats, like scores[taxonomy_id][function_id][attribute_name] = attribute_value
         
-        unknown_organism_id = '0'
+        unknown_organism_id = const.UNKNOWN_TAXONOMY_ID
         for taxid in sorted(scores.keys()):
 #            print('1:', len(scores))
-            if taxid == '0':
+            if taxid == unknown_organism_id:
 #                print('2:', len(scores))
-                unknown_organisms = Node(rank = 'norank',name = 'Unknown', taxid = unknown_organism_id, parent = '1',children = set())
+                unknown_organisms = Node(rank = 'norank',name = 'Unknown', taxid = unknown_organism_id, parent = const.ROOT_TAXONOMY_ID,children = set())
                 self.tree.add_node(unknown_organisms)
                 for function in scores[taxid]:
                     if 'genes' in scores[taxid][function]:
@@ -137,8 +134,8 @@ class TaxonomyProfile:
                 while True:
                     if rank in self.RANKS:
                         break
-                    elif current_id == '1':
-                        break
+                    #~ elif current_id == '1':
+                        #~ break
                     else:
 #                        print(rank, ' not in RANKS ', taxid)
                         current_id = taxonomy_data.nodes[current_id]['parent']
@@ -203,7 +200,7 @@ class TaxonomyProfile:
         
         for taxid in counts:
             current_id = taxid
-            if taxid == 0:
+            if taxid == const.UNKNOWN_TAXONOMY_ID:
                 label = unknown_label
                 rpkm_per_rank[unknown_rank][label] += scores[taxid]
                 counts_per_rank[unknown_rank][label] += counts[taxid]
@@ -211,7 +208,7 @@ class TaxonomyProfile:
                 continue
             is_cellular = False
             not_found = False
-            while current_id != '1':
+            while current_id != const.ROOT_TAXONOMY_ID:
                 if current_id == cellular_organisms_taxid:
                     is_cellular = True
                     break
@@ -251,7 +248,7 @@ class TaxonomyProfile:
         return counts_per_rank, identity_per_rank, rpkm_per_rank
     
     def print_taxonomy_profile(self):
-        root_id = '1'
+        root_id = const.ROOT_TAXONOMY_ID
         offset = 0
         ret_val = self.print_node(root_id, offset)
         return ret_val
@@ -279,7 +276,7 @@ class TaxonomyProfile:
             return ''
 
     def print_functional_taxonomy_profile(self, score='rpkm'):
-        root_id = '1'
+        root_id = const.ROOT_TAXONOMY_ID
         offset = 0
         ret_val = self.print_node_functions(root_id, offset, score)
         return ret_val
@@ -317,7 +314,7 @@ class TaxonomyProfile:
         ret_val.append('No.\tRank\tName\t' + '\t'.join(x+'\t\t' for x in sorted(function_list)))
         ret_val.append('\t\t' + '\tScore\tIdentity\tRead count'*len(function_list))
 
-        root_id = '1'
+        root_id = const.ROOT_TAXONOMY_ID
         line_number = 1
         ret_val.extend(self.print_node_function_table(root_id, function_list, line_number))
         return '\n'.join(ret_val)
@@ -354,17 +351,10 @@ class TaxonomyProfile:
         for taxid in self.tree.data:
             for function in self.tree.data[taxid].attributes.keys():
                 function_list.add(function) 
-        root_id = '1'
+        root_id = const.ROOT_TAXONOMY_ID
         line_number = 1
         #print ('Start converting tax.profile into dict')
         tax_dict, _ = self.convert_node_into_dict(root_id, function_list, line_number, score=score)
-        #print(tax_dict)
-        with open('out.txt', 'w') as of:
-            for line in tax_dict.keys():
-                of.write(str(line) + '\n')
-                for k,v in tax_dict[line].items():
-                    of.write('\t' + str(k) + '\t' + str(v) + '\n')
-            of.closed
         df = pd.DataFrame(tax_dict)
         
         # df = pd.DataFrame(self.convert_node_into_dict(root_id, function_list, line_number, score=score))
@@ -478,7 +468,7 @@ class TaxonomyProfile:
         for taxid in self.tree.data:
             for function in self.tree.data[taxid].attributes.keys():
                 function_list.add(function) 
-        root_id = '1'
+        root_id = const.ROOT_TAXONOMY_ID
         line_number = 1
         #print ('Start converting tax.profile into dict')
         tax_dict, _ = self.convert_node_into_values_dict(root_id, function_list, line_number, score=score)

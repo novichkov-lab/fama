@@ -126,7 +126,7 @@ class DiamondParser:
                         #compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                         #compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                         #compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.sample.fastq_fwd_readcount, self.taxonomy_data, self.ref_data) # here should be all the magic
-                        compare_hits_erpk_lca(self.reads[read_id], hit_start, hit_end, _hit_list, bitscore_range_cutoff, length_cutoff, average_read_length, self.taxonomy_data, self.ref_data)  # here should be all the magic
+                        compare_hits_erpk_lca(self.reads[read_id], hit_start, hit_end, _hit_list, bitscore_range_cutoff, length_cutoff, average_read_length, self.taxonomy_data, self.ref_data, rank_cutoffs = self.config.get_ranks_cutoffs(self.options.get_collection()))  # here should be all the magic
                     else:
                         print ('Read not found: ', read_id)
 #                        raise TypeError
@@ -141,7 +141,7 @@ class DiamondParser:
                 #compare_hits(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                 #compare_hits_naive(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.project.get_fastq1_readcount(self.sample)) # here should be all the magic
                 #compare_hits_lca(self.reads[read_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, length_cutoff, self.sample.fastq_fwd_readcount, self.taxonomy_data, self.ref_data) # here should be all the magic
-                compare_hits_erpk_lca(self.reads[read_id], hit_start, hit_end, _hit_list, bitscore_range_cutoff, length_cutoff, average_read_length, self.taxonomy_data, self.ref_data)  # here should be all the magic
+                compare_hits_erpk_lca(self.reads[read_id], hit_start, hit_end, _hit_list, bitscore_range_cutoff, length_cutoff, average_read_length, self.taxonomy_data, self.ref_data, rank_cutoffs = self.config.get_ranks_cutoffs(self.options.get_collection()))  # here should be all the magic
             else:
                 print ('Read not found: ', read_id)
             f.closed

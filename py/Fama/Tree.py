@@ -1,7 +1,6 @@
 import queue
 from collections import defaultdict
-#RANKS = set(['norank','superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'])
-RANKS = set(['norank','superkingdom', 'phylum', 'class', 'order', 'family', 'genus'])
+from Fama.const import RANKS
 
 class Node(object):
     

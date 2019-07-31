@@ -35,6 +35,7 @@ class Contig:
         self.genes[gene.gene_id] = gene
 
     def get_rpkm(self, sample_readcount, sample = None):
+        print('Contig ID', self.contig_id)
         if sample:
             if sample in self.read_count:
                 return self.read_count[sample] * 1000000000 / len(self.sequence) / sample_readcount

@@ -19,8 +19,9 @@ from Fama.ReferenceLibrary.UniprotData import UniprotData
 from Fama.OutputUtil.JSONUtil import import_gene_assembly
 
 class GeneAssembler:
-    def __init__(self, project):
+    def __init__(self, project, assembler = 'metaspades'):
         self.project = project
+        self.assembler = assembler
         project.load_project()
         self.assembly = GeneAssembly()
         self.is_paired_end = None
@@ -34,6 +35,10 @@ class GeneAssembler:
 
     def assemble_contigs(self):
         # Export reads in FASTQ format
+        for f in os.listdir(self.assembly_dir):
+            if f.endswith('.fastq'):
+                os.remove(os.path.join(self.assembly_dir, f))        
+
         for sample_id in sorted(self.project.list_samples()):
             self.is_paired_end = self.project.samples[sample_id].is_paired_end
             self.project.import_reads_json(sample_id, self.project.ENDS)
@@ -74,8 +79,14 @@ class GeneAssembler:
                 self.project.samples[sample_id].reads[end] = None
         
         # Run Assembler ('megahit' for Megahit or 'metaSPAdes' for metaSPAdes)
-        run_assembler(sorted(self.assembly.reads.keys()), self.project.config.get_megahit_path(), self.assembly_dir)
-        #run_assembler(sorted(self.assembly.reads.keys()), self.project.config.get_metaspades_path(), self.assembly_dir, is_paired_end = self.is_paired_end)
+        if self.assembler == 'megahit':
+            run_assembler(sorted(self.assembly.reads.keys()), self.project.config.get_megahit_path(), self.assembly_dir)
+        elif self.assembler == 'metaspades':
+            run_assembler(sorted(self.assembly.reads.keys()), self.project.config.get_metaspades_path(), self.assembly_dir, is_paired_end = self.is_paired_end)
+        else:
+            raise ValueError('Unknown assembler: ' + self.assembler)
+        
+        # Filter contigs by size
         self.filter_contigs_by_length()
 
         # Run Bowtie
@@ -96,12 +107,20 @@ class GeneAssembler:
                             if current_id:
                                 contig = Contig(contig_id=current_id,sequence=sequence)
                                 self.assembly.contigs[function][current_id] = contig
-                            line_tokens = line.split(' ')
-                            current_id = line_tokens[0][1:]
+                            if self.assembler == 'megahit':
+                                line_tokens = line[1:].split(' ')
+                                current_id = line_tokens[0]
+                            elif self.assembler == 'metaspades':
+                                current_id = line[1:]
+                            else:
+                                raise ValueError('Unknown assembler: ' + self.assembler)
+
                             sequence = ''
                         else:
                             sequence += line
-                    f.closed
+                    if current_id:
+                        contig = Contig(contig_id=current_id,sequence=sequence)
+                        self.assembly.contigs[function][current_id] = contig
             else:
                 print('File ' + contig_file + ' does not exist.')
 
@@ -128,6 +147,9 @@ class GeneAssembler:
                 print('File ' + sam_file + ' does not exist.')
 
     def coassemble_contigs(self):
+        for f in os.listdir(self.assembly_dir):
+            if f.endswith('.fastq'):
+                os.remove(os.path.join(self.assembly_dir, f))        
         # Export reads in FASTQ format
         for sample_id in sorted(self.project.list_samples()):
             self.is_paired_end = self.project.samples[sample_id].is_paired_end
@@ -165,8 +187,14 @@ class GeneAssembler:
                 self.project.samples[sample_id].reads[end] = None
         
         # Run Assembler ('megahit' for Megahit or 'metaSPAdes' for metaSPAdes)
-        #run_assembler(sorted(self.assembly.reads.keys()), self.project.config.get_megahit_path(), self.assembly_dir, is_paired_end = self.is_paired_end)
-        run_assembler(sorted(self.assembly.reads.keys()), self.project.config.get_metaspades_path(), self.assembly_dir, is_paired_end = self.is_paired_end)
+        if self.assembler == 'megahit':
+            run_assembler(sorted(self.assembly.reads.keys()), self.project.config.get_megahit_path(), self.assembly_dir, is_paired_end = self.is_paired_end)
+        elif self.assembler == 'metaspades':
+            run_assembler(sorted(self.assembly.reads.keys()), self.project.config.get_metaspades_path(), self.assembly_dir, is_paired_end = self.is_paired_end)
+        else:
+            raise ValueError('Unknown assembler: ' + self.assembler)
+
+        # Filter contigs by size
         self.filter_contigs_by_length()
 
         # Run Bowtie
@@ -186,12 +214,19 @@ class GeneAssembler:
                         if current_id:
                             contig = Contig(contig_id=current_id,sequence=sequence)
                             self.assembly.contigs['Coassembly'][current_id] = contig
-                        line_tokens = line.split(' ')
-                        current_id = line_tokens[0][1:]
+                        if self.assembler == 'megahit':
+                            line_tokens = line[1:].split(' ')
+                            current_id = line_tokens[0]
+                        elif self.assembler == 'metaspades':
+                            current_id = line[1:]
+                        else:
+                            raise ValueError('Unknown assembler: ' + self.assembler)
                         sequence = ''
                     else:
                         sequence += line
-                f.closed
+                if current_id:
+                    contig = Contig(contig_id=current_id,sequence=sequence)
+                    self.assembly.contigs['Coassembly'][current_id] = contig
         else:
             print('File ' + contig_file + ' does not exist.')
         
@@ -240,7 +275,9 @@ class GeneAssembler:
                             sequence = ''
                         else:
                             sequence += line
-                    f.closed
+                    if len(sequence) >= contig_length_threshold:
+                        of.write(current_id + '\n')
+                        of.write(sequence + '\n')
                 of.closed
 
     def parse_reference_output(self):
@@ -347,7 +384,7 @@ class GeneAssembler:
                     hit_end = int(hit_end)
                     if gene_id in self.assembly.contigs[function_id][contig_id].genes:
                         coverage = self.assembly.contigs[function_id][contig_id].get_coverage()
-                        compare_hits_lca(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, average_coverage, coverage, self.project.taxonomy_data, self.project.ref_data)  # here should be all the magic
+                        compare_hits_lca(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, average_coverage, coverage, self.project.taxonomy_data, self.project.ref_data, rank_cutoffs = self.project.config.get_ranks_cutoffs(self.project.options.get_collection()))  # here should be all the magic
                     else:
                         print ('Gene not found: ', gene_id, ' in ', function_id, contig_id)
                         raise TypeError
@@ -362,7 +399,7 @@ class GeneAssembler:
             hit_start= int(hit_start)
             hit_end = int(hit_end)
             if gene_id in self.assembly.contigs[function_id][contig_id].genes:
-                compare_hits_lca(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, average_coverage, coverage, self.project.taxonomy_data, self.project.ref_data)  # here should be all the magic
+                compare_hits_lca(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, average_coverage, coverage, self.project.taxonomy_data, self.project.ref_data, rank_cutoffs = self.project.config.get_ranks_cutoffs(self.project.options.get_collection()))  # here should be all the magic
             else:
                 print ('Gene not found: ', gene_id)
                 raise TypeError
@@ -415,17 +452,17 @@ class GeneAssembler:
                         of.write(self.assembly.contigs[function][contig].sequence + '\n')
             of.closed
         
-        with open('out.txt', 'w') as of:
-            for function in sorted(self.assembly.contigs.keys()):
-                for contig in sorted(self.assembly.contigs[function].keys()):
-                    of.write(function + '\t' + contig  + '\t' + 
-                            str(self.assembly.contigs[function][contig].get_coverage()) + '\t' +
-                            str(len(self.assembly.contigs[function][contig].sequence)) + '\t' +
-                            ','.join(self.assembly.contigs[function][contig].read_count.keys()) + '\t' +
-                            ','.join(str(x) for x in self.assembly.contigs[function][contig].read_count.values()) + '\t' +
-                            ','.join(str(x) for x in self.assembly.contigs[function][contig].read_segments.values()) + '\t' +
-                             '\n')
-            of.closed
+        #~ with open('out.txt', 'w') as of:
+            #~ for function in sorted(self.assembly.contigs.keys()):
+                #~ for contig in sorted(self.assembly.contigs[function].keys()):
+                    #~ of.write(function + '\t' + contig  + '\t' + 
+                            #~ str(self.assembly.contigs[function][contig].get_coverage()) + '\t' +
+                            #~ str(len(self.assembly.contigs[function][contig].sequence)) + '\t' +
+                            #~ ','.join(self.assembly.contigs[function][contig].read_count.keys()) + '\t' +
+                            #~ ','.join(str(x) for x in self.assembly.contigs[function][contig].read_count.values()) + '\t' +
+                            #~ ','.join(str(x) for x in self.assembly.contigs[function][contig].read_segments.values()) + '\t' +
+                             #~ '\n')
+            #~ of.closed
         
         # Run Prodigal
         prodigal_outfile = os.path.join(self.assembly_dir,'all_contigs.prodigal.out.faa')
@@ -439,17 +476,19 @@ class GeneAssembler:
                 line = line.rstrip('\n\r')
                 if line.startswith('>'):
                     if current_id:
-                        function_id,contig_id,gene_id = parse_gene_id(current_id)
-                        print (current_id,function_id,contig_id,gene_id)
-                        gene = Gene(contig_id = contig_id, gene_id = current_id, sequence = sequence)
+                        line_tokens = current_id.split(' # ')
+                        function_id,contig_id,gene_id = parse_gene_id(line_tokens[0])
+                        #~ print (line_tokens[0],function_id,contig_id,gene_id)
+                        gene = Gene(contig_id=contig_id, gene_id=line_tokens[0], sequence=sequence, start=line_tokens[1], end=line_tokens[2], strand=line_tokens[3])
                         self.assembly.contigs[function_id][contig_id].add_gene(gene)
                     line_tokens = line.split(' ')
-                    current_id = line_tokens[0][1:]
+                    current_id = line[1:] #line_tokens[0][1:]
                     sequence = ''
                 else:
                     sequence += line
-            function_id,contig_id,gene_id = parse_gene_id(current_id)
-            gene = Gene(contig_id = contig_id, gene_id = current_id, sequence = sequence)
+            line_tokens = current_id.split(' # ')
+            function_id,contig_id,gene_id = parse_gene_id(line_tokens[0])
+            gene = Gene(contig_id=contig_id, gene_id=line_tokens[0], sequence=sequence, start=line_tokens[1], end=line_tokens[2], strand=line_tokens[3])
             self.assembly.contigs[function_id][contig_id].add_gene(gene)
             f.closed
 
@@ -500,15 +539,15 @@ class GeneAssembler:
             for contig in self.assembly.contigs[function]:
                 for gene_id in self.assembly.contigs[function][contig].genes:
                     gene = self.assembly.contigs[function][contig].genes[gene_id]
-                    if gene.get_status() == 'function,besthit' or gene.get_status() == 'function':
+                    if gene.get_status() == 'function':
+                        taxonomy_id = gene.taxonomy # Was get_taxonomy_id()
                         for hit in gene.hit_list.get_hits():
                             identity = hit.get_identity()
-                            taxonomy_id = gene.get_taxonomy_id()
-                            if not taxonomy_id:
+                            #~ if not taxonomy_id:
                                 # If UniRef-based taxonomy ID was not set, guess it from Fama hit
 #                                print ('Taxonomy ID is missing for gene ', gene_id)
-                                taxonomy_id = self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
-                                gene.set_taxonomy_id(taxonomy_id)
+                                #~ taxonomy_id = self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
+                                #~ gene.set_taxonomy_id(taxonomy_id)
 #                            else:
 #                                print ('Taxonomy ID for gene ', gene_id, ' is ', taxonomy_id)
                             hit_functions = hit.get_functions()
@@ -575,7 +614,7 @@ class GeneAssembler:
             for contig in self.assembly.contigs[function]:
                 for gene_id in self.assembly.contigs[function][contig].genes:
                     gene_status = self.assembly.contigs[function][contig].genes[gene_id].get_status()
-                    if gene_status == 'function,besthit' or gene_status == 'function':
+                    if gene_status == 'function':
                         for f in self.assembly.contigs[function][contig].genes[gene_id].functions.keys():
                             functions_list.add(f)
         
@@ -588,14 +627,14 @@ class GeneAssembler:
                     for gene_id in self.assembly.contigs[f][contig].genes:
                         function_counted = False
                         gene = self.assembly.contigs[f][contig].genes[gene_id]
-                        if gene.get_status() == 'function,besthit' or gene.get_status() == 'function' and function in gene.functions:
+                        if gene.get_status() == 'function' and function in gene.functions:
+                            taxonomy_id = gene.taxonomy # Was get_taxonomy_id()
                             for hit in gene.hit_list.get_hits():
                                 identity = hit.get_identity()
-                                taxonomy_id = gene.get_taxonomy_id()
-                                if not taxonomy_id:
+                                #~ if not taxonomy_id:
     #                                print ('Taxonomy ID is missing for gene ', gene_id)
-                                    taxonomy_id = self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
-                                    gene.set_taxonomy_id(taxonomy_id)
+                                    #~ taxonomy_id = self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
+                                    #~ gene.set_taxonomy_id(taxonomy_id)
     #                            else:
     #                                print ('Taxonomy ID for gene ', gene_id, ' is ', taxonomy_id)
                                 if function in hit.get_functions():
@@ -966,7 +1005,7 @@ def get_abundance(function_fraction, average_coverage, coverage):
     return ret_val
 
 
-def compare_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, average_coverage, coverage, taxonomy_data, ref_data):
+def compare_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, average_coverage, coverage, taxonomy_data, ref_data, rank_cutoffs = {}):
     # This function compares hits assigned to an annotated read with functions
     # from a Diamond hit list. It looks through the hit list, finds 
     # hits with bitscore above cutoff and takes their functions.
@@ -1011,7 +1050,25 @@ def compare_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                     new_hits.append(hit)
 
             # Collect taxonomy IDs of all hits for LCA inference
-            taxonomy_ids = set([ref_data.lookup_protein_tax(h.get_subject_id()) for h in new_hits])
+            taxonomy_ids = set()
+            # If rank-specific AAI cutoffs are not set
+            if len(rank_cutoffs) == 0:
+                taxonomy_ids = set([ref_data.lookup_protein_tax(h.get_subject_id()) for h in new_hits])
+
+            # If rank-specific AAI cutoffs were calculated for the reference dataset:
+            else:
+                for h in new_hits:
+                    subject_taxon_id = ref_data.lookup_protein_tax(h.get_subject_id())
+                    hit_identity = h.get_identity()
+                    subject_rank = taxonomy_data.get_taxonomy_rank(subject_taxon_id)
+                    while subject_taxon_id != taxonomy_data.ROOT:
+                        if subject_rank not in rank_cutoffs:
+                            subject_taxon_id, subject_rank = taxonomy_data.get_upper_level_taxon(subject_taxon_id)
+                        elif hit_identity < rank_cutoffs[subject_rank]:
+                            subject_taxon_id, subject_rank = taxonomy_data.get_upper_level_taxon(subject_taxon_id)
+                        else:
+                            taxonomy_ids.add(subject_taxon_id)
+                            break
 
             # Make non-redundant list of functions from hits after filtering
             new_functions = {}

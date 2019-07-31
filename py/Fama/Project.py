@@ -109,18 +109,18 @@ class Project(object):
                 if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_'+ self.options.get_background_output_name())):
                     problems[sample].append('Background DB search output not found for sample ' + sample + ', end ' + end + ':' +
                                             os.path.join(outdir, sample + '_' + end + '_'+ self.options.get_background_output_name()))
-                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.get_reads_fastq_name())):
+                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.get_reads_fastq_name() + '.gz')):
                     problems[sample].append('Output FASTQ file with reads not found for sample ' + sample + ', end ' + end + ':' +
-                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.get_reads_fastq_name()))
+                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.get_reads_fastq_name() + '.gz'))
                 if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.get_ref_hits_fastq_name())):
                     problems[sample].append('Reference hits FASTQ file not found for sample ' + sample + ', end ' + end + ':' +
                                             os.path.join(outdir, sample + '_' + end + '_' + self.options.get_ref_hits_fastq_name()))
                 if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.get_ref_hits_list_name())):
                     problems[sample].append('List of reference hits not found for sample ' + sample + ', end ' + end + ':' +
                                             os.path.join(outdir, sample + '_' + end + '_' + self.options.get_ref_hits_list_name()))
-                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.get_pe_reads_fastq_name())):
+                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.get_pe_reads_fastq_name() + '.gz')):
                     problems[sample].append('Output FASTQ file with paired-ends not found for sample ' + sample + ', end ' + end + ':' +
-                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.get_pe_reads_fastq_name()))
+                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.get_pe_reads_fastq_name() + '.gz'))
                 if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.get_reads_json_name())):
                     problems[sample].append('Output JSON file with annotated reads not found for sample ' + sample + ', end ' + end + ':' +
                                             os.path.join(outdir, sample + '_' + end + '_' + self.options.get_reads_json_name()))
@@ -129,9 +129,9 @@ class Project(object):
                 if not os.path.exists(os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_report_name())):
                     problems[sample].append('Text report file not found for sample ' + sample + ', end ' + end + ':' +
                                             os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_report_name()))
-                if not os.path.exists(os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_report_name() + '.pdf')):
-                    problems[sample].append('PDF report file not found for sample ' + sample + ', end ' + end + ':' +
-                                            os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_report_name() + '.pdf'))
+                #~ if not os.path.exists(os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_report_name() + '.pdf')):
+                    #~ problems[sample].append('PDF report file not found for sample ' + sample + ', end ' + end + ':' +
+                                            #~ os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_report_name() + '.pdf'))
                 if not os.path.exists(os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_xml_name())):
                     problems[sample].append('Krona XML file for functional profile not found for sample ' + sample + ', end ' + end + ':' +
                                             os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_xml_name()))

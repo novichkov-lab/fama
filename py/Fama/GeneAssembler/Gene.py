@@ -2,11 +2,14 @@
 from collections import defaultdict
 
 class Gene:
-    def __init__(self, contig_id = "", gene_id = "", sequence = None):
+    def __init__(self, contig_id = "", gene_id = "", sequence = None, start = None, end = None, strand = None):
         self.contig_id = contig_id
         self.gene_id = gene_id
         self.protein_sequence = sequence
-        self.tax_id = None
+        self.start = start
+        self.end = end
+        self.strand = strand
+        self.tax_id = None # Obsolete: Taxonomy from UniProt search
         self.functions = defaultdict(float)     # functions dictionary key is function ID and value is RPKM score
         self.hit_list = None
         self.uniref_hit = None

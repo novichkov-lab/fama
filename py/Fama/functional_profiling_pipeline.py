@@ -88,10 +88,10 @@ def run_microbecensus(sample, config):
     args['outfile'] = os.path.join(sample.work_directory, 'microbecensus.out.txt')
     args['threads'] = int(config.get_threads())
     args['no_equivs'] = True
-    if sample.fastq_fwd_readcount < 300000:
-        args['nreads'] = sample.fastq_fwd_readcount // 2 # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
+    if sample.fastq_fwd_readcount < 1500000:
+        args['nreads'] = sample.fastq_fwd_readcount // 2 # MicrobeCensus subsamples 2M reads by default, but sequence library would have more reads as some reads are always discarded by filtering
     elif sample.fastq_fwd_readcount < 3000000:
-        args['nreads'] = sample.fastq_fwd_readcount - 200000 # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
+        args['nreads'] = sample.fastq_fwd_readcount - 1000000 # MicrobeCensus subsamples 2M reads by default, but sequence library have to have some more reads
     else:
         args['nreads'] = 2000000
     print(args)
@@ -182,6 +182,9 @@ def run_fastq_pipeline(project, sample, end_id):
         run_microbecensus(sample=sample, config = project.config)
         sample.import_rpkg_scaling_factor()
     project.options.set_sample_data(sample)
+    
+    if len(parser.reads) == 0:
+        return {}
     
     print ('Exporting FASTQ ')
     parser.export_hit_fastq()

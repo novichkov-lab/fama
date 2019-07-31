@@ -819,27 +819,27 @@ def create_assembly_xlsx(assembler, taxonomy_data):
     col += 1
     genes_worksheet.write(row, col, 'Coverage', bold)
     col += 1
-    genes_worksheet.write(row, col, 'FAMA gene status', bold)
+    genes_worksheet.write(row, col, 'Fama gene status', bold)
     col += 1
-    genes_worksheet.write(row, col, 'FAMA function', bold)
+    genes_worksheet.write(row, col, 'Fama function', bold)
     col += 1
-    genes_worksheet.write(row, col, 'FAMA identity', bold)
+    genes_worksheet.write(row, col, 'Fama identity', bold)
     col += 1
     genes_worksheet.write(row, col, 'CDS completeness', bold)
     col += 1
-    genes_worksheet.write(row, col, 'FAMA best hit', bold)
+    genes_worksheet.write(row, col, 'Fama best hit', bold)
     col += 1
-    genes_worksheet.write(row, col, 'FAMA best hit taxonomy ID', bold)
+    genes_worksheet.write(row, col, 'Fama best hit taxonomy ID', bold)
     col += 1
-    genes_worksheet.write(row, col, 'Uniref best hit organism', bold)
+    genes_worksheet.write(row, col, 'Fama best hit organism', bold)
     col += 1
-    genes_worksheet.write(row, col, 'Uniref best hit taxonomy ID', bold)
+    genes_worksheet.write(row, col, 'Fama best hit taxonomy', bold)
     col += 1
-    genes_worksheet.write(row, col, 'Uniref best hit ID', bold)
+    genes_worksheet.write(row, col, 'Fama LCA taxonomy ID', bold)
     col += 1
-    genes_worksheet.write(row, col, 'Uniref best hit identity', bold)
+    genes_worksheet.write(row, col, 'Fama LCA organism', bold)
     col += 1
-    genes_worksheet.write(row, col, 'Uniref best hit description', bold)
+    genes_worksheet.write(row, col, 'Fama LCA taxonomy', bold)
 
     for sample in samples_list:
         col += 1
@@ -895,7 +895,7 @@ def create_assembly_xlsx(assembler, taxonomy_data):
                     # Write FAMA gene status
                     genes_worksheet.write(row, col, gene.get_status())
                     col += 1
-                    if gene.get_status() == 'function,besthit' or gene.get_status() == 'function':
+                    if gene.get_status() == 'function':
                         # Write FAMA predicted functions
                         gene_functions = [y for x in gene.hit_list.get_hits() for y in x.functions]
                         genes_worksheet.write(row, col, ','.join(gene_functions))
@@ -916,50 +916,81 @@ def create_assembly_xlsx(assembler, taxonomy_data):
                         gene_taxonomy = [assembler.project.ref_data.lookup_protein_tax(cleanup_protein_id(x.get_subject_id())) for x in gene.hit_list.get_hits()]
                         genes_worksheet.write(row, col, ','.join(gene_taxonomy))
                         col += 1
-                    else:
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
 
-                    # Write UniRef taxon name
-                    taxonomy_id = gene.get_taxonomy_id()
-                    if taxonomy_id in taxonomy_data.names:
-                        genes_worksheet.write(row, col, taxonomy_data.names[taxonomy_id]['name'])
-                    else:
-                        genes_worksheet.write(row, col, 'N/A')
-                    col += 1
+                        # Write Fama best hit organism
+                        gene_organism = [assembler.project.taxonomy_data.names[x]['name'] for x in gene_taxonomy]
+                        genes_worksheet.write(row, col, ','.join(gene_organism))
+                        col += 1
+                        # Write Fama best hit taxonomy
+                        best_hit_taxonomy = [assembler.project.taxonomy_data.get_lineage_string(x) for x in gene_taxonomy]
+                        genes_worksheet.write(row, col, '|'.join(best_hit_taxonomy))
+                        col += 1
+                        
+                        # Write Fama LCA taxonomy ID
+                        lca_taxonomy_id = gene.taxonomy
+                        genes_worksheet.write(row, col, lca_taxonomy_id)
+                        col += 1
+                        # Write Fama LCA organism
+                        lca_organism = assembler.project.taxonomy_data.names[lca_taxonomy_id]['name']
+                        genes_worksheet.write(row, col, lca_organism)
+                        col += 1
+                        # Write Fama LCA taxonomy
+                        lca_taxonomy = assembler.project.taxonomy_data.get_lineage_string(lca_taxonomy_id)
+                        genes_worksheet.write(row, col, lca_taxonomy)
 
-                    # Write UniRef taxonomy ID
-                    if taxonomy_id:
-                        genes_worksheet.write(row, col, taxonomy_id)
                     else:
                         genes_worksheet.write(row, col, 'N/A')
-                    col += 1
+                        col += 1
+                        genes_worksheet.write(row, col, 'N/A')
+                        col += 1
+                        genes_worksheet.write(row, col, 'N/A')
+                        col += 1
+                        genes_worksheet.write(row, col, 'N/A')
+                        col += 1
+                        genes_worksheet.write(row, col, 'N/A')
+                        col += 1
+                        genes_worksheet.write(row, col, 'N/A')
+                        col += 1
+                        genes_worksheet.write(row, col, 'N/A')
+                        col += 1
+                        genes_worksheet.write(row, col, 'N/A')
+                        col += 1
+                        genes_worksheet.write(row, col, 'N/A')
+                        col += 1
+                        genes_worksheet.write(row, col, 'N/A')
+
+                    #~ # Write UniRef taxon name
+                    #~ taxonomy_id = gene.get_taxonomy_id()
+                    #~ if taxonomy_id in taxonomy_data.names:
+                        #~ genes_worksheet.write(row, col, taxonomy_data.names[taxonomy_id]['name'])
+                    #~ else:
+                        #~ genes_worksheet.write(row, col, 'N/A')
+                    #~ col += 1
+
+                    #~ # Write UniRef taxonomy ID
+                    #~ if taxonomy_id:
+                        #~ genes_worksheet.write(row, col, taxonomy_id)
+                    #~ else:
+                        #~ genes_worksheet.write(row, col, 'N/A')
+                    #~ col += 1
                     
-                    if gene.uniref_hit:
-                        uniref_id = gene.uniref_hit.get_subject_id()
-                        if uniref_id:
-                            # Write Uniref best hit ID
-                            genes_worksheet.write(row, col, uniref_id)
-                            col += 1
-                            # Write Uniref best hit identity
-                            genes_worksheet.write(row, col, gene.uniref_hit.get_identity())
-                            col += 1
-                            # Write Uniref best hit description
-                            genes_worksheet.write(row, col, assembler.uniprot.get_uniprot_description(uniref_id))
-                    else:
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
-                        genes_worksheet.write(row, col, 'N/A')
-                        col += 1
-                        genes_worksheet.write(row, col, 'N/A')
+                    #~ if gene.uniref_hit:
+                        #~ uniref_id = gene.uniref_hit.get_subject_id()
+                        #~ if uniref_id:
+                            #~ # Write Uniref best hit ID
+                            #~ genes_worksheet.write(row, col, uniref_id)
+                            #~ col += 1
+                            #~ # Write Uniref best hit identity
+                            #~ genes_worksheet.write(row, col, gene.uniref_hit.get_identity())
+                            #~ col += 1
+                            #~ # Write Uniref best hit description
+                            #~ genes_worksheet.write(row, col, assembler.uniprot.get_uniprot_description(uniref_id))
+                    #~ else:
+                        #~ genes_worksheet.write(row, col, 'N/A')
+                        #~ col += 1
+                        #~ genes_worksheet.write(row, col, 'N/A')
+                        #~ col += 1
+                        #~ genes_worksheet.write(row, col, 'N/A')
 
 
                     for sample in samples_list:

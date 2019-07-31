@@ -130,7 +130,11 @@ class Sample(object):
                         read_data[read_id]['ref_name'] = hit.get_subject_id()
                     break
         print(str(len(read_data)), 'fragments found')
-        avg_insert_size = get_lib_est(read_data, self.work_directory)
-        self.insert_size = avg_insert_size
-        return avg_insert_size
-
+        if len(read_data) > 1:
+            avg_insert_size = get_lib_est(read_data, self.work_directory)
+            self.insert_size = avg_insert_size
+            return avg_insert_size
+        else:
+            # Not enough data to estimate insert size. Use 1 bp 
+            self.insert_size = 0.0
+            return 0.0

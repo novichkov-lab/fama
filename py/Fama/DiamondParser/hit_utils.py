@@ -40,7 +40,7 @@ def get_efpk_score(protein_length, average_read_length, length_cutoff, insert_si
     else:
         return 1000
 
-def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, average_read_length, taxonomy_data, ref_data):
+def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff, length_cutoff, average_read_length, taxonomy_data, ref_data, rank_cutoffs = {}):
     # This function compares hits assigned to an annotated read with functions
     # from a Diamond hit list. It looks through the hit list, finds 
     # hits with bitscore above cutoff and takes their functions.
@@ -88,7 +88,25 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
                 new_hits.append(hit)
 
             # Collect taxonomy IDs of all hits for LCA inference
-            taxonomy_ids = set([ref_data.lookup_protein_tax(h.get_subject_id()) for h in new_hits])
+            taxonomy_ids = set()
+            # If rank-specific AAI cutoffs are not set
+            if len(rank_cutoffs) == 0:
+                taxonomy_ids = set([ref_data.lookup_protein_tax(h.get_subject_id()) for h in new_hits])
+            
+            # If rank-specific AAI cutoffs were calculated for the reference dataset:
+            else:
+                for h in new_hits:
+                    subject_taxon_id = ref_data.lookup_protein_tax(h.get_subject_id())
+                    hit_identity = h.get_identity()
+                    subject_rank = taxonomy_data.get_taxonomy_rank(subject_taxon_id)
+                    while subject_taxon_id != taxonomy_data.ROOT:
+                        if subject_rank not in rank_cutoffs:
+                            subject_taxon_id, subject_rank = taxonomy_data.get_upper_level_taxon(subject_taxon_id)
+                        elif hit_identity < rank_cutoffs[subject_rank]:
+                            subject_taxon_id, subject_rank = taxonomy_data.get_upper_level_taxon(subject_taxon_id)
+                        else:
+                            taxonomy_ids.add(subject_taxon_id)
+                            break
 
             # Make non-redundant list of functions from hits after filtering
             new_functions = {}
