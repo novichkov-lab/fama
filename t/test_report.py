@@ -18,12 +18,12 @@ from Fama.lib_est import get_lib_est
 data_dir = 'data'
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
-#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen9_lca.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen9.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_universal1_lca_test.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_EB271-ZV-D103_nitrogen9.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_EB271_nitrogen9.ini')
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_freshwater_isolates_universal1.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_freshwater_isolates_universal1.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_benchmark_universal1.ini')
 #sample_id = 'test_sample'
 #sample_id = 'sample1'
@@ -251,17 +251,38 @@ class FamaReportTest(unittest.TestCase):
         scores = get_function_taxonomy_scores(self.project,metrics=metrics)
         generate_functions_taxonomy_stamp_input(self.project, scores, metrics)
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_5_generate_functions_samples_xlsx(self):
         for sample_id in self.project.list_samples():
             self.project.import_reads_json(sample_id, self.project.ENDS)
         metrics = 'efpkg'
+        rank = 'phylum'
         scores = get_function_taxonomy_scores(self.project, metrics=metrics)
         generate_sample_taxonomy_function_xlsx(self.project, 
                             scores, 
                             metrics=metrics, 
-                            rank = None)
+                            rank = rank)
         self.assertTrue(len(scores) > 0)
+
+#    @unittest.skip("for faster testing")
+    def test_collect_taxonomic_data(self):
+        print ('Load project from JSON')
+        sample_id = 'FW306-ZV-1'
+        metrics = 'efpkg'
+        self.project.import_reads_json(sample_id, self.project.ENDS)
+        
+        sample_scores = get_function_taxonomy_scores(self.project, sample_id = sample_id, metrics = metrics)# autovivify(2, float)
+        
+                
+        with open('sample1_taxonomy_scores.tsv', 'w') as of:
+            of.write('Taxonomy_ID\tFunction_ID\tScore\n')
+            for taxonomy_id in sorted(sample_scores.keys()):
+                for function_id in sorted(sample_scores[taxonomy_id].keys()):
+                    of.write('\t'.join([taxonomy_id,function_id,str(sample_scores[taxonomy_id][function_id][sample_id][metrics])]) + '\n')
+            of.close()
+                
+        self.assertEqual(len(self.project.samples), 6)
+
 
     def tearDown(self):
         self.parser = None

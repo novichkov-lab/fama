@@ -10,7 +10,7 @@ from Fama.Sample import Sample
 from Fama.DiamondParser.DiamondHit import DiamondHit
 from Fama.DiamondParser.DiamondHitList import DiamondHitList
 from Fama.DiamondParser.DiamondParser import DiamondParser
-from Fama.DiamondParser.hit_utils import compare_hits,compare_functions,get_paired_read_id,compare_hits_naive,compare_hits_lca,compare_hits_erpk_lca
+from Fama.DiamondParser.hit_utils import get_paired_read_id,compare_hits_lca,compare_hits_erpk_lca#compare_hits,compare_functions,compare_hits_naive,
 from Fama.ReadUtil.AnnotatedRead import AnnotatedRead
 from Fama.OutputUtil.JSONUtil import export_annotated_reads
 from Fama.OutputUtil.JSONUtil import import_annotated_reads
@@ -18,10 +18,12 @@ from Fama.OutputUtil.JSONUtil import import_annotated_reads
 
 data_dir = 'data'
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
+config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config_rpL6_singleDB.ini')
 project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_rpl6_testdb.ini')
 sample_id = 'test_sample'
-#sample_id = 'sample1'
+sample_id = 'FW306-4701'
 end = 'pe1'
 #end = 'pe2'
 

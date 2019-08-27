@@ -8,16 +8,17 @@ from context import Fama
 from Fama.Project import Project
 from Fama.Sample import Sample
 from Fama.ProjectUtil.ProjectOptions import ProjectOptions
-from Fama.OutputUtil.Report import generate_functions_scores_table
-from Fama.DiamondParser.hit_utils import compare_function_combinations
 
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
+#config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config_rpL6_singleDB.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_EB271_nitrogen_t.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_Hans_sulfate_t.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_cazy_t.ini')
 project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen_t.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_EB271_sulfate_t.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_rpl6_testdb.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen9.ini')
 
 def autovivify(levels=1, final=dict):
     return (defaultdict(final) if levels < 2 else
@@ -32,7 +33,7 @@ class ProjectTest(unittest.TestCase):
             sample.load_sample(self.project.options)
             self.project.samples[sample_id] = sample
     
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_project_options(self):
         print ('Print list of samples1')
         options = ProjectOptions(project_path)
@@ -40,7 +41,7 @@ class ProjectTest(unittest.TestCase):
         self.assertEqual(len(options.parser.sections()), 6)
         self.assertEqual(options.parser.sections()[0], 'sample1')
     
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_list_samples(self):
         print ('Print list of samples2')
         samples = self.project.list_samples()
@@ -48,11 +49,23 @@ class ProjectTest(unittest.TestCase):
         self.assertEqual(len(samples), 6)
         self.assertEqual(samples[0], 'sample1')
         
+    @unittest.skip("for faster testing")
     def test_check_project(self):
         print ('Print problems found in test project: ')
         self.project.check_project()
+
+    @unittest.skip("for faster testing")
+    def test_check_config(self):
+        print ('Print problems found in test project: ')
+        self.project.check_project()
+        self.assertEqual(self.project.config.get_biscore_range_cutoff(self.project.options.get_collection()), 0.2)
+        self.assertEqual(self.project.config.get_identity_cutoff(self.project.options.get_collection()), 40.0)
+        ranks_cutoff = self.project.config.get_ranks_cutoffs(self.project.options.get_collection())
+        
+        print(ranks_cutoff)
+        print(ranks_cutoff['species'])
     
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_load_project(self):
         print ('Load project from INI file')
         self.project = None
@@ -60,7 +73,7 @@ class ProjectTest(unittest.TestCase):
         self.project.load_project()
         self.assertEqual(len(self.project.samples), 6)
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_collect_fragment_stats(self):
         print ('Load project from JSON')
         #self.project.load_functional_profile()
@@ -179,7 +192,7 @@ class ProjectTest(unittest.TestCase):
                 
         self.assertEqual(len(self.project.samples), 6)
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_top_size(self):
         print ('Load reads from JSON')
         sample_id = 'sample3'
