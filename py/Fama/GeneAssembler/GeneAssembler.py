@@ -314,8 +314,8 @@ class GeneAssembler:
                     current_id = hit.get_query_id()
                     _hit_list = DiamondHitList(current_id)
                 _hit_list.add_hit(hit)
+            _hit_list.filter_list(self.project.config.get_overlap_cutoff(self.project.options.get_collection()))
             if _hit_list.get_hits_number() != 0:
-                _hit_list.filter_list(self.project.config.get_overlap_cutoff(self.project.options.get_collection()))
                 # annotate_hits
                 _hit_list.annotate_hits(self.project.ref_data)
                 function_id,contig_id,gene_id = parse_gene_id(current_id)
@@ -395,13 +395,17 @@ class GeneAssembler:
             current_query_id_tokens = current_query_id.split('|')
             hit_end = current_query_id_tokens[-1]
             hit_start = current_query_id_tokens[-2]
-            read_id = '|'.join(current_query_id_tokens[:-2])
+            function_id = current_query_id_tokens[0]
+            contig_tokens = current_query_id_tokens[1].split('_')
+            contig_id = '_'.join(contig_tokens[:-1])
+            gene_id = '|'.join(current_query_id_tokens[:-2])
             hit_start= int(hit_start)
             hit_end = int(hit_end)
             if gene_id in self.assembly.contigs[function_id][contig_id].genes:
+                coverage = self.assembly.contigs[function_id][contig_id].get_coverage()
                 compare_hits_lca(self.assembly.contigs[function_id][contig_id].genes[gene_id], hit_start, hit_end, _hit_list, biscore_range_cutoff, average_coverage, coverage, self.project.taxonomy_data, self.project.ref_data, rank_cutoffs = self.project.config.get_ranks_cutoffs(self.project.options.get_collection()))  # here should be all the magic
             else:
-                print ('Gene not found: ', gene_id)
+                print ('Gene not found: ', gene_id, ' in ', function_id, contig_id)
                 raise TypeError
 
 

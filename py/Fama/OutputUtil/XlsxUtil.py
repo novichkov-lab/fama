@@ -811,7 +811,13 @@ def create_assembly_xlsx(assembler, taxonomy_data):
     col += 1
     genes_worksheet.write(row, col, 'Contig', bold)
     col += 1
+    genes_worksheet.write(row, col, 'Gene start', bold)
+    col += 1
+    genes_worksheet.write(row, col, 'Gene end', bold)
+    col += 1
     genes_worksheet.write(row, col, 'Gene length', bold)
+    col += 1
+    genes_worksheet.write(row, col, 'Gene strand', bold)
     col += 1
     genes_worksheet.write(row, col, 'Read count', bold)
     col += 1
@@ -878,11 +884,21 @@ def create_assembly_xlsx(assembler, taxonomy_data):
                     # Write Contig ID
                     genes_worksheet.write(row, col, contig)
                     col += 1
+                    # Write gene start
+                    genes_worksheet.write(row, col, int(gene.start))
+                    col += 1
+                    # Write gene end
+                    genes_worksheet.write(row, col, int(gene.end))
+                    col += 1
                     # Write gene length
-                    genes_worksheet.write(row, col, len(gene.protein_sequence) * 3)
+                    gene_length = int(gene.end) - int(gene.start) + 1
+                    genes_worksheet.write(row, col, gene_length)
+                    col += 1
+                    # Write gene strand
+                    genes_worksheet.write(row, col, gene.strand)
                     col += 1
                     # Write read count (calculated from read count of contig, adjusted by gene length)
-                    gene_read_count = assembler.assembly.contigs[function][contig].get_read_count() * len(gene.protein_sequence) * 3 / len(assembler.assembly.contigs[function][contig].sequence)
+                    gene_read_count = assembler.assembly.contigs[function][contig].get_read_count() * gene_length / len(assembler.assembly.contigs[function][contig].sequence)
                     genes_worksheet.write(row, col, gene_read_count, cell_numformat1)
                     col += 1
                     # Write RPKM
