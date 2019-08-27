@@ -289,4 +289,23 @@ class TaxonomyData:
         ret_val = ret_val.replace('(','_')
         ret_val = ret_val.replace(')','_')
         return ret_val
-        
+
+    def get_taxonomy_lineage(self, taxonomy_id):
+        ret_val = ''
+        if taxonomy_id not in self.nodes:
+            return ret_val
+        lineage = [self.names[taxonomy_id]['name']]
+        parent_id = self.nodes[taxonomy_id]['parent']
+        while self.nodes[parent_id]['parent'] != '1':
+            if self.nodes[parent_id]['rank'] in self.RANKS:
+                lineage.insert(0,self.names[parent_id]['name'])
+            if self.nodes[parent_id]['parent'] in self.names:
+                parent_id = self.nodes[parent_id]['parent']
+            else:
+                parent_id = '0'
+        ret_val = '_'.join(lineage)
+        ret_val = ret_val.replace(' ','_')
+        ret_val = ret_val.replace('(','_')
+        ret_val = ret_val.replace(')','_')
+        return ret_val
+

@@ -625,7 +625,7 @@ class GeneAssembler:
         for function in sorted(functions_list):
             genes = autovivify(2) # genes[gene][sample][parameter] = parameter_value 
             scores = autovivify(2) # scores[taxonomy ID][sample][parameter] = parameter_value 
-            outfile = os.path.join(self.assembly_dir, function + '_taxonomic_profile.xml')
+            outfile = os.path.join(self.assembly_dir, 'out', function + '_taxonomic_profile.xml')
             for f in self.assembly.contigs:
                 for contig in self.assembly.contigs[f]:
                     for gene_id in self.assembly.contigs[f][contig].genes:
@@ -731,7 +731,61 @@ class GeneAssembler:
             
             generate_assembly_taxonomy_chart(taxonomic_profile, genes, output_sample_ids, outfile, self.project.config.get_krona_path(), score='rpkm')
     
+    def write_sequences(self):
+        genes = autovivify(2) # genes[function][gene][parameter] = parameter_value 
+
+        for function in self.assembly.contigs:
+            for contig in self.assembly.contigs[function]:
+                for gene_id in self.assembly.contigs[function][contig].genes:
+                    gene = self.assembly.contigs[function][contig].genes[gene_id]
+                    if gene.get_status() == 'function':
+                        for hit in gene.hit_list.get_hits():
+                            taxonomy_id = gene.taxonomy
+                            #~ if not taxonomy_id:
+                                #~ taxonomy_id = self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
+                            hit_functions = hit.get_functions()
+                            for hit_function in hit_functions:
+                                start = gene.start
+                                end = gene.end
+                                strand = gene.strand
+                                genes[hit_function][gene_id]['start'] = start
+                                genes[hit_function][gene_id]['end'] = end
+                                genes[hit_function][gene_id]['strand'] = strand
+                                genes[hit_function][gene_id]['taxonomy'] = taxonomy_id
+                                
+                                gene_sequence = self.assembly.contigs[function][contig].sequence[int(start) - 1 : int(end)]
+                                if strand == '-1':
+                                    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
+                                    gene_sequence = ''.join([complement[nucl] for nucl in reversed(gene_sequence)]) 
+                                genes[hit_function][gene_id]['sequence'] = gene_sequence
+                                genes[hit_function][gene_id]['protein'] = gene.protein_sequence
+                                genes[hit_function][gene_id]['aai'] = hit.get_identity()
+                                genes[hit_function][gene_id]['completeness'] = len(gene.protein_sequence) * 100 / hit.get_subject_length()
+        for function in genes:
+            outfile = os.path.join(self.project.options.get_assembly_dir(),'out', function + '_genes_Fama.fna')
+            with open(outfile, 'w') as of:
+                for gene_id in genes[function]:
+                    lineage = self.project.taxonomy_data.get_taxonomy_lineage(genes[function][gene_id]['taxonomy'])
+                    of.write('>' + gene_id + '|' + 
+                            genes[hit_function][gene_id]['start'] + '|' + 
+                            genes[hit_function][gene_id]['end'] + '|' + 
+                            genes[hit_function][gene_id]['strand'] + '|' + 
+                            lineage + '\n')#'|' 
+                    of.write(genes[function][gene_id]['sequence'] + '\n')
+            outfile = os.path.join(self.project.options.get_assembly_dir(), 'out', function + '_proteins_Fama.faa')
+            with open(outfile, 'w') as of:
+                for gene_id in genes[function]:
+                    lineage = self.project.taxonomy_data.get_taxonomy_lineage(genes[function][gene_id]['taxonomy'])
+                    of.write('>' + gene_id + '|' + 
+                            genes[hit_function][gene_id]['start'] + '|' + 
+                            genes[hit_function][gene_id]['end'] + '|' + 
+                            genes[hit_function][gene_id]['strand'] + '|' + 
+                            lineage + '\n')#'|' 
+                    of.write(genes[function][gene_id]['protein'] + '\n')
+        
+    
     def generate_output(self):
+        self.write_sequences()
         taxonomy_data = TaxonomyData(self.project.config)
         taxonomy_data.load_taxdata(self.project.config)
 

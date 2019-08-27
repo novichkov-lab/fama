@@ -641,7 +641,7 @@ def generate_sample_taxonomy_function_xlsx(project, scores, metrics, function_id
     #~ workbook.close()
 
 def create_assembly_xlsx(assembler, taxonomy_data):
-    xlsxfile = sanitize_file_name(os.path.join(assembler.project.options.get_assembly_dir(), assembler.project.options.get_name() + '_assembly.xlsx'))    
+    xlsxfile = sanitize_file_name(os.path.join(assembler.project.options.get_assembly_dir(), 'out', assembler.project.options.get_name() + '_assembly.xlsx'))    
     xlsxfile = xlsxfile.replace(' ', '_')
     xlsxfile = xlsxfile.replace("'", "")
     xlsxfile = xlsxfile.replace('"', '')
@@ -859,7 +859,7 @@ def create_assembly_xlsx(assembler, taxonomy_data):
     genes_worksheet.write(row, col, 'Definition', bold)
 
     row += 1
-    col = 17
+    col = 20
     for sample in samples_list:
         col += 1
         genes_worksheet.write(row, col, 'Read count', bold)
