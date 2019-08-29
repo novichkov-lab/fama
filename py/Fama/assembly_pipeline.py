@@ -14,5 +14,5 @@ def assembly_pipeline(args):
     assembler.map_genes()
     #assembler.map_genes2uniprot()
     assembler.generate_output()
-    export_gene_assembly(assembler.assembly,os.path.join(project.options.get_assembly_dir(), 'all_contigs_assembly.json'))
+    export_gene_assembly(assembler.assembly,os.path.join(project.options.assembly_dir, 'all_contigs_assembly.json'))
 

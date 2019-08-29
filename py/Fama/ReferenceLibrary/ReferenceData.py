@@ -15,7 +15,7 @@ class ReferenceData:
 
     def load_reference_data(self,collection):
         self.functions_dict = self.initialize_functions_dict(self.options.get_functions_file(collection))
-        self.proteins_dict = self.initialize_proteins_dict(self.options.get_proteins_list_file(collection))
+        self.proteins_dict = self.initialize_proteins_dict(self.options.get_protein_list_file(collection))
 
     def initialize_functions_dict(self,infile):
         _dict = defaultdict(dict)

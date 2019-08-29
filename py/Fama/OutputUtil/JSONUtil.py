@@ -115,7 +115,7 @@ def import_gene_assembly(infile):
     return deserialized
 
 def export_annotated_reads(parser):
-    outfile = os.path.join(parser.options.get_project_dir(parser.sample.sample_id), parser.sample.sample_id + '_' + parser.end + '_' + parser.options.get_reads_json_name())
+    outfile = os.path.join(parser.options.get_project_dir(parser.sample.sample_id), parser.sample.sample_id + '_' + parser.end + '_' + parser.options.reads_json_name)
     #print pretty JSON: print(json.dumps(parser.reads,indent=4, cls=CustomEncoder))
     with open (outfile, 'w') as of:
         json.dump(parser.reads,of,cls=CustomEncoder)

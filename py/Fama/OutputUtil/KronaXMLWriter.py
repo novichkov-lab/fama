@@ -4,7 +4,7 @@ from subprocess import Popen, PIPE, CalledProcessError
 from Fama.utils import autovivify
 
 def generate_functions_chart(parser, score='efpkg'):
-    outfile = os.path.join(parser.options.get_project_dir(parser.sample.sample_id), parser.options.get_output_subdir(parser.sample.sample_id),parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_xml_name())
+    outfile = os.path.join(parser.options.get_project_dir(parser.sample.sample_id), parser.options.get_output_subdir(parser.sample.sample_id),parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.xml_name)
     
     with open(outfile, 'w') as of:
         # Write header
@@ -31,19 +31,19 @@ def generate_functions_chart(parser, score='efpkg'):
         functions_rpkm = defaultdict(float)
         functions_identity = defaultdict(list)
         for read in parser.reads.keys():
-            if parser.reads[read].get_status() == 'function,besthit' or parser.reads[read].get_status() == 'function':
+            if parser.reads[read].status == 'function':
                 read_count += 1
-                read_functions = parser.reads[read].get_functions()
+                read_functions = parser.reads[read].functions
                 for function in read_functions:
                     total_rpkm += read_functions[function]
                     groups_counts[parser.ref_data.lookup_function_group(function)].add(read)
                     functions_rpkm[function] += read_functions[function]
                     groups_rpkm[parser.ref_data.lookup_function_group(function)] += read_functions[function]
                     functions_counts[function].add(read)
-                for hit in parser.reads[read].get_hit_list().get_hits():
-                    for function in hit.get_functions():
-                        functions_identity[function].append(hit.get_identity())
-                        groups_identity[parser.ref_data.lookup_function_group(function)].append(hit.get_identity())
+                for hit in parser.reads[read].hit_list.hits:
+                    for function in hit.functions:
+                        functions_identity[function].append(hit.identity)
+                        groups_identity[parser.ref_data.lookup_function_group(function)].append(hit.identity)
         
         # Write nodes
         # Write top-level node
@@ -84,9 +84,9 @@ def generate_functions_chart(parser, score='efpkg'):
         of.closed
 
     # Run Krona
-    html_file = os.path.join(parser.options.get_project_dir(parser.sample.sample_id), parser.options.get_output_subdir(parser.sample.sample_id),parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_html_name())
+    html_file = os.path.join(parser.options.get_project_dir(parser.sample.sample_id), parser.options.get_output_subdir(parser.sample.sample_id),parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.html_name)
 #    krona_cmd = ['ktImportXML', '-o', html_file, outfile]
-    krona_cmd = [parser.config.get_krona_path(), '-o', html_file, outfile]
+    krona_cmd = [parser.config.krona_path, '-o', html_file, outfile]
 
     with Popen(krona_cmd, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
         for line in p.stdout:

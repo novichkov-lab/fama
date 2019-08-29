@@ -18,9 +18,9 @@ class TaxonomyData:
         self.ROOT = const.ROOT_TAXONOMY_ID
 
     def load_taxdata(self, options):
-        names_file = options.get_taxonomy_names_file()
-        nodes_file = options.get_taxonomy_nodes_file()
-        merged_file = options.get_taxonomy_merged_file()
+        names_file = options.taxonomy_names_file
+        nodes_file = options.taxonomy_nodes_file
+        merged_file = options.taxonomy_merged_file
         
         #initialize self.names
         print ('Loading names file', names_file)

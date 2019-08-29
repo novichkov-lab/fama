@@ -5,9 +5,9 @@ from Fama.DiamondParser.DiamondHitList import DiamondHitList
 
 def get_rpkm_score(hit, function_fraction, total_readcount, length_cutoff):
     ret_val = None
-#    print ('Subject length', hit.get_subject_length())
-    if (hit.get_subject_length() - length_cutoff) > 0:
-        ret_val = function_fraction*1000000000.0/((hit.get_subject_length() - length_cutoff)*3*total_readcount)
+#    print ('Subject length', hit.subject_length)
+    if (hit.s_len - length_cutoff) > 0:
+        ret_val = function_fraction*1000000000.0/((hit.s_len - length_cutoff)*3*total_readcount)
     else:
 #        print(hit)
 #        print(function_fraction, str(total_readcount))
@@ -56,23 +56,19 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
     # assigns RPKM score to each function of the read
     #
     # Find best hit
-    old_hit_list = read.get_hit_list().get_hits()
+    old_hit_list = read.hit_list.hits
     
     for hit in old_hit_list:
-        #print(str(hit))
-        #print (str(hit.get_query_start()), str(hit_start), str(hit.get_query_end()), str(hit_end))
-        #print (type(hit.get_query_start()), type(hit_start), type(hit.get_query_end()), type(hit_end))
-        if hit.get_query_start() == hit_start and hit.get_query_end() == hit_end:
+        if hit.q_start == hit_start and hit.q_end == hit_end:
             best_bitscore = 0.0
             best_hit = None
-            for new_hit in new_hit_list.get_hits():
-                bitscore = new_hit.get_bitscore()
-                if bitscore > best_bitscore:
+            for new_hit in new_hit_list.hits:
+                if new_hit.bitscore > best_bitscore:
                     best_hit = new_hit
-                    best_bitscore = bitscore
+                    best_bitscore = new_hit.bitscore
             # Set status of read
             if best_hit != None:
-                if '' in best_hit.get_functions():
+                if '' in best_hit.functions:
                     read.set_status('nofunction')
                     return
                 else:
@@ -83,26 +79,25 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
             
             # Filter list of hits by bitscore
             bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
-            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() > bitscore_lower_cutoff]
-            if hit.get_subject_id() not in [new_hit.get_subject_id() for new_hit in new_hits] and hit.get_bitscore() >= best_bitscore:
+            new_hits = [new_hit for new_hit in new_hit_list.hits if new_hit.bitscore > bitscore_lower_cutoff]
+            if hit.subject_id not in [new_hit.subject_id for new_hit in new_hits] and hit.bitscore >= best_bitscore:
                 new_hits.append(hit)
 
             # Collect taxonomy IDs of all hits for LCA inference
             taxonomy_ids = set()
             # If rank-specific AAI cutoffs are not set
             if len(rank_cutoffs) == 0:
-                taxonomy_ids = set([ref_data.lookup_protein_tax(h.get_subject_id()) for h in new_hits])
+                taxonomy_ids = set([ref_data.lookup_protein_tax(h.subject_id) for h in new_hits])
             
             # If rank-specific AAI cutoffs were calculated for the reference dataset:
             else:
                 for h in new_hits:
-                    subject_taxon_id = ref_data.lookup_protein_tax(h.get_subject_id())
-                    hit_identity = h.get_identity()
+                    subject_taxon_id = ref_data.lookup_protein_tax(h.subject_id)
                     subject_rank = taxonomy_data.get_taxonomy_rank(subject_taxon_id)
                     while subject_taxon_id != taxonomy_data.ROOT:
                         if subject_rank not in rank_cutoffs:
                             subject_taxon_id, subject_rank = taxonomy_data.get_upper_level_taxon(subject_taxon_id)
-                        elif hit_identity < rank_cutoffs[subject_rank]:
+                        elif h.identity < rank_cutoffs[subject_rank]:
                             subject_taxon_id, subject_rank = taxonomy_data.get_upper_level_taxon(subject_taxon_id)
                         else:
                             taxonomy_ids.add(subject_taxon_id)
@@ -114,14 +109,14 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
             new_functions_dict = defaultdict(dict)
             # Find best hit for each function: only one hit with highest bitscore to be reported for each function
             for h in new_hits:
-                for f in h.get_functions():
+                for f in h.functions:
                     new_functions_counter[f] += 1
                     if f in new_functions_dict:
-                        if h.get_bitscore() > new_functions_dict[f]['bit_score']:
-                            new_functions_dict[f]['bit_score'] = h.get_bitscore()
+                        if h.bitscore > new_functions_dict[f]['bit_score']:
+                            new_functions_dict[f]['bit_score'] = h.bitscore
                             new_functions_dict[f]['hit'] = h
                     else:
-                        new_functions_dict[f]['bit_score'] = h.get_bitscore()
+                        new_functions_dict[f]['bit_score'] = h.bitscore
                         new_functions_dict[f]['hit'] = h
 
             # If the most common function in new hits is unknown, set status "nofunction" and return
@@ -133,20 +128,19 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
             for function in new_functions_dict:
                 if function == '':
                     continue
-                #new_functions[function] = get_rpk_score(new_functions_dict[function]['hit'].get_subject_length())
-                new_functions[function] = get_erpk_score(new_functions_dict[function]['hit'].get_subject_length(), average_read_length, length_cutoff)
+                new_functions[function] = get_erpk_score(new_functions_dict[function]['hit'].s_len, average_read_length, length_cutoff)
 
             read.append_functions(new_functions)
 
             # Set new list of hits
-            #_hit_list = DiamondHitList(read.get_read_id())
+            #_hit_list = DiamondHitList(read.read_id)
             for f in new_functions_dict:
                 if f == '':
                     continue
                 good_hit = new_functions_dict[f]['hit']
-                good_hit.query_id = read.get_read_id()
-                good_hit.set_query_start(hit_start)
-                good_hit.set_query_end(hit_end)
+                good_hit.query_id = read.read_id
+                good_hit.q_start = hit_start
+                good_hit.q_end = hit_end
                 good_hit.annotate_hit(ref_data)
                 #_hit_list.add_hit(good_hit)
                 read.hit_list.add_hit(good_hit)
@@ -174,64 +168,56 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
     # assigns RPKM score to each function of the read
     #
     # Find best hit
-    for hit in read.get_hit_list().get_hits():
-        #print(str(hit))
-        #print (str(hit.get_query_start()), str(hit_start), str(hit.get_query_end()), str(hit_end))
-        #print (type(hit.get_query_start()), type(hit_start), type(hit.get_query_end()), type(hit_end))
-        if hit.get_query_start() == hit_start and hit.get_query_end() == hit_end:
+    for hit in read.hit_list.hits:
+        if hit.q_start == hit_start and hit.q_end == hit_end:
             best_bitscore = 0.0
             best_hit = None
-            for new_hit in new_hit_list.get_hits():
-                bitscore = new_hit.get_bitscore()
-                if bitscore > best_bitscore:
+            for new_hit in new_hit_list.hits:
+                if new_hit.bitscore > best_bitscore:
                     best_hit = new_hit
-                    best_bitscore = bitscore
+                    best_bitscore = new_hit.bitscore
             # Set status of read
             if best_hit != None:
-                if '' in best_hit.get_functions():
-                    read.set_status('nofunction')
+                if '' in best_hit.functions:
+                    read.status = 'nofunction'
                     return
                 else:
-                    read.set_status('function')
+                    read.status = 'function'
             else:
-                read.set_status('nofunction')
+                read.status = 'nofunction'
                 return
-#            print('Best hit:', str(best_hit))
-#            print('Best bit score:', str(best_bitscore))
             bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
-#            print('Bit score cutoff:', str(bitscore_lower_cutoff))
-            new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() > bitscore_lower_cutoff]
-            #new_hits = [new_hit for new_hit in new_hit_list.get_hits() if new_hit.get_bitscore() == best_bitscore]
-            if not [new_hit for new_hit in new_hits if new_hit.get_subject_id() == hit.get_subject_id()]:
-                if hit.get_bitscore() >= best_bitscore:
+            new_hits = [new_hit for new_hit in new_hit_list.hits if new_hit.bitscore > bitscore_lower_cutoff]
+            if not [new_hit for new_hit in new_hits if new_hit.subject_id == hit.subject_id]:
+                if hit.bitscore >= best_bitscore:
                     new_hits.append(hit)
 #            print([str(new_hit) for new_hit in new_hits])
             if len(new_hits) == 1:
 #                read.set_status('function,besthit')
                 # Set functions of read
                 new_functions = {}
-                for function in new_hits[0].get_functions():
+                for function in new_hits[0].functions:
                     new_functions[function] = get_rpkm_score(new_hits[0], 1.0, fastq_readcount, length_cutoff)
 #                print('New functions', new_functions)
                 read.append_functions(new_functions)
                 # Set read taxonomy ID 
-                read.taxonomy = ref_data.lookup_protein_tax(new_hits[0].get_subject_id())
+                read.taxonomy = ref_data.lookup_protein_tax(new_hits[0].subject_id)
 
             else:
-                taxonomy_ids = set([ref_data.lookup_protein_tax(h.get_subject_id()) for h in new_hits])
+                taxonomy_ids = set([ref_data.lookup_protein_tax(h.subject_id) for h in new_hits])
                 # Set functions of read
                 new_functions = {}
                 new_functions_counter = Counter()
                 new_functions_dict = defaultdict(dict)
                 for h in new_hits:
-                    for f in h.get_functions():
+                    for f in h.functions:
                         new_functions_counter[f] += 1
                         if f in new_functions_dict:
-                            if h.get_bitscore() > new_functions_dict[f]['bit_score']:
-                                new_functions_dict[f]['bit_score'] = h.get_bitscore()
+                            if h.bitscore > new_functions_dict[f]['bit_score']:
+                                new_functions_dict[f]['bit_score'] = h.bitscore
                                 new_functions_dict[f]['hit'] = h
                         else:
-                            new_functions_dict[f]['bit_score'] = h.get_bitscore()
+                            new_functions_dict[f]['bit_score'] = h.bitscore
                             new_functions_dict[f]['hit'] = h
                 # If the most common function in new hits is zero, this read have no function
 #                print ('Most common function is', new_functions_counter.most_common(1)[0][0])

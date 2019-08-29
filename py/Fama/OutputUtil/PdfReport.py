@@ -121,8 +121,8 @@ def generate_pdf_report(parser):
                 func_stats[parser.ref_data.lookup_function_group(function)] += functions[function]
                 func_counts[parser.ref_data.lookup_function_group(function)] += 1/len(functions)
             for hit in parser.reads[read].get_hit_list().get_hits():
-                for function in hit.get_functions():
-                    func_identity[parser.ref_data.lookup_function_group(function)] += hit.get_identity()
+                for function in hit.functions:
+                    func_identity[parser.ref_data.lookup_function_group(function)] += hit.identity
                     func_hit_counts[parser.ref_data.lookup_function_group(function)] += 1
     for function in func_identity:
         func_identity[function] = func_identity[function]/func_hit_counts[function]
@@ -156,8 +156,8 @@ def generate_pdf_report(parser):
                 func_stats[function] += functions[function]
                 func_counts[function] += 1/len(functions)
             for hit in parser.reads[read].get_hit_list().get_hits():
-                for function in hit.get_functions():
-                    func_identity[function] += hit.get_identity()
+                for function in hit.functions:
+                    func_identity[function] += hit.identity
                     func_hit_counts[function] += 1
     for function in func_identity:
         func_identity[function] = func_identity[function]/func_hit_counts[function]
@@ -183,23 +183,22 @@ def generate_pdf_report(parser):
     identity_stats = Counter()
     rpkm_stats = defaultdict(float)
     for read in parser.reads.keys():
-        if parser.reads[read].get_status() == 'function,besthit' or parser.reads[read].get_status() == 'function':
+        if parser.reads[read].get_status() == 'function':
             hits = parser.reads[read].get_hit_list().get_hits()
             for hit in hits:
-                protein_taxid = parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
+                protein_taxid = parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit.subject_id))
                 tax_stats[protein_taxid] += 1
-                identity_stats[protein_taxid] += hit.get_identity()
+                identity_stats[protein_taxid] += hit.identity
             if len(hits) == 1:
                 read_functions = parser.reads[read].get_functions()
                 for function in read_functions:
-                    rpkm_stats[parser.ref_data.lookup_protein_tax(cleanup_protein_id(hits[0].get_subject_id()))] += read_functions[function]
+                    rpkm_stats[parser.ref_data.lookup_protein_tax(cleanup_protein_id(hits[0].subject_id))] += read_functions[function]
             else:
                 read_functions = parser.reads[read].get_functions()
                 protein_taxids = {}
                 for hit in hits:
-                    hit_taxid = parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
-                    hit_functions = hit.get_functions()
-                    for hit_function in hit_functions:
+                    hit_taxid = parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit.subject_id))
+                    for hit_function in hit.functions:
                         protein_taxids[hit_taxid] = hit_function
                 for taxid in protein_taxids:
                     if protein_taxids[taxid] in read_functions:

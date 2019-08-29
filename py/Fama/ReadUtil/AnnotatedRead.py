@@ -21,55 +21,55 @@ class AnnotatedRead:
         self.pe_line3 = None       # 3rd FASTQ line
         self.taxonomy = None       # NCBI Taxonomy ID set by LCA algorithm
         
-    def get_read_id(self):
-        return self.read_id
+    #~ def get_read_id(self):
+        #~ return self.read_id
 
-    def set_read_id(self,read_id):
-        self.read_id = read_id
+    #~ def set_read_id(self,read_id):
+        #~ self.read_id = read_id
         
-    def set_hit_list(self,hit_list):
-        self.hit_list = hit_list
+    #~ def set_hit_list(self,hit_list):
+        #~ self.hit_list = hit_list
         
-    def get_hit_list(self):
-        return self.hit_list
+    #~ def get_hit_list(self):
+        #~ return self.hit_list
         
-    # Sequence data
-    def set_read_id_line(self,line):
-        self.read_id_line = line
+    #~ # Sequence data
+    #~ def set_read_id_line(self,line):
+        #~ self.read_id_line = line
         
-    def get_read_id_line(self):
-        return self.read_id_line
+    #~ def get_read_id_line(self):
+        #~ return self.read_id_line
         
-    def set_sequence(self, seq):
-        self.sequence = seq
+    #~ def set_sequence(self, seq):
+        #~ self.sequence = seq
         
-    def get_sequence(self):
-        return self.sequence
+    #~ def get_sequence(self):
+        #~ return self.sequence
         
-    def set_quality(self, quality):
-        self.quality = quality
+    #~ def set_quality(self, quality):
+        #~ self.quality = quality
     
-    def get_quality(self):
-        return self.quality
+    #~ def get_quality(self):
+        #~ return self.quality
         
-    def set_line3(self,line3):
-        self.line3 = line3
+    #~ def set_line3(self,line3):
+        #~ self.line3 = line3
         
-    def get_line3(self):
-        return self.line3
+    #~ def get_line3(self):
+        #~ return self.line3
 
-    # Paired-end data
-    def set_pe_id(self, pe_id):
-        self.pe_id = pe_id
+    #~ # Paired-end data
+    #~ def set_pe_id(self, pe_id):
+        #~ self.pe_id = pe_id
         
-    def set_pe_sequence(self, seq):
-        self.pe_sequence = seq
+    #~ def set_pe_sequence(self, seq):
+        #~ self.pe_sequence = seq
         
-    def set_pe_quality(self, quality):
-        self.pe_quality = quality
+    #~ def set_pe_quality(self, quality):
+        #~ self.pe_quality = quality
     
-    def set_pe_line3(self,line3):
-        self.pe_line3 = line3
+    #~ def set_pe_line3(self,line3):
+        #~ self.pe_line3 = line3
 
     # Function data
     def set_functions(self, functions):
@@ -80,8 +80,8 @@ class AnnotatedRead:
         for function in functions:
             self.functions[function] += functions[function]
 
-    def get_functions(self):
-        return self.functions
+    #~ def get_functions(self):
+        #~ return self.functions
 
     def set_status(self, status):
         if status in ['unaccounted', 'nofunction', 'function']:
@@ -89,8 +89,8 @@ class AnnotatedRead:
         else:
             raise ValueError('Unknown read status: ' + status)
         
-    def get_status(self):
-        return self.status
+    #~ def get_status(self):
+        #~ return self.status
 
     def show_hits(self):
         self.hit_list.print_hits()

@@ -27,15 +27,15 @@ class Project(object):
         self.config = ProgramConfig(config_file)
         self.options = ProjectOptions(project_file)
         collection = self.options.get_collection()
-        if collection not in self.config.list_collections():
-            raise Exception ('Collection ' + collection + ' not found. Available collections are: ' + (',').join(self.config.list_collections()))
+        if collection not in self.config.collections:
+            raise Exception ('Collection ' + collection + ' not found. Available collections are: ' + (',').join(self.config.collections))
         self.collection = collection
         self.ref_data = ReferenceData(self.config)
         self.ref_data.load_reference_data(self.collection)
         self.taxonomy_data = TaxonomyData(self.config)
         self.taxonomy_data.load_taxdata(self.config)
-        if not os.path.exists(self.options.get_work_dir()) and not os.path.isdir(self.options.get_work_dir()):
-            os.makedirs(self.options.get_work_dir(), exist_ok=True)
+        if not os.path.exists(self.options.work_dir) and not os.path.isdir(self.options.work_dir):
+            os.makedirs(self.options.work_dir, exist_ok=True)
 
     def list_samples(self):
         return self.options.list_samples()
@@ -52,13 +52,13 @@ class Project(object):
             self.samples[sample_id] = sample
 
     def load_sample(self, sample):
-        self.samples[sample.sample_id] = import_sample(os.path.join(sample.work_directory, sample.sample_id + '_' + self.options.get_reads_json_name()))
+        self.samples[sample.sample_id] = import_sample(os.path.join(sample.work_directory, sample.sample_id + '_' + self.options.reads_json_name))
 
     def import_reads_json(self, sample_id, ends):
         for end_id in ends:
             if end_id == 'pe2' and not self.samples[sample_id].is_paired_end:
                 continue
-            self.samples[sample_id].reads[end_id] = import_annotated_reads(os.path.join(self.options.get_project_dir(sample_id), sample_id + '_' + end_id + '_' + self.options.get_reads_json_name()))
+            self.samples[sample_id].reads[end_id] = import_annotated_reads(os.path.join(self.options.get_project_dir(sample_id), sample_id + '_' + end_id + '_' + self.options.reads_json_name))
 
     def get_insert_size(self, sample):
         if not sample.is_paired_end or sample.insert_size is None:
@@ -73,9 +73,9 @@ class Project(object):
             return None
 
     def generate_report(self, metrics = None):
-        outfile = os.path.join(self.options.get_work_dir(), 'project_report.txt')
+        outfile = os.path.join(self.options.work_dir, 'project_report.txt')
         with open (outfile, 'w') as of:
-            of.write(self.options.get_name() + '\n\n')
+            of.write(self.options.project_name + '\n\n')
             for sample_id in self.list_samples():
                 of.write(sample_id + ':\t' + self.samples[sample_id].sample_name + '\tpe1 reads: ' + str(len(self.samples[sample_id].reads['pe1'])))
                 if self.samples[sample_id].is_paired_end:
@@ -86,7 +86,7 @@ class Project(object):
 
     def check_project(self):
         problems = defaultdict(list)
-        print ('Checking project', self.options.get_name())
+        print ('Checking project', self.options.project_name)
         for sample in self.list_samples():
             print ('Checking sample', sample)
             for end in self.ENDS:
@@ -103,41 +103,38 @@ class Project(object):
                     problems[sample].append('Output directory not found for sample', sample, ':', 
                                             os.path.join(outdir,self.options.get_output_subdir(sample)), 'OUTPUT FILES NOT CHECKED')
                     skip_output_check = True
-                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_'+ self.options.get_ref_output_name())):
+                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_'+ self.options.ref_output_name)):
                     problems[sample].append('Reference DB search output not found for sample ' + sample + ', end ' + end + ':' +
-                                            os.path.join(outdir, sample + '_' + end + '_'+ self.options.get_ref_output_name()))
-                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_'+ self.options.get_background_output_name())):
+                                            os.path.join(outdir, sample + '_' + end + '_'+ self.options.ref_output_name))
+                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_'+ self.options.background_output_name)):
                     problems[sample].append('Background DB search output not found for sample ' + sample + ', end ' + end + ':' +
-                                            os.path.join(outdir, sample + '_' + end + '_'+ self.options.get_background_output_name()))
-                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.get_reads_fastq_name() + '.gz')):
+                                            os.path.join(outdir, sample + '_' + end + '_'+ self.options.background_output_name))
+                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.reads_fastq_name + '.gz')):
                     problems[sample].append('Output FASTQ file with reads not found for sample ' + sample + ', end ' + end + ':' +
-                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.get_reads_fastq_name() + '.gz'))
-                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.get_ref_hits_fastq_name())):
+                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.reads_fastq_name + '.gz'))
+                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.ref_hits_fastq_name)):
                     problems[sample].append('Reference hits FASTQ file not found for sample ' + sample + ', end ' + end + ':' +
-                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.get_ref_hits_fastq_name()))
-                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.get_ref_hits_list_name())):
+                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.ref_hits_fastq_name))
+                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.ref_hits_list_name)):
                     problems[sample].append('List of reference hits not found for sample ' + sample + ', end ' + end + ':' +
-                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.get_ref_hits_list_name()))
-                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.get_pe_reads_fastq_name() + '.gz')):
+                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.ref_hits_list_name))
+                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.pe_reads_fastq_name + '.gz')):
                     problems[sample].append('Output FASTQ file with paired-ends not found for sample ' + sample + ', end ' + end + ':' +
-                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.get_pe_reads_fastq_name() + '.gz'))
-                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.get_reads_json_name())):
+                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.pe_reads_fastq_name + '.gz'))
+                if not os.path.exists(os.path.join(outdir, sample + '_' + end + '_' + self.options.reads_json_name)):
                     problems[sample].append('Output JSON file with annotated reads not found for sample ' + sample + ', end ' + end + ':' +
-                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.get_reads_json_name()))
+                                            os.path.join(outdir, sample + '_' + end + '_' + self.options.reads_json_name))
                 if skip_output_check:
                     continue
-                if not os.path.exists(os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_report_name())):
+                if not os.path.exists(os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.report_name)):
                     problems[sample].append('Text report file not found for sample ' + sample + ', end ' + end + ':' +
-                                            os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_report_name()))
-                #~ if not os.path.exists(os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_report_name() + '.pdf')):
-                    #~ problems[sample].append('PDF report file not found for sample ' + sample + ', end ' + end + ':' +
-                                            #~ os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_report_name() + '.pdf'))
-                if not os.path.exists(os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_xml_name())):
+                                            os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.report_name))
+                if not os.path.exists(os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.xml_name)):
                     problems[sample].append('Krona XML file for functional profile not found for sample ' + sample + ', end ' + end + ':' +
-                                            os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_xml_name()))
-                if not os.path.exists(os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_html_name())):
+                                            os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.xml_name))
+                if not os.path.exists(os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.html_name)):
                     problems[sample].append('HTML file for functional profile not found for sample ' + sample + ', end ' + end + ':' +
-                                            os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.get_html_name()))
+                                            os.path.join(outdir, self.options.get_output_subdir(sample),sample + '_' + end + '_'+ self.options.html_name))
         if not problems:
             print('No problems found in your project. Could be worse.')
         else:

@@ -19,7 +19,7 @@ from Fama.MicrobeCensus.microbe_census import run_pipeline,report_results
 
 def run_ref_search(parser, command):
     print ('Starting DIAMOND')
-    diamond_args = [parser.config.get_diamond_path(),
+    diamond_args = [parser.config.diamond_path,
                     command,
                     '--db',
                     parser.config.get_reference_diamond_db(parser.options.get_collection(parser.sample.sample_id)),
@@ -27,13 +27,13 @@ def run_ref_search(parser, command):
                     parser.options.get_fastq_path(parser.sample.sample_id,parser.end),
                     '--out',
                     os.path.join(parser.options.get_project_dir(parser.sample.sample_id), 
-                                    parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_ref_output_name()),
+                                    parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.ref_output_name),
                     '--max-target-seqs',
                     '50',
                     '--evalue',
                     str(parser.config.get_evalue_cutoff(parser.options.get_collection(parser.sample.sample_id))),
                     '--threads',
-                    parser.config.get_threads(),
+                    parser.config.threads,
                     '--outfmt','6','qseqid','sseqid','pident','length','mismatch','slen','qstart','qend','sstart','send','evalue','bitscore'
                     ]
 
@@ -47,16 +47,16 @@ def run_ref_search(parser, command):
 
 def run_bgr_search(parser,command):
     print ('Starting DIAMOND')
-    diamond_args = [parser.config.get_diamond_path(),
+    diamond_args = [parser.config.diamond_path,
                     command,
                     '--db',
                     parser.config.get_background_diamond_db(parser.options.get_collection(parser.sample.sample_id)),
                     '--query',
                     os.path.join(parser.options.get_project_dir(parser.sample.sample_id), 
-                                    parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_ref_hits_fastq_name()),
+                                    parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.ref_hits_fastq_name),
                     '--out',
                     os.path.join(parser.options.get_project_dir(parser.sample.sample_id), 
-                                    parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_background_output_name()),
+                                    parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.background_output_name),
                     '--max-target-seqs',
                     '100',
                     '--evalue',
@@ -64,7 +64,7 @@ def run_bgr_search(parser,command):
                         * parser.config.get_evalue_cutoff(parser.options.get_collection(parser.sample.sample_id))
                         / parser.config.get_reference_db_size(parser.options.get_collection(parser.sample.sample_id))),
                     '--threads',
-                    parser.config.get_threads(),
+                    parser.config.threads,
                     '--outfmt','6','qseqid','sseqid','pident','length','mismatch','slen','qstart','qend','sstart','send','evalue','bitscore'
                     ]
 
@@ -83,10 +83,10 @@ def run_microbecensus(sample, config):
     else:
         args['seqfiles'] = [sample.fastq_fwd_path]
     args['verbose'] = True
-    args['diamond'] = config.get_diamond_path()
-    args['data_dir'] = config.get_microbecensus_datadir()
+    args['diamond'] = config.diamond_path
+    args['data_dir'] = config.microbecensus_datadir
     args['outfile'] = os.path.join(sample.work_directory, 'microbecensus.out.txt')
-    args['threads'] = int(config.get_threads())
+    args['threads'] = int(config.threads)
     args['no_equivs'] = True
     if sample.fastq_fwd_readcount < 1500000:
         args['nreads'] = sample.fastq_fwd_readcount // 2 # MicrobeCensus subsamples 2M reads by default, but sequence library would have more reads as some reads are always discarded by filtering
@@ -154,7 +154,7 @@ def run_fastq_pipeline(project, sample, end_id):
 
     # Search in reference database
     if not os.path.exists(os.path.join(parser.options.get_project_dir(parser.sample.sample_id), 
-                    parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_ref_output_name())):
+                    parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.ref_output_name)):
         run_ref_search(parser, 'blastx')
     
     # Process output of reference DB search
@@ -193,7 +193,7 @@ def run_fastq_pipeline(project, sample, end_id):
     
     # Search in background database
     if not os.path.exists(os.path.join(parser.options.get_project_dir(parser.sample.sample_id), 
-                                    parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.get_background_output_name())):
+                                    parser.sample.sample_id + '_' + parser.end + '_'+ parser.options.background_output_name)):
         run_bgr_search(parser, 'blastx')
 
     # Process output of background DB search
@@ -211,7 +211,7 @@ def run_fastq_pipeline(project, sample, end_id):
     
     #return parser.reads
     # Return only good reads
-    return {read_id:read for (read_id,read) in parser.reads.items() if read.get_status() == 'function'}
+    return {read_id:read for (read_id,read) in parser.reads.items() if read.status == 'function'}
 
 def main():
     

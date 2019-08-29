@@ -19,48 +19,6 @@ class DiamondHit:
         self.bitscore = bitscore
         self.functions = []
         
-    def get_identity(self):
-        return self.identity
-
-    def get_subject_id(self):
-        return self.subject_id
-
-    def get_query_id(self):
-        return self.query_id
-
-    def get_query_start(self):
-        return self.q_start
-
-    def get_query_end(self):
-        return self.q_end
-
-    def get_subject_start(self):
-        return self.s_start
-
-    def get_subject_end(self):
-        return self.s_end
-
-    def get_length(self):
-        return self.length
-
-    def get_subject_length(self):
-        return self.s_len
-    
-    def get_evalue(self):
-        return self.evalue
-
-    def get_bitscore(self):
-        return self.bitscore
-
-    def get_functions(self):
-        return self.functions
-
-    def set_query_start(self, pos):
-        self.q_start = pos
-
-    def set_query_end(self, pos):
-        self.q_end = pos
-    
     def create_hit(self, tabular_output_fields):
         # Takes list of tabular output fields
         try:
@@ -75,11 +33,11 @@ class DiamondHit:
             tabular_output_fields[10] = float(tabular_output_fields[10])
             tabular_output_fields[11] = float(tabular_output_fields[11])
         except ValueError as detail:
-            print ('Value parsing failed for read ' + row[0])
+            print ('Value parsing failed for read ' + tabular_output_fields[0])
             print (str(detail))
             raise
         except IndexError as e:
-            print ('Wrong number of fields in tabular output for read ' + row[0])
+            print ('Wrong number of fields in tabular output for read ' + tabular_output_fields[0])
             print (str(e))
             raise
         self.query_id = tabular_output_fields[0]

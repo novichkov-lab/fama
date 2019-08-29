@@ -23,8 +23,8 @@ class DiamondParser:
         if not self.options:
             self.options = ProjectOptions(project_file)
         collection = self.options.get_collection(self.sample.sample_id)
-        if collection not in self.config.list_collections():
-            raise Exception ('Collection ' + collection + ' not found. Available collections are: ' + (',').join(colelctions))
+        if collection not in self.config.collections:
+            raise Exception ('Collection ' + collection + ' not found. Available collections are: ' + (',').join(self.config.collections))
         self.collection = collection
         self.ref_data = ref_data
         if self.ref_data == None:
@@ -38,7 +38,7 @@ class DiamondParser:
     def parse_reference_output(self):
         
         tsvfile = os.path.join(self.options.get_project_dir(self.sample.sample_id), 
-                            self.sample.sample_id + '_' + self.end + '_'+ self.options.get_ref_output_name())
+                            self.sample.sample_id + '_' + self.end + '_'+ self.options.ref_output_name)
         #add paired-end option
         
         current_sequence_read_id = ''
@@ -54,30 +54,30 @@ class DiamondParser:
                 (row[0], _ ) = self.parse_fastq_seqid(row[0])
                 hit.create_hit(row)
                 # filtering by identity and length
-                if hit.get_identity() < identity_cutoff:
+                if hit.identity < identity_cutoff:
                     continue # skip this line
-                if hit.get_length() < length_cutoff:
+                if hit.length < length_cutoff:
                     continue # skip this line
 
-                if hit.get_query_id() != current_sequence_read_id:
+                if hit.query_id != current_sequence_read_id:
                     # filter list for overlapping hits
                     _hit_list.filter_list(self.config.get_overlap_cutoff(self.collection))
-                    if _hit_list.get_hits_number() != 0:
+                    if _hit_list.hits_number != 0:
                         # annotate_hits
                         _hit_list.annotate_hits(self.ref_data)
                         read = AnnotatedRead(current_sequence_read_id)
-                        read.set_hit_list(_hit_list)
+                        read.hit_list = _hit_list
                         self.reads[current_sequence_read_id] = read
 
-                    current_sequence_read_id = hit.get_query_id()
+                    current_sequence_read_id = hit.query_id
                     _hit_list = DiamondHitList(current_sequence_read_id)
                 _hit_list.add_hit(hit)
-            if _hit_list.get_hits_number() != 0:
+            if _hit_list.hits_number != 0:
                 _hit_list.filter_list(self.config.get_overlap_cutoff(self.collection))
                 # annotate_hits
                 _hit_list.annotate_hits(self.ref_data)
                 read = AnnotatedRead(current_sequence_read_id)
-                read.set_hit_list(_hit_list)
+                read.hit_list = _hit_list
                 self.reads[current_sequence_read_id] = read
 
     def parse_background_output(self):
@@ -86,7 +86,7 @@ class DiamondParser:
             self.reads = self.import_hit_list()
         
         tsvfile = os.path.join(self.sample.work_directory, 
-                            self.sample.sample_id + '_' + self.end + '_'+ self.options.get_background_output_name())
+                            self.sample.sample_id + '_' + self.end + '_'+ self.options.background_output_name)
         #add paired-end option
         
         average_read_length = self.sample.get_avg_read_length(self.end)
@@ -108,12 +108,12 @@ class DiamondParser:
                 hit = DiamondHit()
                 hit.create_hit(row)
                 # filtering by identity and length
-                if hit.get_identity() < identity_cutoff:
+                if hit.identity < identity_cutoff:
                     continue # skip this line
-                if hit.get_length() < length_cutoff:
+                if hit.length < length_cutoff:
                     continue # skip this line
 
-                if hit.get_query_id() != current_query_id:
+                if hit.query_id != current_query_id:
                     _hit_list.annotate_hits(self.ref_data)
                     # compare list of hits from search in background DB with existing hit from search in reference DB
                     current_query_id_tokens = current_query_id.split('|')
@@ -130,7 +130,7 @@ class DiamondParser:
                     else:
                         print ('Read not found: ', read_id)
 #                        raise TypeError
-                    current_query_id = hit.get_query_id()
+                    current_query_id = hit.query_id
                     _hit_list = DiamondHitList(current_query_id)
                 _hit_list.add_hit(hit)
             _hit_list.annotate_hits(self.ref_data)
@@ -168,19 +168,19 @@ class DiamondParser:
                     read_count += 1
                     if read_id in self.reads:
                         current_read = read_id
-                        self.reads[current_read].set_read_id_line(line)
+                        self.reads[current_read].read_id_line = line
                     else: 
                         current_read = None
                 elif line_counter == 2:
                     base_count += len(line)
                     if current_read:
-                        self.reads[current_read].set_sequence(line)
+                        self.reads[current_read].sequence = line
                 elif line_counter == 3:
                     if current_read:
-                        self.reads[current_read].set_line3(line)
+                        self.reads[current_read].line3 = line
                 elif line_counter == 4:
                     if current_read:
-                        self.reads[current_read].set_quality(line)
+                        self.reads[current_read].quality = line
             fh.closed
         return read_count, base_count
         
@@ -201,8 +201,8 @@ class DiamondParser:
                 if line.startswith('>'):
                     read_count += 1
                     if current_id:
-                        self.reads[current_id[1:]].set_read_id_line(current_id)
-                        self.reads[current_id[1:]].set_sequence(''.join(sequence))
+                        self.reads[current_id[1:]].read_id_line = current_id
+                        self.reads[current_id[1:]].sequence = ''.join(sequence)
                     sequence = []
                     seq_id = line[1:]
                     if seq_id in self.reads:
@@ -214,39 +214,39 @@ class DiamondParser:
                     if current_id:
                         sequence.append(line)
             if current_id:
-                self.reads[seq_id].set_read_id_line(current_id)
-                self.reads[seq_id].set_sequence(''.join(sequence))
+                self.reads[seq_id].read_id_line = current_id
+                self.reads[seq_id].sequence = ''.join(sequence)
             fh.close()
         return read_count, base_count
 
     def export_read_fastq(self):
         outdir = self.sample.work_directory
-        with gzip.open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_reads_fastq_name() + '.gz'), 'wt') as of:
+        with gzip.open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.reads_fastq_name + '.gz'), 'wt') as of:
             for read_id in sorted(self.reads.keys()):
-                if self.reads[read_id].get_status() == 'function' or self.reads[read_id].get_status() == 'function,besthit':
-                    of.write(self.reads[read_id].get_read_id_line() + '\n')
-                    of.write(self.reads[read_id].get_sequence() + '\n') 
-                    of.write(self.reads[read_id].get_line3() + '\n') 
-                    of.write(self.reads[read_id].get_quality() + '\n') 
+                if self.reads[read_id].status == 'function':
+                    of.write(self.reads[read_id].read_id_line + '\n')
+                    of.write(self.reads[read_id].sequence + '\n') 
+                    of.write(self.reads[read_id].line3 + '\n') 
+                    of.write(self.reads[read_id].quality + '\n') 
 
     def export_read_fasta(self):
         outdir = self.sample.work_directory
-        fastq_file = os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_reads_fastq_name() + '.gz')
+        fastq_file = os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.reads_fastq_name + '.gz')
         with gzip.open(fastq_file, 'wt') as of:
             for read_id in sorted(self.reads.keys()):
-                if self.reads[read_id].get_status() == 'function' or self.reads[read_id].get_status() == 'function,besthit':
-                    of.write(self.reads[read_id].get_read_id_line() + '\n')
-                    of.write(self.reads[read_id].get_sequence() + '\n') 
+                if self.reads[read_id].status == 'function':
+                    of.write(self.reads[read_id].read_id_line + '\n')
+                    of.write(self.reads[read_id].sequence + '\n') 
             of.closed
 
     def export_hit_fastq(self):
         outdir = self.sample.work_directory
-        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_ref_hits_fastq_name()), 'w') as of:
+        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.ref_hits_fastq_name), 'w') as of:
             for read_id in self.reads.keys():
-                for hit in self.reads[read_id].get_hit_list().get_hits():
-                    start = hit.get_query_start()
-                    end = hit.get_query_end()
-                    of.write("@" + self.reads[read_id].get_read_id() + '|' + \
+                for hit in self.reads[read_id].hit_list.hits:
+                    start = hit.q_start
+                    end = hit.q_end
+                    of.write("@" + self.reads[read_id].read_id + '|' + \
                         str(start) + '|' + str(end) + '\n')
                     if start < end:
                         # hit on + strand
@@ -258,20 +258,20 @@ class DiamondParser:
                         start = end - 1
                         end = t
                     try:
-                        of.write(self.reads[read_id].get_sequence()[start:end] + '\n') 
-                        of.write(self.reads[read_id].get_line3() + '\n') 
-                        of.write(self.reads[read_id].get_quality()[start:end] + '\n') 
+                        of.write(self.reads[read_id].sequence[start:end] + '\n') 
+                        of.write(self.reads[read_id].line3 + '\n') 
+                        of.write(self.reads[read_id].quality[start:end] + '\n') 
                     except TypeError:
                         print ('TypeError occurred while exporting ', read_id)
 
     def export_hit_fasta(self):
         outdir = self.sample.work_directory
-        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_ref_hits_fastq_name()), 'w') as of:
+        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.ref_hits_fastq_name), 'w') as of:
             for read_id in self.reads.keys():
-                for hit in self.reads[read_id].get_hit_list().get_hits():
-                    start = hit.get_query_start()
-                    end = hit.get_query_end()
-                    of.write(">" + self.reads[read_id].get_read_id() + '|' + \
+                for hit in self.reads[read_id].hit_list.hits:
+                    start = hit.q_start
+                    end = hit.q_end
+                    of.write(">" + self.reads[read_id].read_id + '|' + \
                         str(start) + '|' + str(end) + '\n')
                     if start < end:
                         # hit on + strand
@@ -283,29 +283,17 @@ class DiamondParser:
                         start = end - 1
                         end = t
                     try:
-                        of.write(self.reads[read_id].get_sequence()[start:end] + '\n') 
+                        of.write(self.reads[read_id].sequence[start:end] + '\n') 
                     except TypeError:
                         print ('TypeError occurred while exporting ', read_id)
 
     def export_hit_list(self):
         outfile = os.path.join(self.sample.work_directory, 
-                                self.sample.sample_id + '_' + self.end + '_' + self.options.get_ref_hits_list_name())
+                                self.sample.sample_id + '_' + self.end + '_' + self.options.ref_hits_list_name)
         with open(outfile, 'w') as of:
             for read in self.reads.keys():
-                for hit in self.reads[read].get_hit_list().get_hits():
+                for hit in self.reads[read].hit_list.hits:
                     of.write(str(hit) + '\n')
-    
-    def get_options(self):
-        return self.options
-
-    def get_config(self):
-        return self.config
-
-    def get_reads(self):
-        return self.reads
-
-    def set_reads(self, reads):
-        self.reads = reads
     
     def parse_fastq_seqid(self,line):
         # This function returns read id and read end (if available) for different versions of FASTQ
@@ -348,7 +336,7 @@ class DiamondParser:
             #read_ids[get_paired_read_id(read_id)] = read_id
             read_ids[read_id] = read_id
         line_counter = 0
-        fastq_outfile = os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.get_pe_reads_fastq_name() + '.gz')
+        fastq_outfile = os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.pe_reads_fastq_name + '.gz')
         with gzip.open(fastq_outfile, 'wt') as of:
             current_read = None
             fh = None
@@ -366,18 +354,18 @@ class DiamondParser:
                         current_read = None
                         (read_id, end) = self.parse_fastq_seqid(line)
                         if read_id in read_ids:
-                            if self.reads[read_id].get_status() == 'function' or self.reads[read_id].get_status() == 'function,besthit':
+                            if self.reads[read_id].status == 'function':
                                 current_read = read_id
-                                self.reads[current_read].set_pe_id(line)
+                                self.reads[current_read].pe_id = line
                                 of.write(line + '\n')
                     elif current_read:
                         of.write(line + '\n')
                         if line_counter == 2:
-                            self.reads[current_read].set_pe_sequence(line)
+                            self.reads[current_read].pe_sequence = line
                         elif line_counter == 3:
-                            self.reads[current_read].set_pe_line3(line)
+                            self.reads[current_read].pe_line3 = line
                         elif line_counter == 4:
-                            self.reads[current_read].set_pe_quality(line)
+                            self.reads[current_read].pe_quality = line
                             
                 fh.close()
             of.closed
@@ -385,7 +373,7 @@ class DiamondParser:
 
     def import_hit_list(self):
         infile = os.path.join(os.path.join(self.sample.work_directory, 
-                            self.sample.sample_id + '_' + self.end + '_'+ self.options.get_ref_hits_list_name()))
+                            self.sample.sample_id + '_' + self.end + '_'+ self.options.ref_hits_list_name))
         ret_val = {}
         _hit_list = None
         current_read_id = None
@@ -399,13 +387,13 @@ class DiamondParser:
                     _hit_list = DiamondHitList(current_read_id)
                 elif current_read_id != row[0]:
                     ret_val[current_read_id] = AnnotatedRead(current_read_id)
-                    ret_val[current_read_id].set_hit_list(_hit_list)
+                    ret_val[current_read_id].hit_list = _hit_list
                     current_read_id = row[0]
                     _hit_list = DiamondHitList(current_read_id)
                 hit = DiamondHit()
                 hit.import_hit(row)
                 _hit_list.add_hit(hit)
             ret_val[current_read_id] = AnnotatedRead(current_read_id)
-            ret_val[current_read_id].set_hit_list(_hit_list)
+            ret_val[current_read_id].hit_list = _hit_list
         return ret_val
 
