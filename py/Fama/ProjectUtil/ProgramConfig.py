@@ -61,7 +61,7 @@ class ProgramConfig:
             
     def get_ranks_cutoffs(self, collection):
         ret_val = {}
-        if self.config[collection]['rank_cutoffs']:
+        if 'rank_cutoffs' in self.config[collection]:
             cutoffs = self.config[collection]['rank_cutoffs']
             vals = cutoffs.split(',')
             for k_v in zip(vals[::2],vals[1::2]):
