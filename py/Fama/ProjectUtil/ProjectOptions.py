@@ -1,6 +1,6 @@
 import os,configparser
 
-class ProjectOptions:
+class ProjectOptions(object):
 
     def __new__(cls, project_file):
         if not hasattr(cls, 'instance'):

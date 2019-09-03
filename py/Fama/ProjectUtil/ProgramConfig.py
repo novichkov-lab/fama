@@ -1,6 +1,6 @@
 import configparser
 
-class ProgramConfig:
+class ProgramConfig(object):
 
     def __new__(cls, config_file):
         if not hasattr(cls, 'instance'):
