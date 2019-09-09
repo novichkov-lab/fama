@@ -2,6 +2,7 @@ import os
 from collections import defaultdict
 from subprocess import Popen, PIPE, CalledProcessError
 
+from Fama.const import ENDS
 from Fama.ProjectUtil.ProgramConfig import ProgramConfig
 from Fama.ProjectUtil.ProjectOptions import ProjectOptions
 from Fama.Sample import Sample
@@ -20,9 +21,25 @@ from Fama.OutputUtil.JSONUtil import import_annotated_reads
 
 
 class Project(object):
+    """Project is an umbrella object for all samples currently analyzed.
     
+    Attributes:
+        samples (:obj:'dict' of :obj:'Sample'): dictionary with sample identifiers as keys and Sample objects as values
+        config (:obj:'ProgramConfig'): Fama configuration parameters
+        options  (:obj:'ProjectOptions'): Fama project options
+        collection (str): collection identifier
+        collection (str): reference collection identifier
+        ref_data (:obj:'ReferenceData'): reference dataset for the collection (list of functions, list of proteins etc.)
+        taxonomy_data (:obj:'TaxonomyData'): NCBI taxonomy dataset for the collection
+        
+    """
     def __init__(self, config_file, project_file):
-        self.ENDS = ['pe1','pe2']
+        """
+        Args:
+            config_file (str): full path to program configuration ini file. Ignored, if config argument is set
+            project_file (str): full path to project ini file. Ignored, if options argument is set
+            
+        """
         self.samples = {}
         self.config = ProgramConfig(config_file)
         self.options = ProjectOptions(project_file)
@@ -38,29 +55,46 @@ class Project(object):
             os.makedirs(self.options.work_dir, exist_ok=True)
 
     def list_samples(self):
+        """Returns list of sample identifiers"""
         return self.options.list_samples()
 
     def save_project_options(self):
+        """Saves project options as new version of project ini file"""
         for sample_id in self.samples:
             self.options.set_sample_data(self.samples[sample_id])
         self.options.save_options()
 
     def load_project(self):
+        """Populates reads attribute with samples data"""
         for sample_id in self.list_samples():
             sample = Sample(sample_id=sample_id)
             sample.load_sample(self.options)
             self.samples[sample_id] = sample
 
     def load_sample(self, sample):
+        """Loads sample data from JSON file into memory
+        
+        Args:
+            sample (:obj:'Sample'): Sample object
+        """
         self.samples[sample.sample_id] = import_sample(os.path.join(sample.work_directory, sample.sample_id + '_' + self.options.reads_json_name))
 
     def import_reads_json(self, sample_id, ends):
+        """Loads annotated reads from one or two JSON files into memory
+        Args:
+            sample_id (str): sample identifier
+            ends (:obj:'list' of str): either ['pe1','pe2'] or ['pe1'] or ['pe2']
+        """
         for end_id in ends:
             if end_id == 'pe2' and not self.samples[sample_id].is_paired_end:
                 continue
             self.samples[sample_id].reads[end_id] = import_annotated_reads(os.path.join(self.options.get_project_dir(sample_id), sample_id + '_' + end_id + '_' + self.options.reads_json_name))
 
     def get_insert_size(self, sample):
+        """Returns average insert size for paired-end sample. If calculation of 
+        insert size is not possible, returns None.
+        
+        """
         if not sample.is_paired_end or sample.insert_size is None:
             return None
         elif sample.insert_size == 0:
@@ -73,6 +107,12 @@ class Project(object):
             return None
 
     def generate_report(self, metrics = None):
+        """Writes project report in text format. Also, calls XLSX report 
+        generation.
+        
+        Args:
+            metrics (str, optional): metrics for report score calculation
+        """
         outfile = os.path.join(self.options.work_dir, 'project_report.txt')
         with open (outfile, 'w') as of:
             of.write(self.options.project_name + '\n\n')
@@ -85,11 +125,16 @@ class Project(object):
         generate_project_report(self, metrics)
 
     def check_project(self):
+        """Checks if all files and directories of a project do exist. 
+        
+        Todo:
+            Ensure that it looks up the last version of file names
+        """
         problems = defaultdict(list)
         print ('Checking project', self.options.project_name)
         for sample in self.list_samples():
             print ('Checking sample', sample)
-            for end in self.ENDS:
+            for end in ENDS:
                 skip_output_check = False
                 if not os.path.exists(self.options.get_fastq_path(sample,end)):
                     problems[sample].append('Input FASTQ file not found for sample', sample, ',end', end, ':', 

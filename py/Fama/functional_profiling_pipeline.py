@@ -3,6 +3,7 @@ import os,sys,argparse
 from subprocess import Popen, PIPE, CalledProcessError
 from collections import Counter
 
+from Fama.const import ENDS
 from Fama.Project import Project
 from Fama.Sample import Sample
 
@@ -120,7 +121,7 @@ def fastq_pipeline(config_file, project_file, sample_identifier, end_identifier)
                                                 sample=samples[sample_id], 
                                                 end_id=end_identifier)
         else:
-            for end in project.ENDS:
+            for end in ENDS:
                 if end == 'pe2' and not project.samples[sample_id].is_paired_end:
                     continue
                 project.samples[sample_id].reads[end] = run_fastq_pipeline(project, 

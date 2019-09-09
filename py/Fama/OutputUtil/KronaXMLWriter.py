@@ -1,6 +1,9 @@
+"""Various functions for Krona chart generation"""
+
 import os
 from collections import defaultdict,Counter,OrderedDict
 from subprocess import Popen, PIPE, CalledProcessError
+from Fama.const import STATUS_GOOD
 from Fama.utils import autovivify
 
 def generate_functions_chart(parser, score='efpkg'):
@@ -31,7 +34,7 @@ def generate_functions_chart(parser, score='efpkg'):
         functions_rpkm = defaultdict(float)
         functions_identity = defaultdict(list)
         for read in parser.reads.keys():
-            if parser.reads[read].status == 'function':
+            if parser.reads[read].status == STATUS_GOOD:
                 read_count += 1
                 read_functions = parser.reads[read].functions
                 for function in read_functions:

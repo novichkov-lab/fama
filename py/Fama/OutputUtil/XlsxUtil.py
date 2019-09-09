@@ -1,8 +1,11 @@
+"""Various functions for Excel table generation"""
+
 import os
 from collections import defaultdict,Counter,OrderedDict
 import xlsxwriter
 import pandas as pd
 
+from Fama.const import STATUS_GOOD
 from Fama.utils import autovivify,cleanup_protein_id,sanitize_file_name
 from Fama.TaxonomyProfile import TaxonomyProfile
 
@@ -536,7 +539,7 @@ def create_assembly_xlsx(assembler, taxonomy_data):
                     # Write FAMA gene status
                     genes_worksheet.write(row, col, gene.status)
                     col += 1
-                    if gene.status == 'function':
+                    if gene.status == STATUS_GOOD:
                         # Write FAMA predicted functions
                         gene_functions = [y for x in gene.hit_list.hits for y in x.functions]
                         genes_worksheet.write(row, col, ','.join(gene_functions))

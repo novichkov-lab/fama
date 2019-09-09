@@ -1,5 +1,7 @@
 import os, csv, re
 import gzip
+from Fama.const import STATUS_CAND,STATUS_GOOD,STATUS_BAD
+
 from Fama.ProjectUtil.ProgramConfig import ProgramConfig
 from Fama.ProjectUtil.ProjectOptions import ProjectOptions
 from Fama.ReferenceLibrary.ReferenceData import ReferenceData
@@ -7,8 +9,7 @@ from Fama.ReferenceLibrary.TaxonomyData import TaxonomyData
 from Fama.DiamondParser.DiamondHit import DiamondHit
 from Fama.DiamondParser.DiamondHitList import DiamondHitList
 from Fama.ReadUtil.AnnotatedRead import AnnotatedRead
-from Fama.utils import autovivify,cleanup_protein_id
-from Fama.DiamondParser.hit_utils import compare_hits_erpk_lca,get_paired_end,get_paired_read_id
+from Fama.DiamondParser.hit_utils import compare_hits_erpk_lca,get_paired_end
 
 class DiamondParser(object):
     """DiamondParser performs various operations with DIAMOND input and 
@@ -37,6 +38,12 @@ class DiamondParser(object):
         collection (str): reference collection identifier
         ref_data (:obj:'ReferenceData'): reference dataset for the collection (list of functions, list of proteins etc.)
         taxonomy_data (:obj:'TaxonomyData'): NCBI taxonomy dataset for the collection
+    
+    Todo:
+        * add paired-end processing in DiamondParser. For paired-end reads, let's process two 
+        DIAMOND outputs first, then read each of FASTQ files only once.
+        But for that, reads dictionary would have two levels: outer level 
+        for read  identifiers, and inner level for end identifiers.
     
     """
 
@@ -97,10 +104,9 @@ class DiamondParser(object):
         """
         tsvfile = os.path.join(self.options.get_project_dir(self.sample.sample_id), 
                             self.sample.sample_id + '_' + self.end + '_'+ self.options.ref_output_name)
-        #TODO: add paired-end option. For paired-end reads, let's process two DIAMOND outputs first, then read each of FASTQ files only once.
         
         current_sequence_read_id = ''
-        _hit_list = DiamondHitList(current_sequence_read_id)
+        hit_list = DiamondHitList(current_sequence_read_id)
         identity_cutoff = self.config.get_identity_cutoff(self.collection)
         length_cutoff = self.config.get_length_cutoff(self.collection)
         print ('Identity cutoff: ', identity_cutoff, ', Length cutoff: ', length_cutoff)
@@ -120,23 +126,23 @@ class DiamondParser(object):
                 if hit.query_id != current_sequence_read_id:
                     # when new query ID reached, process collected hits, then start over with new query identifier
                     # filtering: remove overlapping hits 
-                    _hit_list.filter_list(self.config.get_overlap_cutoff(self.collection))
+                    hit_list.filter_list(self.config.get_overlap_cutoff(self.collection))
                     # if any hits left, assign function to hits and populate reads dictionary
-                    if _hit_list.hits_number != 0:
-                        _hit_list.annotate_hits(self.ref_data)
+                    if hit_list.hits_number != 0:
+                        hit_list.annotate_hits(self.ref_data)
                         read = AnnotatedRead(current_sequence_read_id)
-                        read.hit_list = _hit_list
+                        read.hit_list = hit_list
                         self.reads[current_sequence_read_id] = read
                     # start over
                     current_sequence_read_id = hit.query_id
-                    _hit_list = DiamondHitList(current_sequence_read_id)
-                _hit_list.add_hit(hit)
+                    hit_list = DiamondHitList(current_sequence_read_id)
+                hit_list.add_hit(hit)
             # when EOF reached, process collected hits
-            if _hit_list.hits_number != 0:
-                _hit_list.filter_list(self.config.get_overlap_cutoff(self.collection))
-                _hit_list.annotate_hits(self.ref_data)
+            if hit_list.hits_number != 0:
+                hit_list.filter_list(self.config.get_overlap_cutoff(self.collection))
+                hit_list.annotate_hits(self.ref_data)
                 read = AnnotatedRead(current_sequence_read_id)
-                read.hit_list = _hit_list
+                read.hit_list = hit_list
                 self.reads[current_sequence_read_id] = read
 
     def parse_background_output(self):
@@ -162,7 +168,7 @@ class DiamondParser(object):
         average_read_length = self.sample.get_avg_read_length(self.end)
             
         current_query_id = None
-        _hit_list = None
+        hit_list = None
         identity_cutoff = self.config.get_identity_cutoff(self.collection)
         length_cutoff = self.config.get_length_cutoff(self.collection)
         bitscore_range_cutoff = self.config.get_biscore_range_cutoff(self.collection)
@@ -173,7 +179,7 @@ class DiamondParser(object):
             for row in tsvin:
                 if current_query_id is None:
                     current_query_id = row[0]
-                    _hit_list = DiamondHitList(current_query_id)
+                    hit_list = DiamondHitList(current_query_id)
                 
                 hit = DiamondHit()
                 hit.create_hit(row)
@@ -186,7 +192,7 @@ class DiamondParser(object):
                 # when new query ID reached, process collected hits, then start over with new query identifier
                 if hit.query_id != current_query_id:
                     # assign functions to selected hits
-                    _hit_list.annotate_hits(self.ref_data)
+                    hit_list.annotate_hits(self.ref_data)
                     # extract initial read identifier from identifier of the hit 
                     current_query_id_tokens = current_query_id.split('|')
                     hit_end = int(current_query_id_tokens[-1])
@@ -194,16 +200,25 @@ class DiamondParser(object):
                     read_id = '|'.join(current_query_id_tokens[:-2])
                     # compare list of hits from search in background DB with existing hit from the first similarity search
                     try:
-                        compare_hits_erpk_lca(self.reads[read_id], hit_start, hit_end, _hit_list, bitscore_range_cutoff, length_cutoff, average_read_length, self.taxonomy_data, self.ref_data, rank_cutoffs = self.config.get_ranks_cutoffs(self.options.get_collection()))  # here should be all the magic
+                        compare_hits_erpk_lca(self.reads[read_id], 
+                                        hit_start, 
+                                        hit_end, 
+                                        hit_list, 
+                                        bitscore_range_cutoff, 
+                                        length_cutoff, 
+                                        average_read_length, 
+                                        self.taxonomy_data, 
+                                        self.ref_data, 
+                                        rank_cutoffs = self.config.get_ranks_cutoffs(self.options.get_collection()))  # here should be all the magic
                     except KeyError:
                         print ('Read not found: ', read_id)
                     # starting over
                     current_query_id = hit.query_id
-                    _hit_list = DiamondHitList(current_query_id)
-                _hit_list.add_hit(hit)
+                    hit_list = DiamondHitList(current_query_id)
+                hit_list.add_hit(hit)
             # when EOF reached, process collected hits
             # assign functions to selected hits
-            _hit_list.annotate_hits(self.ref_data)
+            hit_list.annotate_hits(self.ref_data)
             # extract initial read identifier from identifier of the hit 
             current_query_id_tokens = current_query_id.split('|')
             hit_end = int(current_query_id_tokens[-1])
@@ -211,7 +226,16 @@ class DiamondParser(object):
             read_id = '|'.join(current_query_id_tokens[:-2])
             # compare list of hits from search in background DB with existing hit from the first similarity search
             try:
-                compare_hits_erpk_lca(self.reads[read_id], hit_start, hit_end, _hit_list, bitscore_range_cutoff, length_cutoff, average_read_length, self.taxonomy_data, self.ref_data, rank_cutoffs = self.config.get_ranks_cutoffs(self.options.get_collection()))  # here should be all the magic
+                compare_hits_erpk_lca(self.reads[read_id], 
+                                    hit_start, 
+                                    hit_end, 
+                                    hit_list, 
+                                    bitscore_range_cutoff, 
+                                    length_cutoff, 
+                                    average_read_length, 
+                                    self.taxonomy_data, 
+                                    self.ref_data, 
+                                    rank_cutoffs = self.config.get_ranks_cutoffs(self.options.get_collection()))  # here should be all the magic
             except KeyError:
                 print ('Read not found: ', read_id)
     
@@ -307,9 +331,12 @@ class DiamondParser(object):
     def export_read_fastq(self):
         """Exports sequence reads as gzipped FASTQ file"""
         outdir = self.sample.work_directory
-        with gzip.open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.reads_fastq_name + '.gz'), 'wt') as of:
+        with gzip.open(os.path.join(outdir, 
+                                self.sample.sample_id + '_' 
+                                + self.end + '_' 
+                                + self.options.reads_fastq_name + '.gz'), 'wt') as of:
             for read_id in sorted(self.reads.keys()):
-                if self.reads[read_id].status == 'function':
+                if self.reads[read_id].status == STATUS_GOOD:
                     of.write(self.reads[read_id].read_id_line + '\n')
                     of.write(self.reads[read_id].sequence + '\n') 
                     of.write(self.reads[read_id].line3 + '\n') 
@@ -318,10 +345,13 @@ class DiamondParser(object):
     def export_read_fasta(self):
         """Exports sequences as gzipped FASTA file"""
         outdir = self.sample.work_directory
-        fastq_file = os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.reads_fastq_name + '.gz')
+        fastq_file = os.path.join(outdir, 
+                                self.sample.sample_id + '_' 
+                                + self.end + '_' 
+                                + self.options.reads_fastq_name + '.gz')
         with gzip.open(fastq_file, 'wt') as of:
             for read_id in sorted(self.reads.keys()):
-                if self.reads[read_id].status == 'function':
+                if self.reads[read_id].status == STATUS_GOOD:
                     of.write(self.reads[read_id].read_id_line + '\n')
                     of.write(self.reads[read_id].sequence + '\n') 
             of.closed
@@ -329,7 +359,10 @@ class DiamondParser(object):
     def export_hit_fastq(self):
         """Exports sequences of DAIMOND hits as gzipped FASTQ file"""
         outdir = self.sample.work_directory
-        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.ref_hits_fastq_name), 'w') as of:
+        with open(os.path.join(outdir, 
+                            self.sample.sample_id + '_' 
+                            + self.end + '_' 
+                            + self.options.ref_hits_fastq_name), 'w') as of:
             for read_id in self.reads.keys():
                 for hit in self.reads[read_id].hit_list.hits:
                     start = hit.q_start
@@ -355,7 +388,10 @@ class DiamondParser(object):
     def export_hit_fasta(self):
         """Exports sequences of DAIMOND hits as gzipped FASTA file"""
         outdir = self.sample.work_directory
-        with open(os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.ref_hits_fastq_name), 'w') as of:
+        with open(os.path.join(outdir, 
+                            self.sample.sample_id + '_' 
+                            + self.end + '_' 
+                            + self.options.ref_hits_fastq_name), 'w') as of:
             for read_id in self.reads.keys():
                 for hit in self.reads[read_id].hit_list.hits:
                     start = hit.q_start
@@ -379,7 +415,9 @@ class DiamondParser(object):
     def export_hit_list(self):
         """Exports tab-separated table of DAIMOND hits"""
         outfile = os.path.join(self.sample.work_directory, 
-                                self.sample.sample_id + '_' + self.end + '_' + self.options.ref_hits_list_name)
+                                self.sample.sample_id + '_' 
+                                + self.end + '_' 
+                                + self.options.ref_hits_list_name)
         with open(outfile, 'w') as of:
             for read in self.reads.keys():
                 for hit in self.reads[read].hit_list.hits:
@@ -434,10 +472,12 @@ class DiamondParser(object):
         outdir = self.sample.work_directory
         read_ids = {}
         for read_id in sorted(self.reads.keys()):
-            #read_ids[get_paired_read_id(read_id)] = read_id
             read_ids[read_id] = read_id
         line_counter = 0
-        fastq_outfile = os.path.join(outdir, self.sample.sample_id + '_' + self.end + '_' + self.options.pe_reads_fastq_name + '.gz')
+        fastq_outfile = os.path.join(outdir, 
+                                self.sample.sample_id + '_' 
+                                + self.end + '_' 
+                                + self.options.pe_reads_fastq_name + '.gz')
         with gzip.open(fastq_outfile, 'wt') as of:
             current_read = None
             fh = None
@@ -454,7 +494,7 @@ class DiamondParser(object):
                     current_read = None
                     (read_id, end) = self.parse_fastq_seqid(line)
                     if read_id in read_ids:
-                        if self.reads[read_id].status == 'function':
+                        if self.reads[read_id].status == STATUS_GOOD:
                             current_read = read_id
                             self.reads[current_read].pe_id = line
                             of.write(line + '\n')
@@ -474,13 +514,14 @@ class DiamondParser(object):
         
         Returns:
             :obj:dict of :obj:AnnotatedRead
+
         """
-        
-        
         infile = os.path.join(os.path.join(self.sample.work_directory, 
-                            self.sample.sample_id + '_' + self.end + '_'+ self.options.ref_hits_list_name))
+                            self.sample.sample_id + '_' 
+                            + self.end + '_'
+                            + self.options.ref_hits_list_name))
         ret_val = {}
-        _hit_list = None
+        hit_list = None
         current_read_id = None
         
         with open(infile, 'r', newline='') as f:
@@ -489,16 +530,17 @@ class DiamondParser(object):
                 if current_read_id is None:
                     # initialize
                     current_read_id = row[0]
-                    _hit_list = DiamondHitList(current_read_id)
+                    hit_list = DiamondHitList(current_read_id)
                 elif current_read_id != row[0]:
                     ret_val[current_read_id] = AnnotatedRead(current_read_id)
-                    ret_val[current_read_id].hit_list = _hit_list
+                    ret_val[current_read_id].hit_list = hit_list
                     current_read_id = row[0]
-                    _hit_list = DiamondHitList(current_read_id)
+                    hit_list = DiamondHitList(current_read_id)
                 hit = DiamondHit()
                 hit.import_hit(row)
-                _hit_list.add_hit(hit)
+                hit_list.add_hit(hit)
             ret_val[current_read_id] = AnnotatedRead(current_read_id)
-            ret_val[current_read_id].hit_list = _hit_list
+            ret_val[current_read_id].hit_list = hit_list
+
         return ret_val
 

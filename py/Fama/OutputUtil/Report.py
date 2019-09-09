@@ -1,7 +1,9 @@
+"""Various functions for Report generation"""
+
 import os
 from collections import defaultdict,Counter,OrderedDict
 
-from Fama import const
+from Fama.const import RANKS,STATUS_CAND,STATUS_GOOD,STATUS_BAD
 from Fama.utils import autovivify,cleanup_protein_id,sanitize_file_name
 from Fama.DiamondParser.hit_utils import get_efpk_score,get_fpk_score
 from Fama.TaxonomyProfile import TaxonomyProfile
@@ -26,14 +28,12 @@ def generate_fastq_report(parser):
         for read in sorted(parser.reads.keys()):
             read_stats[parser.reads[read].status] += 1
         for status in OrderedDict(read_stats.most_common()):
-            if status == 'unaccounted':
+            if status == STATUS_CAND:
                 of.write('Reads missing from background DB search result\t' + str(read_stats[status]) + '\n')
-            elif status == 'nofunction':
+            elif status == STATUS_BAD:
                 of.write('Reads not mapped to any function\t' + str(read_stats[status]) + '\n')
-            elif status == 'function':
+            elif status == STATUS_GOOD:
                 of.write('Reads mapped to a function of interest\t' + str(read_stats[status]) + '\n')
-#            elif status == 'function,besthit':
-#                of.write('Reads mapped to a function of interest and a taxon\t' + str(read_stats[status]) + '\n')
             else:
                 of.write(status + '\t' + str(read_stats[status]) + '\n')
 
@@ -46,7 +46,7 @@ def generate_fastq_report(parser):
         func_identity = defaultdict(float)
         func_hit_counts = Counter()
         for read in parser.reads.keys():
-            if parser.reads[read].status == 'function':
+            if parser.reads[read].status == STATUS_GOOD:
                 functions = parser.reads[read].functions
                 for function in functions:
                     func_stats[function] += functions[function]
@@ -73,7 +73,7 @@ def generate_fastq_report(parser):
         func_identity = defaultdict(float)
         func_hit_counts = Counter()
         for read in parser.reads.keys():
-            if parser.reads[read].status == 'function':
+            if parser.reads[read].status == STATUS_GOOD:
                 functions = parser.reads[read].functions
                 for function in functions:
                     func_stats[parser.ref_data.lookup_function_group(function)] += functions[function]
@@ -99,7 +99,7 @@ def generate_fastq_report(parser):
         rpkm_stats = defaultdict(float)
         for read in parser.reads.keys():
 #            print (read, parser.reads[read].status)
-            if parser.reads[read].status == 'function':
+            if parser.reads[read].status == STATUS_GOOD:
                 taxonomy = parser.reads[read].taxonomy
                 if taxonomy is None:
                     print ('No taxonomy ID assigned to ', read)
@@ -113,7 +113,7 @@ def generate_fastq_report(parser):
         tax_data = parser.taxonomy_data
         counts_per_rank, identity_per_rank, rpkm_per_rank = tax_data.get_taxonomy_profile(counts=tax_stats, identity=identity_stats, scores = rpkm_stats)
 
-        ranks = const.RANKS[1:]
+        ranks = RANKS[1:]
         for rank in ranks:
             of.write('Taxonomy report for rank ' + rank + '\n\n')
             of.write('Taxon\tRead count\tRPKM score\tAverage identity\n')
@@ -157,11 +157,11 @@ def generate_fasta_report(parser):
         for read in sorted(parser.reads.keys()):
             read_stats[parser.reads[read].status] += 1
         for status in OrderedDict(read_stats.most_common()):
-            if status == 'unaccounted':
+            if status == STATUS_CAND:
                 of.write('Reads missing from background DB search result\t' + str(read_stats[status]) + '\n')
-            elif status == 'nofunction':
+            elif status == STATUS_BAD:
                 of.write('Reads not mapped to any function\t' + str(read_stats[status]) + '\n')
-            elif status == 'function':
+            elif status == STATUS_GOOD:
                 of.write('Reads mapped to a function of interest\t' + str(read_stats[status]) + '\n')
             else:
                 of.write(status + '\t' + str(read_stats[status]) + '\n')
@@ -175,7 +175,7 @@ def generate_fasta_report(parser):
         func_identity = defaultdict(float)
         func_hit_counts = Counter()
         for read in parser.reads.keys():
-            if parser.reads[read].status == 'function':
+            if parser.reads[read].status == STATUS_GOOD:
                 functions = parser.reads[read].functions
                 for function in functions:
                     func_stats[function] += functions[function]
@@ -202,7 +202,7 @@ def generate_fasta_report(parser):
         func_identity = defaultdict(float)
         func_hit_counts = Counter()
         for read in parser.reads.keys():
-            if parser.reads[read].status == 'function':
+            if parser.reads[read].status == STATUS_GOOD:
                 functions = parser.reads[read].functions
                 for function in functions:
                     func_stats[parser.ref_data.lookup_function_group(function)] += functions[function]
@@ -227,7 +227,7 @@ def generate_fasta_report(parser):
         identity_stats = defaultdict(float)
         rpkm_stats = defaultdict(float)
         for read in parser.reads.keys():
-            if parser.reads[read].status == 'function':
+            if parser.reads[read].status == STATUS_GOOD:
                 taxonomy = parser.reads[read].taxonomy
                 if taxonomy is None:
                     print ('No taxonomy ID assigned to ', read)
@@ -311,7 +311,7 @@ def get_function_scores(project, sample_id = None, metrics=None):
                 raise ValueError('Read count, RPKG and RPKM metrics provided only for single-end sequences')
             
             for read_id, read in project.samples[s].reads['pe1'].items():
-                if read.status != 'function': # Filter unmapped reads
+                if read.status != STATUS_GOOD: # Filter unmapped reads
                     continue
                 read_erpk_scores = read.functions
                 for function in read_erpk_scores:
@@ -350,13 +350,13 @@ def get_function_scores(project, sample_id = None, metrics=None):
             
             for read_id in project.samples[s].reads['pe1'].keys():
                 read_pe1 = project.samples[s].reads['pe1'][read_id]
-                if read_pe1.status != 'function':
+                if read_pe1.status != STATUS_GOOD:
                     continue
                 reads_processed.add(read_id)
                                         
                 if 'pe2' in project.samples[s].reads and read_id in project.samples[s].reads['pe2'].keys(): 
                     read_pe2 = project.samples[s].reads['pe2'][read_id]
-                    if read_pe2.status == 'function':
+                    if read_pe2.status == STATUS_GOOD:
                         # Both ends are mapped
                         
                         fragment_functions = set() # List of functions assigned to the current read
@@ -462,7 +462,7 @@ def get_function_scores(project, sample_id = None, metrics=None):
                     continue #Skip read if it was already counted
                     
                 read_pe2 = project.samples[s].reads['pe2'][read_id]
-                if read_pe2.status != 'function':
+                if read_pe2.status != STATUS_GOOD:
                     continue
 
                 fragment_functions = set()
@@ -545,7 +545,7 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
                 raise ValueError('Read count, RPKG and RPKM metrics provided only for single-end sequences')
             
             for read_id, read in project.samples[s].reads['pe1'].items():
-                if read.status!= 'function': # Filter unmapped reads
+                if read.status!= STATUS_GOOD: # Filter unmapped reads
                     continue
                 read_erpk_scores = read.functions
                 for function in read_erpk_scores:
@@ -583,13 +583,13 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
             
             for read_id in project.samples[s].reads['pe1'].keys():
                 read_pe1 = project.samples[s].reads['pe1'][read_id]
-                if read_pe1.status != 'function':
+                if read_pe1.status != STATUS_GOOD:
                     continue
                 reads_processed.add(read_id)
                                         
                 if 'pe2' in project.samples[s].reads and read_id in project.samples[s].reads['pe2'].keys(): 
                     read_pe2 = project.samples[s].reads['pe2'][read_id]
-                    if read_pe2.status == 'function':
+                    if read_pe2.status == STATUS_GOOD:
                         # Both ends are mapped
                         fragment_taxonomy = project.taxonomy_data.get_lca([read_pe1.taxonomy, read_pe2.taxonomy])
                         
@@ -698,7 +698,7 @@ def get_function_taxonomy_scores(project, sample_id = None, metrics=None):
                     continue #Skip read if it was already counted
                     
                 read_pe2 = project.samples[s].reads['pe2'][read_id]
-                if read_pe2.status != 'function':
+                if read_pe2.status != STATUS_GOOD:
                     continue
 
                 fragment_functions = set()
@@ -828,7 +828,7 @@ def generate_protein_sample_report(project, sample_id, metrics = None):
 
         for read in sorted(project.samples[sample_id].reads['pe1'].keys()):
             protein = project.samples[sample_id].reads['pe1'][read]
-            if protein.status == 'nofunction':
+            if protein.status == STATUS_BAD:
                 continue
             of.write(read + ': ' + ','.join(sorted(protein.functions.keys())))
             tax_id = protein.taxonomy
@@ -919,7 +919,7 @@ def generate_protein_project_report(project):
         for sample_id in project.list_samples():
             for protein_id in sorted(project.samples[sample_id].reads['pe1'].keys()):
                 protein = project.samples[sample_id].reads['pe1'][protein_id]
-                if protein.status == 'nofunction':
+                if protein.status == STATUS_BAD:
                     continue
                 for hit in protein.hit_list.hits:
                     of.write('\t'.join([sample_id, protein_id, project.taxonomy_data.names[protein.taxonomy]['name'], str(hit)]) + '\n')
@@ -1264,7 +1264,7 @@ def generate_assembly_report(assembler):
             for contig in assembler.assembly.contigs[function]:
                 for gene_id in assembler.assembly.contigs[function][contig].genes:
                     gene = assembler.assembly.contigs[function][contig].genes[gene_id]
-                    if gene.status == 'function':
+                    if gene.status == STATUS_GOOD:
                         of.write(function + '\t' + 
                                 contig + '\t' + 
                                 str(len(assembler.assembly.contigs[function][contig].sequence)) + '\t' + 

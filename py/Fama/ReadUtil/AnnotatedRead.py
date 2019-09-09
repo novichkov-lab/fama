@@ -1,9 +1,34 @@
 from collections import defaultdict
+from Fama.const import STATUS_CAND,STATUS_GOOD,STATUS_BAD
 from Fama.DiamondParser.DiamondHit import DiamondHit
 from Fama.DiamondParser.DiamondHitList import DiamondHitList
 
 class AnnotatedRead:
+    """AnnotatedRead stores sequence read data (sequence, identifier, quality 
+    etc.) together with functional and taxonomic annotations.
+    
+    Attributes:
+        read_id (str): read identifier. A part of first line in FASTQ entry up to the first space symbol
+        read_id_line (str): For FASTQ entry, this is the entire first line
+        sequence (str): For FASTQ entry, this is the entire second line
+        quality (str): For FASTQ entry, this is the entire fourth line
+        self.line3 (str): For FASTQ entry, this is the entire third line
+        self.hit_list (:obj:DiamondHitList): DiamondHitList with all hits for the read
+        self.status (str): Can be STATUS_CAND,STATUS_GOOD,STATUS_BAD
+        self.functions (:obj:'defaultdict' of float): dictionary with function identifiers as keys and RPKM scores as values
+        self.pe_id (str): For FASTQ entry, this is the entire first line of paired end
+        self.pe_sequence (str): For FASTQ entry, this is the entire second line of paired end
+        self.pe_quality (str): For FASTQ entry, this is the entire fourth line of paired end
+        self.pe_line3 (str): For FASTQ entry, this is the entire third line of paired end
+        self.taxonomy (str): NCBI Taxonomy ID set by LCA algorithm
+    
+    """
     def __init__(self, read_id = None):
+        """
+        Args:
+            read_id(str, optional): read identifier
+            
+        """
         self.read_id = read_id  
         # Please note that read ID may not contain
         # entire ID line from FASTQ file. It contains only part of the 
@@ -13,7 +38,7 @@ class AnnotatedRead:
         self.quality = None     # 4th FASTQ line
         self.line3 = None       # 3rd FASTQ line
         self.hit_list = None    # hit_list is a DiamondHitList object
-        self.status = 'unaccounted'
+        self.status = STATUS_CAND
         self.functions = defaultdict(float)     # functions dictionary key is function ID and value is RPKM score
         self.pe_id = None          # 1st FASTQ line
         self.pe_sequence = None    # 2nd FASTQ line
@@ -21,78 +46,34 @@ class AnnotatedRead:
         self.pe_line3 = None       # 3rd FASTQ line
         self.taxonomy = None       # NCBI Taxonomy ID set by LCA algorithm
         
-    #~ def get_read_id(self):
-        #~ return self.read_id
-
-    #~ def set_read_id(self,read_id):
-        #~ self.read_id = read_id
-        
-    #~ def set_hit_list(self,hit_list):
-        #~ self.hit_list = hit_list
-        
-    #~ def get_hit_list(self):
-        #~ return self.hit_list
-        
-    #~ # Sequence data
-    #~ def set_read_id_line(self,line):
-        #~ self.read_id_line = line
-        
-    #~ def get_read_id_line(self):
-        #~ return self.read_id_line
-        
-    #~ def set_sequence(self, seq):
-        #~ self.sequence = seq
-        
-    #~ def get_sequence(self):
-        #~ return self.sequence
-        
-    #~ def set_quality(self, quality):
-        #~ self.quality = quality
-    
-    #~ def get_quality(self):
-        #~ return self.quality
-        
-    #~ def set_line3(self,line3):
-        #~ self.line3 = line3
-        
-    #~ def get_line3(self):
-        #~ return self.line3
-
-    #~ # Paired-end data
-    #~ def set_pe_id(self, pe_id):
-        #~ self.pe_id = pe_id
-        
-    #~ def set_pe_sequence(self, seq):
-        #~ self.pe_sequence = seq
-        
-    #~ def set_pe_quality(self, quality):
-        #~ self.pe_quality = quality
-    
-    #~ def set_pe_line3(self,line3):
-        #~ self.pe_line3 = line3
-
-    # Function data
+    # Functional annotations
     def set_functions(self, functions):
+        """Adds up scores from functions argument to functions attribute
+        
+        Args:
+            functions (:obj:'dict' of float): dictionary with function identifiers as keys and RPKM scores as values
+        """
         for function in functions:
             self.functions[function] += functions[function]
 
     def append_functions(self, functions):
+        """Adds up scores from functions argument to functions attribute
+        
+        Args:
+            functions (:obj:'dict' of float): dictionary with function identifiers as keys and RPKM scores as values
+        """
         for function in functions:
             self.functions[function] += functions[function]
 
-    #~ def get_functions(self):
-        #~ return self.functions
-
     def set_status(self, status):
-        if status in ['unaccounted', 'nofunction', 'function']:
+        """Sets read status"""
+        if status in set([STATUS_CAND,STATUS_GOOD,STATUS_BAD]):
             self.status = status
         else:
             raise ValueError('Unknown read status: ' + status)
         
-    #~ def get_status(self):
-        #~ return self.status
-
     def show_hits(self):
+        """Prints hits from hit_list attribute"""
         self.hit_list.print_hits()
             
     def __str__(self):

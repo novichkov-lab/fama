@@ -2,6 +2,7 @@ import os, csv, operator, shutil
 from subprocess import Popen, PIPE, CalledProcessError
 from collections import Counter, defaultdict
 
+from Fama.const import STATUS_CAND,STATUS_GOOD,STATUS_BAD
 from Fama.utils import autovivify,cleanup_protein_id
 from Fama.GeneAssembler.Contig import Contig
 from Fama.GeneAssembler.Gene import Gene
@@ -48,7 +49,7 @@ class GeneAssembler:
                 for read_id in self.project.samples[sample_id].reads[end]:
                     read = self.project.samples[sample_id].reads[end][read_id]
 #                    print(read_id)
-                    if read.status == 'function':
+                    if read.status == STATUS_GOOD:
                         for function in read.functions:
                             if read_id in self.assembly.reads[function]:
                                 continue
@@ -159,7 +160,7 @@ class GeneAssembler:
 #                self.project.load_annotated_reads(sample, end) # Lazy load
                 for read_id in self.project.samples[sample_id].reads[end]:
                     read = self.project.samples[sample_id].reads[end][read_id]
-                    if read.status == 'function':
+                    if read.status == STATUS_GOOD:
                         if read_id in self.assembly.reads['Coassembly']:
                             continue
                         self.assembly.reads['Coassembly'][read_id] = sample_id
@@ -541,7 +542,7 @@ class GeneAssembler:
             for contig in self.assembly.contigs[function]:
                 for gene_id in self.assembly.contigs[function][contig].genes:
                     gene = self.assembly.contigs[function][contig].genes[gene_id]
-                    if gene.status == 'function':
+                    if gene.status == STATUS_GOOD:
                         taxonomy_id = gene.taxonomy # Was get_taxonomy_id()
                         for hit in gene.hit_list.hits:
                             identity = hit.identity
@@ -607,7 +608,7 @@ class GeneAssembler:
         for function in self.assembly.contigs:
             for contig in self.assembly.contigs[function]:
                 for gene_id in self.assembly.contigs[function][contig].genes:
-                    if self.assembly.contigs[function][contig].genes[gene_id].status == 'function':
+                    if self.assembly.contigs[function][contig].genes[gene_id].status == STATUS_GOOD:
                         for f in self.assembly.contigs[function][contig].genes[gene_id].functions.keys():
                             functions_list.add(f)
         
@@ -620,7 +621,7 @@ class GeneAssembler:
                     for gene_id in self.assembly.contigs[f][contig].genes:
                         function_counted = False
                         gene = self.assembly.contigs[f][contig].genes[gene_id]
-                        if gene.status == 'function' and function in gene.functions:
+                        if gene.status == STATUS_GOOD and function in gene.functions:
                             taxonomy_id = gene.taxonomy # Was get_taxonomy_id()
                             for hit in gene.hit_list.hits:
                                 identity = hit.identity
@@ -727,7 +728,7 @@ class GeneAssembler:
             for contig in self.assembly.contigs[function]:
                 for gene_id in self.assembly.contigs[function][contig].genes:
                     gene = self.assembly.contigs[function][contig].genes[gene_id]
-                    if gene.status == 'function':
+                    if gene.status == STATUS_GOOD:
                         for hit in gene.hit_list.hits:
                             taxonomy_id = gene.taxonomy
                             #~ if not taxonomy_id:
@@ -1056,9 +1057,8 @@ def compare_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cuto
     # from a Diamond hit list. It looks through the hit list, finds 
     # hits with bitscore above cutoff and takes their functions.
     #
-    # If there is one hit with the highest bit-score, read gets status 'function,besthit'
-    # If there are several hits with the highest bit-score, read gets status 'function'
-    # Otherwise, read gets status 'nofunction'
+    # If there are several hits with the highest bit-score, read gets status STATUS_GOOD
+    # Otherwise, read gets status STATUS_BAD
     #
     # hit_start and hit_end parameters are used for identification of hit for
     # comparison, since multiple hits can be associated with a read 
@@ -1079,12 +1079,12 @@ def compare_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cuto
             # Set status of read
             if best_hit != None:
                 if '' in best_hit.functions:
-                    gene.set_status('nofunction')
+                    gene.set_status(STATUS_BAD)
                     return
                 else:
-                    gene.set_status('function')
+                    gene.set_status(STATUS_GOOD)
             else:
-                gene.set_status('nofunction')
+                gene.set_status(STATUS_BAD)
                 return
             
             # Filter list of hits by bitscore
@@ -1130,9 +1130,9 @@ def compare_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                         new_functions_dict[f]['bit_score'] = h.bitscore
                         new_functions_dict[f]['hit'] = h
 
-            # If the most common function in new hits is unknown, set status "nofunction" and return
+            # If the most common function in new hits is unknown, set status STATUS_BAD and return
             if new_functions_counter.most_common(1)[0][0] == '':
-                gene.set_status('nofunction')
+                gene.set_status(STATUS_BAD)
                 return
 
             # Calculate RPK scores for functions
