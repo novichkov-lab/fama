@@ -4,15 +4,16 @@ import unittest
 import json
 from collections import Counter
 
-from context import Fama
-from Fama.DiamondParser.DiamondHit import DiamondHit
-from Fama.DiamondParser.DiamondHitList import DiamondHitList
-from Fama.DiamondParser.DiamondParser import DiamondParser
-from Fama.DiamondParser.DiamondParser import import_hit_list
-from Fama.DiamondParser.hit_util import compare_hits,compare_functions,get_paired_read_id
-from Fama.ReadUtil.AnnotatedRead import AnnotatedRead
-from Fama.OutputUtil.JSONUtil import export_annotated_reads
-from Fama.OutputUtil.JSONUtil import import_annotated_reads
+from context import lib
+
+from lib.diamond_parser.diamond_hit import DiamondHit
+from lib.diamond_parser.diamond_hit_list import DiamondHitList
+from lib.diamond_parser.diamond_parser import DiamondParser
+from lib.diamond_parser.diamond_parser import import_hit_list
+
+from lib.diamond_parser.hit_utils import compare_hits,compare_functions,get_paired_read_id
+from lib.sequences.annotated_read import AnnotatedRead
+from lib.output.json_util import import_annotated_reads,export_annotated_reads
 
 from lib.fasta_protein_pipeline import functional_profiling_pipeline
 

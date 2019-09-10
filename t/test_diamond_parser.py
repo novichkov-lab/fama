@@ -2,19 +2,18 @@
 import os, csv, operator
 import unittest
 import json
-from context import Fama
+from context import lib
 from collections import Counter
 
-from Fama.const import STATUS_CAND,STATUS_GOOD,STATUS_BAD
-from Fama.Project import Project
-from Fama.Sample import Sample
-from Fama.DiamondParser.DiamondHit import DiamondHit
-from Fama.DiamondParser.DiamondHitList import DiamondHitList
-from Fama.DiamondParser.DiamondParser import DiamondParser
-from Fama.DiamondParser.hit_utils import get_paired_read_id,compare_hits_erpk_lca
-from Fama.ReadUtil.AnnotatedRead import AnnotatedRead
-from Fama.OutputUtil.JSONUtil import export_annotated_reads
-from Fama.OutputUtil.JSONUtil import import_annotated_reads
+from lib.utils.const import STATUS_CAND,STATUS_GOOD,STATUS_BAD
+from lib.project.project import Project
+from lib.project.sample import Sample
+from lib.diamond_parser.diamond_hit import DiamondHit
+from lib.diamond_parser.diamond_hit_list import DiamondHitList
+from lib.diamond_parser.diamond_parser import DiamondParser
+from lib.diamond_parser.hit_utils import get_paired_read_id,compare_hits_erpk_lca
+from lib.sequences.annotated_read import AnnotatedRead
+from lib.output.json_util import import_annotated_reads,export_annotated_reads
 
 
 data_dir = 'data'

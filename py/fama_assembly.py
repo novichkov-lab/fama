@@ -1,9 +1,8 @@
 #!/usr/bin/python3
-"""Runs Fama functional profiling pipeline"""
+"""Script starting Fama assembly pipeline"""
 import sys
 import argparse
-from lib.functional_profiling_pipeline import fastq_pipeline
-from lib.protein_functional_pipeline import protein_pipeline
+from lib.assembly_pipeline import assembly_pipeline
 
 def get_args():
     """Returns command-line arguments"""
@@ -15,9 +14,12 @@ def get_args():
                         help='Sample ID (optional)')
     parser.add_argument('-e', dest='end', type=str, default=None,
                         help='paired end ID (expected values: pe1 or pe2). Optional')
-    parser.add_argument('--prot', dest='prot', action='store_true',
-                        help='Process protein sequences in FASTA format (default: False)')
-    parser.set_defaults(prot=False)
+    parser.add_argument('-a', dest='assembler', type=str, default='metaspades',
+                        help='contig assembler (expected values: metaspades or megahit).\
+                         Optional, default:metaspades')
+    parser.add_argument('--coassembly', dest='coassembly', action='store_true',
+                        help='Coassemble reads for all functions (default: False)')
+    parser.set_defaults(coassembly=False)
     args = parser.parse_args()
     if len(sys.argv) == 1:
         parser.print_help()
@@ -30,19 +32,9 @@ def get_args():
     return args
 
 def main():
-    """Main function calling functional profiling module"""
+    """Main function calling assembly module"""
     args = get_args()
-    if args.prot:
-        protein_pipeline(args)
-    else:
-        if args.sample is None:
-            print('Running functional profiling for all samples in the project')
-        else:
-            print('Running functional profiling only for ', args.sample)
-        fastq_pipeline(
-            config_file=args.config, project_file=args.project,
-            sample_identifier=args.sample, end_identifier=args.end)
-    print('Done!')
+    assembly_pipeline(args)
 
 if __name__ == '__main__':
     main()

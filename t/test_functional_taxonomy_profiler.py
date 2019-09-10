@@ -7,15 +7,15 @@ import xlsxwriter
 import pandas as pd
 
 from context import Fama
-from Fama.utils import autovivify,cleanup_protein_id,sanitize_file_name
-from Fama.Project import Project
-from Fama.DiamondParser.DiamondParser import DiamondParser
-from Fama.TaxonomyProfile import TaxonomyProfile
+from lib.utils.utils import autovivify,cleanup_protein_id,sanitize_file_name
+from lib.project.project import Project
+from lib.diamond_parser.diamond_parser import DiamondParser
+from lib.taxonomy.taxonomy_profile import TaxonomyProfile
 
-from Fama.OutputUtil.JSONUtil import import_annotated_reads
-from Fama.OutputUtil.Report import generate_fastq_report, get_function_scores, get_function_taxonomy_scores
-from Fama.OutputUtil.XlsxUtil import generate_function_sample_xlsx, generate_function_taxonomy_sample_xlsx, generate_sample_taxonomy_function_xlsx
-from Fama.OutputUtil.KronaXMLWriter import generate_functional_taxonomy_chart,generate_taxonomy_series_chart
+from lib.output.json_util import import_annotated_reads
+from lib.output.report import generate_fastq_report, get_function_scores, get_function_taxonomy_scores
+from lib.output.xlsx_util import generate_function_sample_xlsx, generate_function_taxonomy_sample_xlsx, generate_sample_taxonomy_function_xlsx
+from lib.output.krona_xml_writer import generate_functional_taxonomy_chart,generate_taxonomy_series_chart
 
 data_dir = 'data'
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')

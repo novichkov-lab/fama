@@ -3,17 +3,15 @@ import os, csv, operator
 import unittest
 from collections import Counter,defaultdict
 
-from context import Fama
-from Fama.utils import autovivify,cleanup_protein_id,sanitize_file_name
+from context import lib
 
-from Fama.DiamondParser.DiamondParser import DiamondParser
-from Fama.OutputUtil.JSONUtil import import_annotated_reads
-from Fama.OutputUtil.Report import generate_fastq_report
-from Fama.TaxonomyProfile import TaxonomyProfile
-from Fama.OutputUtil.KronaXMLWriter import generate_taxonomy_chart
-from Fama.OutputUtil.KronaXMLWriter import generate_loose_taxonomy_chart
-from Fama.OutputUtil.KronaXMLWriter import generate_taxonomy_series_chart
-from Fama.Project import Project
+from lib.utils.utils import autovivify,cleanup_protein_id,sanitize_file_name
+from lib.diamond_parser.diamond_parser import DiamondParser
+from lib.output.json_util import import_annotated_reads
+from lib.output.report import generate_fastq_report
+from lib.taxonomy.taxonomy_profile import TaxonomyProfile
+from lib.output.krona_xml_writer import generate_taxonomy_chart,generate_loose_taxonomy_chart,generate_taxonomy_series_chart
+from lib.project.project import Project
 
 data_dir = 'data'
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
