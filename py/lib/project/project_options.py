@@ -86,7 +86,7 @@ class ProjectOptions(object):
     @property
     def assembly_dir(self):
         """Name of subdirectory for assembly"""
-        return os.path.join(self.work_dir(), self.parser['DEFAULT']['assembly_subdir'])
+        return os.path.join(self.work_dir, self.parser['DEFAULT']['assembly_subdir'])
     
 
     # Methods
