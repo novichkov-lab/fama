@@ -105,7 +105,7 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
                           length_cutoff, average_read_length, taxonomy_data,
                           ref_data, rank_cutoffs=None):
     """Compares DiamondHit object assigned to AnnotatedRead object with list of new
-    DiamondHit objects, assignes scores to functions and taxonomy
+    DiamondHit objects, assigns scores to functions and taxonomy
 
     Args:
         read (:obj:AnnotatedRead): sequence read being under analysis
@@ -116,7 +116,7 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
             (relative to top bit-score, default 0.97)
         length_cutoff (int): length of shortest acceptable alignment, in
             amino acid residues
-        average_read_length (float): average langth of sequence reads in the sample
+        average_read_length (float): average length of sequence reads in the sample
         taxonomy_data (:obj:TaxonomyData): taxonomic data
         ref_data (:obj:ReferenceData): functional reference data
         rank_cutoffs (:obj:dict[str, float]): key is taxonomy rank, value

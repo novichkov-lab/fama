@@ -14,11 +14,10 @@ def assembly_pipeline(args):
     """
     project = Project(config_file=args.config, project_file=args.project)
     assembler = GeneAssembler(project, assembler=args.assembler)
-    if args.coassembly:
-        assembler.coassemble_contigs()
-    else:
-        assembler.assemble_contigs()
-    assembler.map_genes()
+    _ = assembler.export_reads(do_coassembly = args.coassembly)
+    assembler.assemble_contigs()
+    assembler.predict_genes()
+    assembler.annotate_genes()
     assembler.generate_output()
     export_gene_assembly(
         assembler.assembly,
