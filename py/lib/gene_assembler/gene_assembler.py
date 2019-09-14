@@ -20,7 +20,7 @@ from lib.output.report import generate_assembly_report
 from lib.output.xlsx_util import create_assembly_xlsx
 from lib.reference_library.taxonomy_data import TaxonomyData
 
-class GeneAssembler:
+class GeneAssembler(object):
     """GeneAssembler is a working horse of Fama assembly pipeline. It exports
     sequence reads, feeds external assembler with them, imports resulting
     contigs, maps reads to contigs with Bowtie, finds genes with Prodigal,

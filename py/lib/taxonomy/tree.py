@@ -1,12 +1,33 @@
+"""Describes Node and Tree classes"""
 import queue
 from collections import defaultdict
-from lib.utils.const import RANKS
+from lib.utils.const import RANKS, ROOT_TAXONOMY_ID
 
 class Node(object):
-    
-    def __init__(self, rank = None, name = None, taxid = None, parent = None, children = set()):
+    """Node object stores data of one taxonomic tree node
+
+    Attributes:
+    parent (str): parent node identifier
+    children (set of str): child node identifiers
+    rank (str): taxonomic rank (one of ranks defined in RANKS)
+    name (str): text label of the node
+    taxid (str): taxonomy identifier (usually, NCBI Taxonomy ID)
+    attributes (defaultdict[str,dict[str,obj]) or dict[str,obj]: polymorphic
+        structure for storing various scores associated with the node. Can
+        be one-level or two-level dictionary.
+    """
+    def __init__(self, rank=None, name=None, taxid=None, parent=None, children=None):
+        """Args:
+            rank (str): taxonomic rank (one of ranks defined in RANKS)
+            name (str): text label of the node
+            taxid (str): taxonomy identifier (usually, NCBI Taxonomy ID)
+            parent (str): parent node identifier
+            children (set of str): child node identifiers
+        """
         self.parent = parent
-        self.children = children
+        self._children = set()
+        if children:
+            self._children = set(children)
         if rank in RANKS:
             self.rank = rank
         else:
@@ -14,95 +35,154 @@ class Node(object):
         self.name = name
         self.taxid = taxid
         self.attributes = {}
-    
-    def add_child(self,child_taxid):
-        self.children.add(child_taxid)
-    
-    def set_parent(self,parent_taxid):
+
+    def add_child(self, child_taxid):
+        """Adds a child node identifier to children attribute
+
+        Args:
+            child_taxid (str): child node identifier
+        """
+        self._children.add(child_taxid)
+
+    def set_parent(self, parent_taxid):
+        """Sets parent identifier if not None
+
+        Args:
+            parent_taxid (str): parent node identifier
+        """
         if parent_taxid:
             self.parent = parent_taxid
-    
-    def set_taxid(self,taxid):
+
+    def set_taxid(self, taxid):
+        """Sets taxonomy identifier if not None
+
+        Args:
+            taxid (str): taxonomy identifier
+        """
         if not self.taxid:
             self.taxid = taxid
-    
+
     def set_rank(self, rank):
+        """Sets taxonomic rank identifier if it defined in RANKS
+
+        Args:
+            rank (str): taxonomic rank
+
+        Returns:
+            ret_val (bool): True on success, False on failure
+        """
         ret_val = False
         if rank in RANKS:
             self.rank = rank
             ret_val = True
         return ret_val
 
-    def get_children(self):
-        return self.children
-    
-    def set_attribute(self, k, v):
-        self.attributes[k] = v
+    @property
+    def children(self):
+        """Set of children identifiers"""
+        return self._children
 
-    def add_attribute(self, k, v):
-        if isinstance(v,dict) and len(self.attributes) == 0:
-            #self.attributes = defaultdict(lambda : defaultdict(dict))
+    def set_attribute(self, key, value):
+        """Adds a key-value pair to self.attributes. If the key already
+        exists, replaces existing value with the new
+
+        Args:
+            key (str): key for node attributes
+            value (obj): value for node attributes
+        """
+        self.attributes[key] = value
+
+    def add_attribute(self, key, value):
+        """Adds a key-value pair to self.attributes. If the key already
+        exists, adds new value to existing one.
+
+        Args:
+            key (str): key for node attributes
+            value (obj): value for node attributes. May be dict of arbitrary objects
+        """
+        if isinstance(value, dict) and not self.attributes:
             self.attributes = defaultdict(dict)
-        
-        if k in self.attributes:
-            if isinstance(v,dict):
-                for k2 in v:
-                    if isinstance(v[k2], dict):
-                        print (k, v[k2])
-                        raise TypeError ('Attribute value cannot be dict')
-                    if k2 in self.attributes[k]:
-                        self.attributes[k][k2] += v[k2]
+        elif key in self.attributes:
+            if isinstance(value, dict):
+                for innner_key in value:
+                    if isinstance(value[innner_key], dict):
+                        print(key, value[innner_key])
+                        raise TypeError('Second-level attribute value cannot be dict')
+                    if innner_key in self.attributes[key]:
+                        self.attributes[key][innner_key] += value[innner_key]
                     else:
-                        self.attributes[k][k2] = v[k2]
+                        self.attributes[key][innner_key] = value[innner_key]
             else:
-                self.attributes[k] += v
+                self.attributes[key] += value
         else:
-            if isinstance(v,dict):
-                for k2 in v:
-                    if isinstance(v[k2], dict):
-                        print (k, v[k2])
-                        raise TypeError ('Attribute value cannot be dict')
-                    self.attributes[k][k2] = v[k2]
+            if isinstance(value, dict):
+                for innner_key in value:
+                    if isinstance(value[innner_key], dict):
+                        print(key, value[innner_key])
+                        raise TypeError('Second-level attribute value cannot be dict')
+                    self.attributes[key][innner_key] = value[innner_key]
             else:
-                self.attributes[k] = v
+                self.attributes[key] = value
 
-    def get_attribute(self, k):
-        if k in self.attributes:
-            return self.attributes[k]
-        else:
-            return None
-    
+    def get_attribute(self, key):
+        """Returns attribute value for the given key. If key does not exist,
+        returns None.
+
+        """
+        result = None
+        if key in self.attributes:
+            result = self.attributes[key]
+        return result
+
     def is_in_children(self, node_id):
-        return node_id in self.children 
-        
+        """Returns True if node_id is in children, False if not"""
+        return node_id in self.children
+
 class Tree(object):
-    
+    """Tree stores phylogenetic tree. Phylogenetic tree is an oriented graph
+    of nodes. Tree has root node with identifier equal to ROOT_TAXONOMY_ID.
+
+    Attributes:
+        data (dict[str,:obj:Node]): key is taxonomy identifier, value is Node object
+        root (:obj:Node): root node
+    """
     def __init__(self):
         self.data = {}
-        self.root = Node(rank = 'norank',name = 'root', taxid = '1', children = set())
-        self.data['1'] = self.root
-        #cellular_organisms = Node(rank = 'norank',name = 'cellular organisms', taxid = '131567', parent = '1')
-        #self.data['131567'] = cellular_organisms
-        
-        #unknown_organisms = Node(rank = 'norank',name = 'Unknown', taxid = '0', parent = '1',children = set())
-        #self.add_node(unknown_organisms)
-        #self.data['0'] = unknown_organisms
-        #self.data['1'].add_child('131567')
-        #self.data['1'].add_child('0')
-                
+        self.root = Node(rank='norank', name='root', taxid=ROOT_TAXONOMY_ID, children=set())
+        self.data[ROOT_TAXONOMY_ID] = self.root
+
     def add_node(self, node):
+        """Adds node to phylogenetic tree, if it does not exist already.
+
+        Args:
+            node (:obj:Node): new node
+        """
         if node.taxid not in self.data and node.parent in self.data:
             self.data[node.taxid] = node
             self.data[node.parent].add_child(node.taxid)
         elif not node.parent in self.data:
-            print ('Parent ', node.parent, ' for node ', node.taxid, 'not found in the tree')
+            print('Parent ', node.parent, ' for node ', node.taxid, 'not found in the tree')
         elif not self.data[node.parent].is_in_children(node.taxid):
             self.data[node.parent].add_child(node.taxid)
-    
-    def is_in_tree(self,taxid):
+
+    def is_in_tree(self, taxid):
+        """Checks if taxonomy ID exists in tree. Returns True if yes, False if not
+
+        Args:
+            taxid (str): taxonomy identifier
+        """
         return taxid in self.data
-    
-    def add_node_recursively(self, node, tax_data):
+
+    def add_node_recursively(self, node, taxonomy_data):
+        """Adds node to phylogenetic tree, if it does not exist already.
+        If parent nodes do not exists, creates them up to root level.
+        Updates attributes of all upper nodes (up to root), adding values
+        of all attributes of the new node to them.
+
+        Args:
+            node (:obj:Node): new node
+            taxonomy_data (:obj:TaxonomyData): taxonomic data instance
+        """
         if node.taxid in self.data:
             return #Nothing to do
         elif node.parent in self.data:
@@ -111,85 +191,105 @@ class Tree(object):
         else:
             nodes_stack = queue.LifoQueue()
             current_taxid = node.taxid
-            nodes_stack.put((current_taxid,True))
+            nodes_stack.put((current_taxid, True))
             parent_taxid = '0'
-            if current_taxid in tax_data.nodes:
-                parent_taxid = tax_data.nodes[current_taxid]['parent']
+            if current_taxid in taxonomy_data.nodes:
+                parent_taxid = taxonomy_data.nodes[current_taxid]['parent']
             while True:
-                if current_taxid in tax_data.nodes:
-                    current_taxid = tax_data.nodes[current_taxid]['parent']
+                if current_taxid in taxonomy_data.nodes:
+                    current_taxid = taxonomy_data.nodes[current_taxid]['parent']
                 else:
                     current_taxid = '0'
-                    
-                if tax_data.nodes[current_taxid]['rank'] in RANKS:
-                    nodes_stack.put((current_taxid,True))
+
+                if taxonomy_data.nodes[current_taxid]['rank'] in RANKS:
+                    nodes_stack.put((current_taxid, True))
                 else:
-                    #print(tax_data.nodes[current_taxid]['rank'], ' not in RANKS, skip ID ', current_taxid)
-                    nodes_stack.put((current_taxid,False))
-                
-                if tax_data.nodes[current_taxid]['parent'] == '1':
+                    nodes_stack.put((current_taxid, False))
+
+                if taxonomy_data.nodes[current_taxid]['parent'] == '1':
                     parent_taxid = '1'
-                    #print('Root reached in recursion from node ', node.taxid)
-                    #print(list(nodes_stack.queue))
                     break
-                elif self.is_in_tree(tax_data.nodes[current_taxid]['parent']):
-                    parent_taxid = tax_data.nodes[current_taxid]['parent']
+                elif self.is_in_tree(taxonomy_data.nodes[current_taxid]['parent']):
+                    parent_taxid = taxonomy_data.nodes[current_taxid]['parent']
                     break
-                
-            
-            
+
             while not nodes_stack.empty():
                 node_id = nodes_stack.get()
                 if node_id[1]:
-                    if node_id[0] in tax_data.nodes:
-                        node = Node(rank = tax_data.nodes[node_id[0]]['rank'], 
-                                    name = tax_data.names[node_id[0]]['name'], 
-                                    taxid = node_id[0], 
-                                    parent = parent_taxid, 
-                                    children = set())
+                    if node_id[0] in taxonomy_data.nodes:
+                        node = Node(rank=taxonomy_data.nodes[node_id[0]]['rank'],
+                                    name=taxonomy_data.names[node_id[0]]['name'],
+                                    taxid=node_id[0],
+                                    parent=parent_taxid,
+                                    children=set())
                     else:
-                        node = Node(rank = 'norank', 
-                                    name = 'taxId ' + node_id[0], 
-                                    taxid = node_id[0], 
-                                    parent = parent_taxid, 
-                                    children = set())
-                        
+                        node = Node(rank='norank',
+                                    name='taxId ' + node_id[0],
+                                    taxid=node_id[0],
+                                    parent=parent_taxid,
+                                    children=set())
+
                     self.add_node(node)
                     parent_taxid = node_id[0]
-                    
-    def add_attribute(self, taxid, k, v, tax_data):
-        while True:
-            if taxid in self.data or taxid == '1':
-                break
-            taxid = tax_data.nodes[taxid]['parent']
-        self.data[taxid].add_attribute(k,v)
 
-    def add_attribute_recursively(self, taxid, k, v, tax_data):
+    def add_attribute(self, taxid, key, value, taxonomy_data):
+        """Adds value for the given key to a node with 'taxid' identifier. If
+        such identifier does not exists on the tree, looks for parent identifier and
+        tries to add value to it, and so on (up to root).
+
+        Args:
+            taxid (str): taxonomy identifier
+            key (str): attributes key
+            value (obj): value to be added to attributes. Expected to be int or float
+            tax_data (:obj:TaxonomyData): taxonomic data instance
+        """
         while True:
             if taxid in self.data or taxid == '1':
                 break
-            taxid = tax_data.nodes[taxid]['parent']
-        
+            taxid = taxonomy_data.nodes[taxid]['parent']
+        self.data[taxid].add_attribute(key, value)
+
+    def add_attribute_recursively(self, taxid, key, value, taxonomy_data):
+        """Adds value for the given key to a node with 'taxid' identifier and
+        ALL its parent nodes, up to root node. If
+        such identifier does not exists on the tree, looks for parent identifier and
+        tries to add value to it, and so on (up to root).
+
+        Args:
+            taxid (str): taxonomy identifier
+            key (str): attributes key
+            value (obj): value to be added to attributes. Expected to be int or float
+            taxonomy_data (:obj:TaxonomyData): taxonomic data instance
+        """
+        while True:
+            if taxid in self.data or taxid == '1':
+                break
+            taxid = taxonomy_data.nodes[taxid]['parent']
+
         parent_taxid = self.data[taxid].parent
         while True:
-            self.data[taxid].add_attribute(k,v)
+            self.data[taxid].add_attribute(key, value)
             if taxid == '1':
                 break
             taxid = parent_taxid
             parent_taxid = self.data[taxid].parent
 
-    def print_tree(self):
-        print(self.data['1'].taxid)
-        level = 1
-                
-    def get_parent(self, node):
-        if node.taxid in tax_data.nodes and node.taxid in tax_data.names: 
-            parent_taxid = tax_data.nodes[taxid]['parent']
-            if parent_taxid in tax_data.nodes and parent_taxid in tax_data.names:
-                ret_val = Node(rank = tax_data.nodes[parent_taxid]['rank'],
-                               name = tax_data.names[parent_taxid]['name'], 
-                               taxid = parent_taxid,
-                               parent = tax_data.nodes[parent_taxid]['parent'])
+    def get_parent(self, node, taxonomy_data):
+        """Returns parent node for given node.
+
+        Args:
+            node (:obj:Node): node of taxonomic tree
+            taxonomy_data (:obj:TaxonomyData): taxonomic data instance
+        """
+        ret_val = None
+        if node.taxid in self.data:
+            ret_val = self.data[node.parent]
+        elif node.taxid in taxonomy_data.nodes and node.taxid in taxonomy_data.names:
+            parent_taxid = taxonomy_data.nodes[node.taxid]['parent']
+            if parent_taxid in taxonomy_data.nodes and parent_taxid in taxonomy_data.names:
+                ret_val = Node(rank=taxonomy_data.nodes[parent_taxid]['rank'],
+                               name=taxonomy_data.names[parent_taxid]['name'],
+                               taxid=parent_taxid,
+                               parent=taxonomy_data.nodes[parent_taxid]['parent'])
                 ret_val.add_child(node)
-                return ret_val
-    
+        return ret_val

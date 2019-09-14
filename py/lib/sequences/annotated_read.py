@@ -2,7 +2,7 @@
 from collections import defaultdict
 from lib.utils.const import STATUS_CAND, STATUS_GOOD, STATUS_BAD
 
-class AnnotatedRead:
+class AnnotatedRead(object):
     """AnnotatedRead stores sequence read data (sequence, identifier, quality
     etc.) together with functional and taxonomic annotations.
 

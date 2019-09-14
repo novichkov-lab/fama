@@ -1,5 +1,7 @@
 #!/usr/bin/python3
-import os,gzip
+"""Runs Fama trimming pipeline"""
+import os
+import gzip
 from subprocess import Popen, PIPE, CalledProcessError
 from collections import defaultdict
 
@@ -7,12 +9,12 @@ from lib.utils.const import ENDS
 from lib.project.program_config import ProgramConfig
 
 def trimming_pipeline(config_file, sequence_list_file, project_name, collection, is_protein, notrim):
-    
+   
     # read config, check collection
     config = ProgramConfig(config_file)
     if collection not in config.collections:
         raise ValueError('Collection ' + collection + ' not found in Fama config file ' + config_file)
-    
+
     # read sequence list, check file paths
     input_files = defaultdict(dict)
     working_directory = os.path.dirname(os.path.realpath(sequence_list_file))
@@ -34,7 +36,7 @@ def trimming_pipeline(config_file, sequence_list_file, project_name, collection,
                 input_files[sample_id][ENDS[1]] = os.path.join(working_directory, rev_sequence_file)
             else:
                 raise OSError('Sequence file for sample ' +  sample_id + ' not found: ' + rev_sequence_file)
-    
+
     sequence_files = defaultdict(dict)
     # run Trimmomatic, if is_protein and notrim are False
     for sample_id in input_files:
@@ -49,10 +51,8 @@ def trimming_pipeline(config_file, sequence_list_file, project_name, collection,
             else:
                 sequence_files[sample_id][ENDS[0]] = input_files[sample_id][ENDS[0]]
                 sequence_files[sample_id][ENDS[1]] = input_files[sample_id][ENDS[1]]
-                
 
     # save project.ini
-    
     project_ini_path = os.path.join(working_directory, 'project_' + collection + '.ini')
 
     working_directory = os.path.join(working_directory,collection)
@@ -75,7 +75,7 @@ def trimming_pipeline(config_file, sequence_list_file, project_name, collection,
         of.write('reads_json_name = reads.json\n')
         of.write('assembly_subdir = assembly\n')
         of.write('work_dir = ' + working_directory + '\n')
-        
+
         #Sample sections
         replicate = 0
         for sample_id in sequence_files:
@@ -88,10 +88,10 @@ def trimming_pipeline(config_file, sequence_list_file, project_name, collection,
             replicate += 1
 
 
-def run_trimmomatic(file1,file2,sample_id,working_directory,threads):
-    print ('Starting Trimmomatic')
+def run_trimmomatic(file1, file2, sample_id, working_directory, threads):
+    print('Starting Trimmomatic')
     if file2 == '':
-        outfile = os.path.join(working_directory, sample_id + '_SE.fastq.gz'),
+        outfile = os.path.join(working_directory, sample_id + '_SE.fastq.gz')
         trimmomatic_args = ['TrimmomaticSE',
                             '-threads', threads,
                             '-phred33',
@@ -102,14 +102,14 @@ def run_trimmomatic(file1,file2,sample_id,working_directory,threads):
                             'TRAILING:3',
                             'SLIDINGWINDOW:4:14',
                             'MINLEN:50'
-                            ]
+                           ]
 
         with Popen(trimmomatic_args, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
             for line in p.stdout:
                 print(line, end='')
         if p.returncode != 0:
             raise CalledProcessError(p.returncode, p.args)
-        print ('Trimmomatic finished')
+        print('Trimmomatic finished')
         return outfile, ''
         
     else:
@@ -124,18 +124,18 @@ def run_trimmomatic(file1,file2,sample_id,working_directory,threads):
                             'TRAILING:3',
                             'SLIDINGWINDOW:4:14',
                             'MINLEN:50'
-                            ]
+                           ]
 
         with Popen(trimmomatic_args, stdout=PIPE, bufsize=1, universal_newlines=True) as p:
             for line in p.stdout:
                 print(line, end='')
         if p.returncode != 0:
             raise CalledProcessError(p.returncode, p.args)
-        print ('Trimmomatic finished')
+        print('Trimmomatic finished')
         outfile1 = os.path.join(working_directory, sample_id + '_1P.fastq.gz')
         outfile2 = os.path.join(working_directory, sample_id + '_2P.fastq.gz')
         return outfile1, outfile2
-    
+
 def is_fastq(infile):
     first_symbol = ''
     if infile.endswith('.gz'):
@@ -143,11 +143,9 @@ def is_fastq(infile):
         first_symbol = fh.readline().decode('utf8')[0]
         fh.close()
     else:
-        with open(infile,'r') as f:
+        with open(infile, 'r') as f:
             first_symbol = f.readline()[0]
-
+    result = False
     if first_symbol == '@':
-        return True
-    else:
-        return False
-    
+        result = True
+    return result
