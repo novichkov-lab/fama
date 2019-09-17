@@ -1,16 +1,8 @@
 """Descibes ProjectOptions class"""
 import os
 import configparser
+from lib.utils.utils import singleton
 
-def singleton(cls):
-    """Implements singleton design pattern"""
-    instances = {}
-    def getinstance(*args, **kwargs):
-        """Creates singleton instance of cls, if not exists, and returns it"""
-        if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
-    return getinstance
 
 @singleton
 class ProjectOptions(object):

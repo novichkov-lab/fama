@@ -8,6 +8,7 @@ from lib.utils.const import ENDS
 from lib.utils.utils import run_external_program
 from lib.project.program_config import ProgramConfig
 
+
 def trimming_pipeline(config_file, sequence_list_file, project_name, collection,
                       is_protein, notrim):
     """Defines steps of the pipeline
@@ -42,7 +43,7 @@ def trimming_pipeline(config_file, sequence_list_file, project_name, collection,
                     )
             else:
                 raise OSError(
-                    'Sequence file for sample ' +  sample_id + ' not found: ' + fwd_sequence_file
+                    'Sequence file for sample ' + sample_id + ' not found: ' + fwd_sequence_file
                     )
             if rev_sequence_file == '':
                 input_files[sample_id][ENDS[1]] = ''
@@ -54,7 +55,7 @@ def trimming_pipeline(config_file, sequence_list_file, project_name, collection,
                     )
             else:
                 raise OSError(
-                    'Sequence file for sample ' +  sample_id + ' not found: ' + rev_sequence_file
+                    'Sequence file for sample ' + sample_id + ' not found: ' + rev_sequence_file
                     )
 
     sequence_files = defaultdict(dict)
@@ -100,7 +101,7 @@ def trimming_pipeline(config_file, sequence_list_file, project_name, collection,
         outfile.write('assembly_subdir = assembly\n')
         outfile.write('work_dir = ' + working_directory + '\n')
 
-        #Sample sections
+        # Sample sections
         replicate = 0
         for sample_id in sequence_files:
             outfile.write('\n[' + sample_id + ']\n')
@@ -140,8 +141,7 @@ def run_trimmomatic(file1, file2, sample_id, working_directory, threads):
                             'LEADING:3',
                             'TRAILING:3',
                             'SLIDINGWINDOW:4:14',
-                            'MINLEN:50'
-                           ]
+                            'MINLEN:50']
         run_external_program(trimmomatic_args)
         print('Trimmomatic finished')
     else:
@@ -155,13 +155,13 @@ def run_trimmomatic(file1, file2, sample_id, working_directory, threads):
                             'LEADING:3',
                             'TRAILING:3',
                             'SLIDINGWINDOW:4:14',
-                            'MINLEN:50'
-                           ]
+                            'MINLEN:50']
         run_external_program(trimmomatic_args)
         print('Trimmomatic finished')
         outfile1 = os.path.join(working_directory, sample_id + '_1P.fastq.gz')
         outfile2 = os.path.join(working_directory, sample_id + '_2P.fastq.gz')
     return outfile1, outfile2
+
 
 def is_fastq(infile):
     """Checks input file format

@@ -8,8 +8,9 @@ from lib.utils.utils import autovivify, sanitize_file_name
 from lib.diamond_parser.hit_utils import get_efpk_score, get_fpk_score
 from lib.taxonomy.taxonomy_profile import TaxonomyProfile
 from lib.output.xlsx_util import make_function_sample_xlsx, make_func_tax_sample_xlsx, \
-make_sample_tax_func_xlsx
+    make_sample_tax_func_xlsx
 from lib.output.krona_xml_writer import make_taxonomy_series_chart
+
 
 def generate_fastq_report(parser):
     """Writes report for a single FASTQ file into a text file
@@ -101,9 +102,10 @@ def generate_fastq_report(parser):
                 for function in functions:
                     func_stats[parser.ref_data.lookup_function_group(
                         function
-                        )] += functions[function]
-                    func_counts[parser.ref_data.lookup_function_group(function)] \
-                    += 1/len(functions)
+                    )] += functions[function]
+                    func_counts[parser.ref_data.lookup_function_group(
+                        function
+                    )] += 1/len(functions)
                 for hit in parser.reads[read].hit_list.hits:
                     for function in hit.functions:
                         func_identity[parser.ref_data.lookup_function_group(
@@ -126,7 +128,6 @@ def generate_fastq_report(parser):
         identity_stats = defaultdict(float)
         rpkm_stats = defaultdict(float)
         for read in parser.reads.keys():
-#            print (read, parser.reads[read].status)
             if parser.reads[read].status == STATUS_GOOD:
                 taxonomy = parser.reads[read].taxonomy
                 if taxonomy is None:
@@ -171,6 +172,7 @@ def generate_fastq_report(parser):
             for hit in parser.reads[read].hit_list.hits:
                 out_f.write('\t' + str(hit) + '\n')
         out_f.write('\n\n*** End of report ***\n')
+
 
 def generate_fasta_report(parser):
     """Writes report for a single FASTA file into a text file
@@ -297,8 +299,9 @@ def generate_fasta_report(parser):
                 read_functions = parser.reads[read].functions
                 for function_id in read_functions:
                     rpkm_stats[taxonomy] += read_functions[function_id]
-                identity_stats[taxonomy] += sum(list(hit.identity for hit in \
-                parser.reads[read].hit_list.hits))
+                identity_stats[taxonomy] += sum(
+                    list(hit.identity for hit in parser.reads[read].hit_list.hits)
+                )
 
         tax_data = parser.taxonomy_data
         counts_per_rank, identity_per_rank, rpkm_per_rank = tax_data.get_taxonomy_profile(
@@ -332,6 +335,7 @@ def generate_fasta_report(parser):
             for hit in parser.reads[read].hit_list.hits:
                 out_f.write('\t' + str(hit) + '\n')
         out_f.write('\n\n*** End of report ***\n')
+
 
 def get_function_scores(project, sample_id=None, metrics=None):
     """Builds two-dimensional (function ID vs. sample ID) tables for read
@@ -419,7 +423,7 @@ def get_function_scores(project, sample_id=None, metrics=None):
                 raise ValueError('No read count, RPKG and RPKM metrics for paired-end input')
 
             for read_id, read in project.samples[sample].reads['pe1'].items():
-                if read.status != STATUS_GOOD: # Filter unmapped reads
+                if read.status != STATUS_GOOD:  # Filter unmapped reads
                     continue
                 read_erpk_scores = read.functions
                 for function in read_erpk_scores:
@@ -428,15 +432,16 @@ def get_function_scores(project, sample_id=None, metrics=None):
                         ret_val[function][sample][metrics] += 1.0
                     else:
                         ret_val[function][sample]['count'] += 1.0
-                        ret_val[function][sample][metrics] += norm_factor \
-                        * read_erpk_scores[function]
+                        ret_val[function][sample][metrics] += \
+                            norm_factor * read_erpk_scores[function]
 
                 function_maxbitscores = defaultdict(dict)
                 # Find max. bitscore for each function
                 for hit in read.hit_list.hits:
                     for hit_function in [
-                            function for function in hit.functions if function in read_erpk_scores
-                        ]:
+                            function for function in hit.functions
+                            if function in read_erpk_scores
+                    ]:
                         if hit_function in function_maxbitscores:
                             if hit.bitscore > function_maxbitscores[hit_function]['bitscore']:
                                 function_maxbitscores[hit_function]['bitscore'] = hit.bitscore
@@ -467,12 +472,12 @@ def get_function_scores(project, sample_id=None, metrics=None):
 
                 if 'pe2' in project.samples[sample].reads and read_id in project.samples[
                         sample
-                    ].reads['pe2']:
+                ].reads['pe2']:
                     read_pe2 = project.samples[sample].reads['pe2'][read_id]
                     if read_pe2.status == STATUS_GOOD:
                         # Both ends are mapped
 
-                        fragment_functions = set() # List of functions assigned to the current read
+                        fragment_functions = set()  # List of functions assigned to the current read
                         read1_functions = read_pe1.functions
                         read2_functions = read_pe2.functions
 
@@ -487,11 +492,11 @@ def get_function_scores(project, sample_id=None, metrics=None):
                             for hit_function in [
                                     function for function in hit.functions
                                     if function in fragment_functions
-                                ]:
+                            ]:
                                 if hit_function in function_maxbitscores:
                                     if hit.bitscore > function_maxbitscores[hit_function][
                                             'bitscore'
-                                        ]:
+                                    ]:
                                         function_maxbitscores[hit_function][
                                             'bitscore'
                                             ] = hit.bitscore
@@ -507,11 +512,11 @@ def get_function_scores(project, sample_id=None, metrics=None):
                             for hit_function in [
                                     function for function in hit.functions
                                     if function in fragment_functions
-                                ]:
+                            ]:
                                 if hit_function in function_maxbitscores:
                                     if hit.bitscore > function_maxbitscores[hit_function][
                                             'bitscore'
-                                        ]:
+                                    ]:
                                         function_maxbitscores[hit_function][
                                             'bitscore'
                                             ] = hit.bitscore
@@ -555,13 +560,13 @@ def get_function_scores(project, sample_id=None, metrics=None):
                             else:
                                 print('Function', function, 'not found in hits of read', read_id)
 
-                else: #Only end1 is mapped
+                else:  # Only end1 is mapped
                     read_functions = read_pe1.functions
                     fragment_functions = set(read_functions.keys())
                     # Count FPKM
-                    #~ for function in fragment_functions:
-                        #~ ret_val[function][s]['count'] += 1
-                        #~ ret_val[function][s][metrics] += norm_factor * read_functions[function]
+                    # for function in fragment_functions:
+                    #     ret_val[function][s]['count'] += 1
+                    #     ret_val[function][s][metrics] += norm_factor * read_functions[function]
 
                     function_maxbitscores = defaultdict(dict)
                     hits1 = [hit for hit in read_pe1.hit_list.hits]
@@ -571,7 +576,7 @@ def get_function_scores(project, sample_id=None, metrics=None):
                         for hit_function in [
                                 function for function in hit.functions
                                 if function in fragment_functions
-                            ]:
+                        ]:
                             if hit_function in function_maxbitscores:
                                 if hit.bitscore > function_maxbitscores[hit_function]['bitscore']:
                                     function_maxbitscores[hit_function]['bitscore'] = hit.bitscore
@@ -605,7 +610,7 @@ def get_function_scores(project, sample_id=None, metrics=None):
 
             for read_id, read_pe2 in project.samples[sample].reads['pe2'].items():
                 if read_id in reads_processed:
-                    continue #Skip read if it was already counted
+                    continue  # Skip read if it was already counted
                 if read_pe2.status != STATUS_GOOD:
                     continue
 
@@ -620,7 +625,7 @@ def get_function_scores(project, sample_id=None, metrics=None):
                     for hit_function in [
                             function for function in hit.functions
                             if function in fragment_functions
-                        ]:
+                    ]:
                         if hit_function in function_maxbitscores:
                             if hit.bitscore > function_maxbitscores[hit_function]['bitscore']:
                                 function_maxbitscores[hit_function]['bitscore'] = hit.bitscore
@@ -653,6 +658,7 @@ def get_function_scores(project, sample_id=None, metrics=None):
                     else:
                         print('Function', function, 'not found in hits of read', read_id)
     return ret_val
+
 
 def get_function_taxonomy_scores(project, sample_id=None, metrics=None):
     """Builds three-dimensional (taxonomy ID/ function ID / sample ID) tables for read
@@ -732,7 +738,7 @@ def get_function_taxonomy_scores(project, sample_id=None, metrics=None):
                 raise ValueError('No Read count, RPKG and RPKM metrics for paired-end input')
 
             for read_id, read in project.samples[sample].reads['pe1'].items():
-                if read.status != STATUS_GOOD: # Filter unmapped reads
+                if read.status != STATUS_GOOD:  # Filter unmapped reads
                     continue
                 read_erpk_scores = read.functions
                 for function in read_erpk_scores:
@@ -751,7 +757,7 @@ def get_function_taxonomy_scores(project, sample_id=None, metrics=None):
                     for hit_function in [
                             function for function in hit.functions
                             if function in read.functions
-                        ]:
+                    ]:
                         if hit_function in function_maxbitscores:
                             if hit.bitscore > function_maxbitscores[hit_function]:
                                 function_maxbitscores[hit_function] = hit.bitscore
@@ -762,9 +768,10 @@ def get_function_taxonomy_scores(project, sample_id=None, metrics=None):
                     for hit_function in [
                             function for function in hit.functions
                             if function in read.functions
-                        ]:
-                        if hit_function in function_maxbitscores \
-                        and hit.bitscore == function_maxbitscores[hit_function]:
+                    ]:
+                        if hit_function in function_maxbitscores and (
+                                hit.bitscore == function_maxbitscores[hit_function]
+                        ):
                             ret_val[read.taxonomy][function][sample]['hit_count'] += 1.0
                             ret_val[read.taxonomy][function][sample]['identity'] += hit.identity
                             del function_maxbitscores[hit_function]
@@ -783,8 +790,9 @@ def get_function_taxonomy_scores(project, sample_id=None, metrics=None):
                     continue
                 reads_processed.add(read_id)
 
-                if 'pe2' in project.samples[sample].reads and \
-                read_id in project.samples[sample].reads['pe2']:
+                if 'pe2' in project.samples[sample].reads and (
+                        read_id in project.samples[sample].reads['pe2']
+                ):
                     read_pe2 = project.samples[sample].reads['pe2'][read_id]
                     if read_pe2.status == STATUS_GOOD:
                         # Both ends are mapped
@@ -807,11 +815,11 @@ def get_function_taxonomy_scores(project, sample_id=None, metrics=None):
                             for hit_function in [
                                     function for function in hit.functions
                                     if function in fragment_functions
-                                ]:
+                            ]:
                                 if hit_function in function_maxbitscores:
                                     if hit.bitscore > function_maxbitscores[hit_function][
                                             'bitscore'
-                                        ]:
+                                    ]:
                                         function_maxbitscores[hit_function][
                                             'bitscore'
                                             ] = hit.bitscore
@@ -827,11 +835,11 @@ def get_function_taxonomy_scores(project, sample_id=None, metrics=None):
                             for hit_function in [
                                     function for function in hit.functions
                                     if function in fragment_functions
-                                ]:
+                            ]:
                                 if hit_function in function_maxbitscores:
                                     if hit.bitscore > function_maxbitscores[hit_function][
                                             'bitscore'
-                                        ]:
+                                    ]:
                                         function_maxbitscores[hit_function][
                                             'bitscore'
                                             ] = hit.bitscore
@@ -870,7 +878,7 @@ def get_function_taxonomy_scores(project, sample_id=None, metrics=None):
                             else:
                                 print('Function', function, 'not found in hits of read', read_id)
 
-                else: #Only end1 is mapped
+                else:  # Only end1 is mapped
                     fragment_taxonomy = read_pe1.taxonomy
                     read_functions = read_pe1.functions
                     fragment_functions = set(read_functions.keys())
@@ -881,7 +889,7 @@ def get_function_taxonomy_scores(project, sample_id=None, metrics=None):
                         for hit_function in [
                                 function for function in hit.functions
                                 if function in fragment_functions
-                            ]:
+                        ]:
                             if hit_function in function_maxbitscores:
                                 if hit.bitscore > function_maxbitscores[hit_function]['bitscore']:
                                     function_maxbitscores[hit_function]['bitscore'] = hit.bitscore
@@ -904,22 +912,23 @@ def get_function_taxonomy_scores(project, sample_id=None, metrics=None):
                             elif metrics in ['fpk', 'fpkg', 'fpkm']:
                                 ret_val[fragment_taxonomy][function][sample][
                                     metrics
-                                    ] += norm_factor * get_fpk_score(\
-                                function_maxbitscores[function]['length'])
+                                ] += norm_factor * get_fpk_score(
+                                    function_maxbitscores[function]['length']
+                                )
                             else:
                                 ret_val[fragment_taxonomy][function][sample][
                                     metrics
-                                    ] += norm_factor * get_efpk_score(
-                                        function_maxbitscores[function]['length'],
-                                        average_read_length, length_cutoff,
-                                        insert_size=insert_size
-                                        )
+                                ] += norm_factor * get_efpk_score(
+                                    function_maxbitscores[function]['length'],
+                                    average_read_length, length_cutoff,
+                                    insert_size=insert_size
+                                )
                         else:
                             print('Function', function, 'not found in hits of read', read_id)
 
             for read_id in project.samples[sample].reads['pe2'].keys():
                 if read_id in reads_processed:
-                    continue #Skip read if it was already counted
+                    continue  # Skip read if it was already counted
 
                 read_pe2 = project.samples[sample].reads['pe2'][read_id]
                 if read_pe2.status != STATUS_GOOD:
@@ -938,7 +947,7 @@ def get_function_taxonomy_scores(project, sample_id=None, metrics=None):
                     for hit_function in [
                             function for function in hit.functions
                             if function in fragment_functions
-                        ]:
+                    ]:
                         if hit_function in function_maxbitscores:
                             if hit.bitscore > function_maxbitscores[hit_function]['bitscore']:
                                 function_maxbitscores[hit_function]['bitscore'] = hit.bitscore
@@ -955,7 +964,7 @@ def get_function_taxonomy_scores(project, sample_id=None, metrics=None):
                         ret_val[fragment_taxonomy][function][sample]['hit_count'] += 1.0
                         ret_val[fragment_taxonomy][function][sample][
                             'identity'
-                            ] += function_maxbitscores[function]['identity']
+                        ] += function_maxbitscores[function]['identity']
                         if metrics == 'fragmentcount':
                             ret_val[fragment_taxonomy][function][sample][metrics] += 1
                         elif metrics in ['fpk', 'fpkg', 'fpkm']:
@@ -974,6 +983,7 @@ def get_function_taxonomy_scores(project, sample_id=None, metrics=None):
                     else:
                         print('Function', function, 'not found in hits of read', read_id)
     return ret_val
+
 
 def generate_sample_report(project, sample_id, metrics=None):
     """ Creates report files for a FASTQ sample in project's directory.
@@ -1041,11 +1051,13 @@ def generate_sample_report(project, sample_id, metrics=None):
                 'FASTQ file 2:\t' + str(len(project.samples[sample_id].reads['pe2'])) + '\n'
                 )
 
-    if project.samples[sample_id].rpkg_scaling_factor is None\
-    and metrics in ['efpkg', 'fpkg', 'erpkg', 'rpkg']:
+    if project.samples[sample_id].rpkg_scaling_factor is None and (
+            metrics in ['efpkg', 'fpkg', 'erpkg', 'rpkg']
+    ):
         raise ValueError('Not enough data to normalize by average genome size')
-    if project.samples[sample_id].rpkm_scaling_factor is None \
-    and metrics in ['efpkm', 'fpkm', 'erpkm', 'rpkm']:
+    if project.samples[sample_id].rpkm_scaling_factor is None and (
+            metrics in ['efpkm', 'fpkm', 'erpkm', 'rpkm']
+    ):
         raise ValueError('Not enough data to normalize by sample size')
 
     scores_function = get_function_scores(project, sample_id, metrics=metrics)
@@ -1076,6 +1088,7 @@ def generate_sample_report(project, sample_id, metrics=None):
     make_taxonomy_series_chart(
         tax_profile, function_list, outfile, project.config.krona_path, score=metrics
         )
+
 
 def generate_protein_sample_report(project, sample_id, metrics=None):
     """ Creates report files for a protein sample in project's directory.
@@ -1159,6 +1172,7 @@ def generate_protein_sample_report(project, sample_id, metrics=None):
     make_taxonomy_series_chart(
         tax_profile, function_list, outfile, project.config.krona_path, score=metrics
         )
+
 
 def generate_project_report(project, metrics=None):
     """ Creates project report files for nucleotide project.
@@ -1287,26 +1301,7 @@ def generate_project_mkdocs(project, scores, sample_id=None, metrics=None):
         out_f.write(project.options.project_name)
         out_f.write('\n\n')
 
-        #~ of.write('## Categories\n\nAbundance of functional categories (RPKM score)\n\n')
-
-        #~ of.write('Category|')
-        #~ of.write('|'.join(samples_list))
-        #~ of.write('|\n')
-        #~ of.write('|---'*(len(samples_list) + 1))
-        #~ of.write('|\n')
-
-        #~ for category in sorted(categories_list):
-            #~ of.write(category)
-            #~ for sample in samples_list:
-                #~ of.write('|')
-                #~ if sample in scores_cat[category]:
-                    #~ of.write('{0:.3f}'.format(scores_cat[category][sample]))
-                #~ else:
-                    #~ of.write('0.000')
-            #~ of.write('|\n')
-
         out_f.write('\n## Functions\n\n' + metrics + ' scores of individual functions\n\n')
-
 
         out_f.write('Function|')
         out_f.write('|'.join(samples_list))
@@ -1326,8 +1321,9 @@ def generate_project_mkdocs(project, scores, sample_id=None, metrics=None):
             out_f.write(project.ref_data.lookup_function_name(function))
             out_f.write('|\n')
 
-        targetfile = sanitize_file_name(os.path.join\
-        ('data', project.options.project_name + '_functions.xlsx'))
+        targetfile = sanitize_file_name(os.path.join(
+            'data', project.options.project_name + '_functions.xlsx'
+        ))
 
         out_f.write('\n<a href="')
         out_f.write(targetfile)
@@ -1379,8 +1375,9 @@ def generate_project_mkdocs(project, scores, sample_id=None, metrics=None):
             out_f.write(os.path.join(project.options.get_collection()))
             out_f.write(' dataset\n\n')
 
-            targetfile = sanitize_file_name(os.path.join('..',\
-            'data', sample + '_functional_taxonomy_profile.xml.html'))
+            targetfile = sanitize_file_name(os.path.join(
+                '..', 'data', sample + '_functional_taxonomy_profile.xml.html'
+            ))
             out_f.write('<div class="krona-wrapper">\n<iframe src="')
             out_f.write(targetfile)
             out_f.write('" height="800" width="100%">')
@@ -1391,27 +1388,32 @@ def generate_project_mkdocs(project, scores, sample_id=None, metrics=None):
 
             out_f.write('## Reports for FASTQ files\n\n')
             if os.path.exists(
-                    os.path.join(project.options.get_project_dir(sample),
-                                 project.options.get_output_subdir(sample),
-                                 sample + '_pe1_'+ project.options.report_name + '.pdf')
-                ):
+                    os.path.join(
+                        project.options.get_project_dir(sample),
+                        project.options.get_output_subdir(sample),
+                        sample + '_pe1_' + project.options.report_name + '.pdf'
+                    )
+            ):
                 targetfile = os.path.join(
-                    '..', 'data', sample + '_pe1_'+ project.options.report_name + '.pdf'
+                    '..', 'data', sample + '_pe1_' + project.options.report_name + '.pdf'
                     )
                 out_f.write('<a href="')
                 out_f.write(targetfile)
                 out_f.write('">Download report for read end 1 (PDF format)</a>\n<br>\n')
             if os.path.exists(
-                    os.path.join(project.options.get_project_dir(sample),
-                                 project.options.get_output_subdir(sample),
-                                 sample + '_pe2_'+ project.options.report_name + '.pdf')
-                ):
+                    os.path.join(
+                        project.options.get_project_dir(sample),
+                        project.options.get_output_subdir(sample),
+                        sample + '_pe2_' + project.options.report_name + '.pdf'
+                    )
+            ):
                 targetfile = os.path.join(
-                    '..', 'data', sample + '_pe2_'+ project.options.report_name + '.pdf'
+                    '..', 'data', sample + '_pe2_' + project.options.report_name + '.pdf'
                     )
                 out_f.write('<a href="')
                 out_f.write(targetfile)
                 out_f.write('">Download report for read end 2 (PDF format)</a>\n<br>\n')
+
 
 def generate_functions_stamp_input(project, scores, metrics):
     """ Creates functional profile in text format for downstream analysis with STAMP.
@@ -1458,6 +1460,7 @@ def generate_functions_stamp_input(project, scores, metrics):
                 + '\t' + project.samples[sample_id].replicate + '\n'
                 )
 
+
 def print_stamp_dataseries_taxonomy(tax_profile, sample_list, metrics,
                                     taxonomy_id='1', prefix='', taxonomy_level=0):
     """Makes a taxon entry for export as STAMP input files. Recursively calls
@@ -1483,9 +1486,9 @@ def print_stamp_dataseries_taxonomy(tax_profile, sample_list, metrics,
     if taxonomy_id not in tax_profile.tree.data:
         raise ValueError(taxonomy_id + 'not found in the tree!!!')
 
-    if taxonomy_id == '1': # top level
+    if taxonomy_id == '1':  # top level
         new_prefix = prefix
-    elif prefix == '': # superkingdom level: do not start with tab
+    elif prefix == '':  # superkingdom level: do not start with tab
         new_prefix = tax_profile.tree.data[taxonomy_id].name
     else:
         new_prefix = prefix + '\t' + tax_profile.tree.data[taxonomy_id].name
@@ -1508,12 +1511,12 @@ def print_stamp_dataseries_taxonomy(tax_profile, sample_list, metrics,
             if sample_id in tax_profile.tree.data[taxonomy_id].attributes:
                 if attribute_values[sample_id][metrics] < tax_profile.tree.data[
                         taxonomy_id
-                    ].attributes[sample_id][metrics]:
+                ].attributes[sample_id][metrics]:
                     unclassified_flag = True
                     break
 
         if unclassified_flag:
-            if taxonomy_id == '1': # line sohuld not start with tab symbol
+            if taxonomy_id == '1':  # line sohuld not start with tab symbol
                 ret_val += 'unclassified' + '\tunclassified' * (len(
                     tax_profile.RANKS
                     ) - new_taxonomy_level - 1)
@@ -1522,9 +1525,10 @@ def print_stamp_dataseries_taxonomy(tax_profile, sample_list, metrics,
                     taxonomy_id
                     ].name + '\tunclassified' * (len(tax_profile.RANKS) - new_taxonomy_level - 1)
             for sample_id in sample_list:
-                if sample_id in tax_profile.tree.data[taxonomy_id].attributes and attribute_values[
-                        sample_id
-                    ][metrics] < tax_profile.tree.data[taxonomy_id].attributes[sample_id][metrics]:
+                if sample_id in tax_profile.tree.data[taxonomy_id].attributes and (
+                        attribute_values[sample_id][metrics]
+                        < tax_profile.tree.data[taxonomy_id].attributes[sample_id][metrics]
+                ):
                     ret_val += '\t' + str(
                         tax_profile.tree.data[taxonomy_id].attributes[sample_id][
                             metrics
@@ -1537,8 +1541,9 @@ def print_stamp_dataseries_taxonomy(tax_profile, sample_list, metrics,
         ret_val += new_prefix + '\tunclassified' * (len(tax_profile.RANKS) - new_taxonomy_level)
         if tax_profile.tree.data[taxonomy_id].attributes:
             for sample_id in sample_list:
-                if sample_id in tax_profile.tree.data[taxonomy_id].attributes\
-                and metrics in tax_profile.tree.data[taxonomy_id].attributes[sample_id]:
+                if sample_id in tax_profile.tree.data[taxonomy_id].attributes and (
+                        metrics in tax_profile.tree.data[taxonomy_id].attributes[sample_id]
+                ):
                     ret_val += '\t' + str(
                         tax_profile.tree.data[taxonomy_id].attributes[sample_id][metrics]
                         )
@@ -1550,12 +1555,13 @@ def print_stamp_dataseries_taxonomy(tax_profile, sample_list, metrics,
 
     attribute_values = autovivify(1)
     for sample_id in sample_list:
-        if sample_id in tax_profile.tree.data[taxonomy_id].attributes\
-        and metrics in tax_profile.tree.data[taxonomy_id].attributes[sample_id]:
-            attribute_values[sample_id][metrics] = tax_profile.tree.data[
-                taxonomy_id
-                ].attributes[sample_id][metrics]
+        if sample_id in tax_profile.tree.data[taxonomy_id].attributes and (
+                metrics in tax_profile.tree.data[taxonomy_id].attributes[sample_id]
+        ):
+            attribute_values[sample_id][metrics] = \
+                tax_profile.tree.data[taxonomy_id].attributes[sample_id][metrics]
     return ret_val, attribute_values
+
 
 def generate_func_tax_stamp_input(project, scores, metrics):
     """ Creates functional-taxonomic profile in text format for downstream analysis with STAMP.
@@ -1570,8 +1576,12 @@ def generate_func_tax_stamp_input(project, scores, metrics):
             'fragmentcount', 'fpk', 'efpk', 'fpkm', 'erpkm', 'efpkm',
             'fpkg', 'rpkg', 'erpkg', 'efpkg'
     """
-    metadata_outfile = sanitize_file_name(os.path.join(project.options.work_dir,\
-    project.options.project_name + '_functions_taxonomy.metadata.stamp.tsv'))
+    metadata_outfile = sanitize_file_name(
+        os.path.join(
+            project.options.work_dir,
+            project.options.project_name + '_functions_taxonomy.metadata.stamp.tsv'
+        )
+    )
     sample_list = project.list_samples()
     root_id = '1'
 
@@ -1581,11 +1591,11 @@ def generate_func_tax_stamp_input(project, scores, metrics):
         for tax in scores.keys():
             if function in scores[tax].keys():
                 for sample_id in project.list_samples():
-                    if sample_id in scores[tax][function] \
-                    and metrics in scores[tax][function][sample_id]:
-                        sample_scores[tax][sample_id][metrics] = scores[tax][function][sample_id][
-                            metrics
-                            ]
+                    if sample_id in scores[tax][function] and (
+                            metrics in scores[tax][function][sample_id]
+                    ):
+                        sample_scores[tax][sample_id][metrics] = \
+                            scores[tax][function][sample_id][metrics]
                     else:
                         sample_scores[tax][sample_id][metrics] = 0.0
 
@@ -1621,6 +1631,7 @@ def generate_func_tax_stamp_input(project, scores, metrics):
                 + project.samples[sample_id].replicate + '\n'
                 )
 
+
 def generate_sample_text_report(project, sample_id, metrics=None):
     """ Creates sample report in text format.
 
@@ -1637,7 +1648,7 @@ def generate_sample_text_report(project, sample_id, metrics=None):
             metrics = 'efpkg'
         else:
             metrics = 'erpkg'
-    #outfile = os.path.join(project.samples[sample_id].work_directory, sample_id + '_report.txt')
+    # outfile = os.path.join(project.samples[sample_id].work_directory, sample_id + '_report.txt')
     outfile = sanitize_file_name(os.path.join(project.options.work_dir, sample_id + '_report.txt'))
     with open(outfile, 'w') as out_f:
         out_f.write('Report for ' + sample_id + '\n\n')
@@ -1707,11 +1718,13 @@ def generate_sample_text_report(project, sample_id, metrics=None):
                 + '\n'
                 )
 
-    if project.samples[sample_id].rpkg_scaling_factor is None \
-    and metrics in ['efpkg', 'fpkg', 'erpkg', 'rpkg']:
+    if project.samples[sample_id].rpkg_scaling_factor is None and (
+            metrics in ['efpkg', 'fpkg', 'erpkg', 'rpkg']
+    ):
         raise ValueError('Not enough data to normalize by average genome size')
-    if project.samples[sample_id].rpkm_scaling_factor is None \
-    and metrics in ['efpkm', 'fpkm', 'erpkm', 'rpkm']:
+    if project.samples[sample_id].rpkm_scaling_factor is None and (
+            metrics in ['efpkm', 'fpkm', 'erpkm', 'rpkm']
+    ):
         raise ValueError('Not enough data to normalize by sample size')
 
     scores_function = get_function_scores(project, sample_id, metrics=metrics)
@@ -1733,7 +1746,7 @@ def generate_sample_text_report(project, sample_id, metrics=None):
     outfile = sanitize_file_name(
         os.path.join(
             project.options.work_dir,
-            sample_id + '_' + metrics  + '_functional_taxonomy_profile.xml'
+            sample_id + '_' + metrics + '_functional_taxonomy_profile.xml'
             )
         )
     tax_profile.make_function_taxonomy_profile(project.taxonomy_data, sample_scores_taxonomy)
@@ -1741,6 +1754,7 @@ def generate_sample_text_report(project, sample_id, metrics=None):
     make_taxonomy_series_chart(
         tax_profile, function_list, outfile, project.config.krona_path, score=metrics
         )
+
 
 def generate_assembly_report(assembler):
     """ Creates assemly report in text format.
@@ -1758,7 +1772,7 @@ def generate_assembly_report(assembler):
                     gene = assembler.assembly.contigs[function][contig].genes[gene_id]
                     if gene.status == STATUS_GOOD:
                         out_f.write(
-                            function + '\t' +  contig + '\t' + str(
+                            function + '\t' + contig + '\t' + str(
                                 len(assembler.assembly.contigs[function][contig].sequence)
                                 )
                             + '\t' + gene_id + '\t' + ','.join(gene.functions.keys())

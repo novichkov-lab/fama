@@ -4,6 +4,7 @@ import sys
 import argparse
 from lib.trimming_pipeline import trimming_pipeline
 
+
 def get_args():
     """Returns command-line arguments"""
     desc = '''This program runs functional profiling pipeline.'''
@@ -31,6 +32,7 @@ def get_args():
         parser.print_help()
         sys.exit(1)
     return args
+
 
 def main():
     """Main function calling trimming module"""

@@ -29,7 +29,6 @@ from lib.output.report import generate_fastq_report
 from lib.output.pdf_report import generate_pdf_report
 from lib.output.krona_xml_writer import make_functions_chart
 
-# This program renames one sample in a project
 
 def get_args():
     """Returns command-line arguments"""
@@ -45,6 +44,7 @@ def get_args():
         sys.exit(1)
     return args
 
+
 def check_id(project, old_id, new_id):
     """Checks if old identifier exists in the project and if the new
     identifier does not interfere with any existing sample
@@ -55,21 +55,22 @@ def check_id(project, old_id, new_id):
         raise ValueError('Sample ID ' + new_id
                          + ' already exists in this project. Choose other ID')
 
+
 def rename_files(project, old_id, new_id):
     """Renames all intermediate files having old sample identifier with new sample identifier"""
     for end in ENDS:
         if not project.samples[old_id].is_paired_end and end == 'pe2':
             continue
         if os.path.exists(os.path.join(project.options.get_project_dir(old_id),
-                                       old_id + '_' + end + '_'+ project.options.ref_output_name)):
+                                       old_id + '_' + end + '_' + project.options.ref_output_name)):
             os.rename(
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    old_id + '_' + end + '_'+ project.options.ref_output_name
+                    old_id + '_' + end + '_' + project.options.ref_output_name
                     ),
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    new_id + '_' + end + '_'+ project.options.ref_output_name
+                    new_id + '_' + end + '_' + project.options.ref_output_name
                     )
                 )
         if os.path.exists(os.path.join(project.options.get_project_dir(old_id),
@@ -78,11 +79,11 @@ def rename_files(project, old_id, new_id):
             os.rename(
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    old_id + '_' + end + '_'+ project.options.ref_hits_fastq_name
+                    old_id + '_' + end + '_' + project.options.ref_hits_fastq_name
                     ),
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    new_id + '_' + end + '_'+ project.options.ref_hits_fastq_name
+                    new_id + '_' + end + '_' + project.options.ref_hits_fastq_name
                     )
                 )
         if os.path.exists(os.path.join(project.options.get_project_dir(old_id),
@@ -91,11 +92,11 @@ def rename_files(project, old_id, new_id):
             os.rename(
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    old_id + '_' + end + '_'+ project.options.background_output_name
+                    old_id + '_' + end + '_' + project.options.background_output_name
                     ),
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    new_id + '_' + end + '_'+ project.options.background_output_name
+                    new_id + '_' + end + '_' + project.options.background_output_name
                     )
                 )
         if os.path.exists(os.path.join(project.options.get_project_dir(old_id),
@@ -104,11 +105,11 @@ def rename_files(project, old_id, new_id):
             os.rename(
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    old_id + '_' + end + '_'+ project.options.reads_fastq_name + '.gz'
+                    old_id + '_' + end + '_' + project.options.reads_fastq_name + '.gz'
                     ),
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    new_id + '_' + end + '_'+ project.options.reads_fastq_name + '.gz'
+                    new_id + '_' + end + '_' + project.options.reads_fastq_name + '.gz'
                     )
                 )
         if os.path.exists(os.path.join(project.options.get_project_dir(old_id),
@@ -117,11 +118,11 @@ def rename_files(project, old_id, new_id):
             os.rename(
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    old_id + '_' + end + '_'+ project.options.pe_reads_fastq_name + '.gz'
+                    old_id + '_' + end + '_' + project.options.pe_reads_fastq_name + '.gz'
                     ),
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    new_id + '_' + end + '_'+ project.options.pe_reads_fastq_name + '.gz'
+                    new_id + '_' + end + '_' + project.options.pe_reads_fastq_name + '.gz'
                     )
                 )
         if os.path.exists(os.path.join(project.options.get_project_dir(old_id),
@@ -130,11 +131,11 @@ def rename_files(project, old_id, new_id):
             os.rename(
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    old_id + '_' + end + '_'+ project.options.ref_hits_list_name
+                    old_id + '_' + end + '_' + project.options.ref_hits_list_name
                     ),
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    new_id + '_' + end + '_'+ project.options.ref_hits_list_name
+                    new_id + '_' + end + '_' + project.options.ref_hits_list_name
                     )
                 )
         if os.path.exists(os.path.join(project.options.get_project_dir(old_id),
@@ -143,11 +144,11 @@ def rename_files(project, old_id, new_id):
             os.rename(
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    old_id + '_' + end + '_'+ project.options.reads_json_name
+                    old_id + '_' + end + '_' + project.options.reads_json_name
                     ),
                 os.path.join(
                     project.options.get_project_dir(old_id),
-                    new_id + '_' + end + '_'+ project.options.reads_json_name
+                    new_id + '_' + end + '_' + project.options.reads_json_name
                     )
                 )
     if os.path.exists(os.path.join(project.options.get_project_dir(old_id),
@@ -162,6 +163,7 @@ def rename_files(project, old_id, new_id):
                 new_id + '_sample.json'
                 )
             )
+
 
 def rename_sample(config_file, project_file, old_id, new_id):
     """This function is doing all the work to rename a sample
@@ -233,6 +235,7 @@ def rename_sample(config_file, project_file, old_id, new_id):
         generate_fastq_report(parser)
         generate_pdf_report(parser)
         make_functions_chart(parser)
+
 
 def main():
     """Main function: gets args and calls rename_sample"""

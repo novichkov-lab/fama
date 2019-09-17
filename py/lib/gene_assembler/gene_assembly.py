@@ -2,6 +2,7 @@
 from lib.gene_assembler.contig import Contig
 from lib.utils.utils import autovivify
 
+
 class GeneAssembly(object):
     """GeneAssembly stores input reads and resulting contigs
 

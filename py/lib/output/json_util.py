@@ -9,6 +9,7 @@ from lib.gene_assembler.contig import Contig
 from lib.gene_assembler.gene import Gene
 from lib.gene_assembler.gene_assembly import GeneAssembly
 
+
 def decode_reads(obj):
     """Custom JSON decoder for AnnotatedRead object
 
@@ -28,6 +29,7 @@ def decode_reads(obj):
         diamond_hit.__dict__.update(obj['__DiamondHit__'])
         return diamond_hit
     return obj
+
 
 def decode_sample(obj):
     """Custom JSON decoder for Sample object
@@ -82,6 +84,7 @@ def decode_assembly(obj):
         return gene_assembly
     return obj
 
+
 def import_annotated_reads(infile):
     """Imports annotated reads from JSON file
 
@@ -97,6 +100,7 @@ def import_annotated_reads(infile):
         deserialized = json.load(file_handle, object_hook=decode_reads)
     return deserialized
 
+
 def import_sample(infile):
     """Imports sample from JSON file
 
@@ -110,6 +114,7 @@ def import_sample(infile):
     with open(infile, 'r') as file_handle:
         deserialized = json.load(file_handle, object_hook=decode_sample)
     return deserialized
+
 
 def import_gene_assembly(infile):
     """Imports gene assembly from JSON file
@@ -125,18 +130,21 @@ def import_gene_assembly(infile):
         deserialized = json.load(file_handle, object_hook=decode_assembly)
     return deserialized
 
+
 def export_annotated_reads(parser):
     """Exports annotated reads in JSON format
 
     Args:
         parser (:obj:DiamondParser): parser with annotated reads
     """
-    outfile = os.path.join(parser.options.get_project_dir(parser.sample.sample_id),
-                           parser.sample.sample_id + '_' + parser.end + '_' \
-                           + parser.options.reads_json_name)
-    #print pretty JSON: print(json.dumps(parser.reads,indent=4, cls=CustomEncoder))
+    outfile = os.path.join(
+        parser.options.get_project_dir(parser.sample.sample_id),
+        parser.sample.sample_id + '_' + parser.end + '_' + parser.options.reads_json_name
+    )
+    # print pretty JSON: print(json.dumps(parser.reads,indent=4, cls=CustomEncoder))
     with open(outfile, 'w') as out:
-        json.dump(parser.reads, out)#, cls=CustomEncoder)
+        json.dump(parser.reads, out, cls=CustomEncoder)
+
 
 def export_sample(sample):
     """Exports sample in JSON format
@@ -145,10 +153,11 @@ def export_sample(sample):
         sample (:obj:Sample): sample object
     """
     outfile = os.path.join(sample.work_directory, sample.sample_id + '_sample.json')
-    #print pretty JSON: print(json.dumps(parser.reads,indent=4, cls=CustomEncoder))
+    # print pretty JSON: print(json.dumps(parser.reads,indent=4, cls=CustomEncoder))
     with open(outfile, 'w') as out:
-        #of.write(json.dumps(sample,indent=4, cls=CustomEncoder))
-        json.dump(sample, out)#, cls=CustomEncoder)
+        # of.write(json.dumps(sample,indent=4, cls=CustomEncoder))
+        json.dump(sample, out, cls=CustomEncoder)
+
 
 def export_gene_assembly(assembly, outfile):
     """Saves GeneAssembly object as JSON file
@@ -157,16 +166,17 @@ def export_gene_assembly(assembly, outfile):
         assembly (:obj:GeneAssembly): gene assembly
         outfile (str): output file name
     """
-    #print pretty JSON: print(json.dumps(assembly,indent=4, cls=CustomEncoder))
+    # print pretty JSON: print(json.dumps(assembly,indent=4, cls=CustomEncoder))
     with open(outfile, 'w') as out:
-        json.dump(assembly, out)#, indent=4, cls=CustomEncoder)
+        json.dump(assembly, out, indent=4, cls=CustomEncoder)
 
-#~ class CustomEncoder(json.JSONEncoder):
-    #~ """Custom JSON encoder class"""
-    #~ def default(self, obj):
-        #~ """Returns encoded object as JSON-formatted string
 
-        #~ Args:
-            #~ obj (object): instance to encode
-        #~ """
-        #~ return {'__{}__'.format(obj.__class__.__name__): obj.__dict__}
+class CustomEncoder(json.JSONEncoder):
+    """Custom JSON encoder class"""
+    def default(self, obj):
+        """Returns encoded object as JSON-formatted string
+
+        Args:
+            obj (object): instance to encode
+        """
+        return {'__{}__'.format(obj.__class__.__name__): obj.__dict__}

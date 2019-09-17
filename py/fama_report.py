@@ -18,6 +18,7 @@ from lib.functional_profiling_pipeline import run_microbecensus
 import lib.output.report as fama_report
 from lib.protein_functional_pipeline import generate_output
 
+
 def get_args():
     """Returns command-line arguments"""
     desc = '''This program re-runs report generation for functional profiling pipeline.'''
@@ -39,6 +40,7 @@ def get_args():
         sys.exit(1)
     return args
 
+
 def main():
     """Loads annotated reads and calls report generators"""
     args = get_args()
@@ -46,7 +48,7 @@ def main():
         project = Project(config_file=args.config, project_file=args.project)
         project.load_project()
         for sample_id in project.list_samples():
-            if not args.sample is None:
+            if args.sample is not None:
                 if args.sample != sample_id:
                     continue
             project.options.set_sample_data(project.samples[sample_id])
@@ -64,12 +66,19 @@ def main():
         for sample_id in project.list_samples():
             if args.sample is not None and args.sample != sample_id:
                 continue
-            if project.samples[sample_id].rpkg_scaling_factor is None \
-                or project.samples[sample_id].rpkg_scaling_factor == 0.0:
+            if project.samples[sample_id].rpkg_scaling_factor is None or project.samples[
+                    sample_id
+            ].rpkg_scaling_factor == 0.0:
                 project.samples[sample_id].import_rpkg_scaling_factor()
-                if project.samples[sample_id].rpkg_scaling_factor is None \
-                    or project.samples[sample_id].rpkg_scaling_factor == 0.0:
-                    run_microbecensus(sample=project.samples[sample_id], config=project.config)
+                if project.samples[
+                        sample_id
+                    ].rpkg_scaling_factor is None or project.samples[
+                        sample_id
+                        ].rpkg_scaling_factor == 0.0:
+                    run_microbecensus(
+                        sample=project.samples[sample_id],
+                        config=project.config
+                        )
                     project.samples[sample_id].import_rpkg_scaling_factor()
             project.options.set_sample_data(project.samples[sample_id])
             project.import_reads_json(sample_id, ENDS)

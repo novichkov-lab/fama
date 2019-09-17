@@ -1,4 +1,6 @@
 """Defines DiamondHit class"""
+
+
 class DiamondHit(object):
     """DiamondHit object stores data of one DIAMOND hit.
 

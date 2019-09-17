@@ -1,16 +1,8 @@
 """Describes TaxonomyData class"""
 from collections import defaultdict
 from lib.utils.const import RANKS, UNKNOWN_TAXONOMY_ID, ROOT_TAXONOMY_ID
+from lib.utils.utils import singleton
 
-def singleton(cls):
-    """Implements singleton design pattern"""
-    instances = {}
-    def getinstance(*args):
-        """Creates singleton instance of cls, if needed, and returns it"""
-        if cls not in instances:
-            instances[cls] = cls(*args)
-        return instances[cls]
-    return getinstance
 
 @singleton
 class TaxonomyData(object):
@@ -39,7 +31,7 @@ class TaxonomyData(object):
         nodes_file = config.taxonomy_nodes_file
         merged_file = config.taxonomy_merged_file
 
-        #initialize self.names
+        # initialize self.names
         print('Loading names file', names_file)
         with open(names_file, 'r') as infile:
             for line in infile:
@@ -51,7 +43,7 @@ class TaxonomyData(object):
         if not self.names:
             raise Exception('Taxonomy names load failed')
 
-        #initialize self.nodes
+        # initialize self.nodes
         print('Loading nodes file', nodes_file)
         with open(nodes_file, 'r') as infile:
             for line in infile:
@@ -63,7 +55,7 @@ class TaxonomyData(object):
                 self.nodes[taxid]['parent'] = parent
                 self.nodes[taxid]['rank'] = rank
 
-        #merge
+        # merge
         print('Loading merged file', merged_file)
         with open(merged_file, 'r') as infile:
             for line in infile:

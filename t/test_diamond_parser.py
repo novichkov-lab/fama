@@ -5,15 +5,15 @@ import json
 from context import lib
 from collections import Counter
 
-from lib.utils.const import STATUS_CAND,STATUS_GOOD,STATUS_BAD
+from lib.utils.const import STATUS_CAND, STATUS_GOOD, STATUS_BAD
 from lib.project.project import Project
 from lib.project.sample import Sample
 from lib.diamond_parser.diamond_hit import DiamondHit
 from lib.diamond_parser.diamond_hit_list import DiamondHitList
 from lib.diamond_parser.diamond_parser import DiamondParser
-from lib.diamond_parser.hit_utils import get_paired_read_id,compare_hits_erpk_lca
+from lib.diamond_parser.hit_utils import get_paired_read_id, compare_hits_erpk_lca, parse_fastq_seqid
 from lib.sequences.annotated_read import AnnotatedRead
-from lib.output.json_util import import_annotated_reads,export_annotated_reads
+from lib.output.json_util import import_annotated_reads, export_annotated_reads
 
 
 data_dir = 'data'
@@ -603,8 +603,8 @@ class DiamondParserTest(unittest.TestCase):
         self.assertEqual(len(self.parser.reads),10)
 
     def test_11_parse_fastq_seqid(self):
-        self.assertEqual(self.parser.parse_fastq_seqid('@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/1'),('NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT', '1'))
-        self.assertEqual(self.parser.parse_fastq_seqid('@SRR6048159.1.1 1 length=151'),('SRR6048159.1', '1'))
+        self.assertEqual(parse_fastq_seqid('@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/1'),('NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT', '1'))
+        self.assertEqual(parse_fastq_seqid('@SRR6048159.1.1 1 length=151'),('SRR6048159.1', '1'))
 
 
         

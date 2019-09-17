@@ -1,15 +1,7 @@
 """Describes ProgramConfig class"""
 import configparser
+from lib.utils.utils import singleton
 
-def singleton(cls):
-    """Implements singleton design pattern"""
-    instances = {}
-    def getinstance(*args, **kwargs):
-        """Creates singleton instance of cls, if not exists, and returns it"""
-        if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
-    return getinstance
 
 @singleton
 class ProgramConfig(object):
@@ -65,9 +57,10 @@ class ProgramConfig(object):
         Args:
             collection (str): identifier of collection
         """
-        result = float(self.parser['DEFAULT']['identity_cutoff'])
-        if self.parser.has_option(collection, 'identity_cutoff'):
+        try:
             result = float(self.parser[collection]['identity_cutoff'])
+        except KeyError:
+            result = float(self.parser['DEFAULT']['identity_cutoff'])
         return result
 
     def get_evalue_cutoff(self, collection):
@@ -76,9 +69,10 @@ class ProgramConfig(object):
         Args:
             collection (str): identifier of collection
         """
-        result = float(self.parser['DEFAULT']['evalue_cutoff'])
-        if self.parser.has_option(collection, 'evalue_cutoff'):
+        try:
             result = float(self.parser[collection]['evalue_cutoff'])
+        except KeyError:
+            result = float(self.parser['DEFAULT']['evalue_cutoff'])
         return result
 
     def get_length_cutoff(self, collection):
@@ -87,9 +81,10 @@ class ProgramConfig(object):
         Args:
             collection (str): identifier of collection
         """
-        result = int(self.parser['DEFAULT']['length_cutoff'])
-        if self.parser.has_option(collection, 'length_cutoff'):
+        try:
             result = int(self.parser[collection]['length_cutoff'])
+        except KeyError:
+            result = int(self.parser['DEFAULT']['length_cutoff'])
         return result
 
     def get_overlap_cutoff(self, collection):
@@ -99,9 +94,10 @@ class ProgramConfig(object):
         Args:
             collection (str): identifier of collection
         """
-        result = int(self.parser['DEFAULT']['hits_overlap_cutoff'])
-        if self.parser.has_option(collection, 'hits_overlap_cutoff'):
+        try:
             result = int(self.parser[collection]['hits_overlap_cutoff'])
+        except KeyError:
+            result = int(self.parser['DEFAULT']['hits_overlap_cutoff'])
         return result
 
     def get_biscore_range_cutoff(self, collection):
@@ -110,9 +106,10 @@ class ProgramConfig(object):
         Args:
             collection (str): identifier of collection
         """
-        result = float(self.parser['DEFAULT']['biscore_range_cutoff'])
-        if self.parser.has_option(collection, 'biscore_range_cutoff'):
+        try:
             result = float(self.parser[collection]['biscore_range_cutoff'])
+        except KeyError:
+            result = float(self.parser['DEFAULT']['biscore_range_cutoff'])
         return result
 
     def get_ranks_cutoffs(self, collection):
@@ -138,9 +135,10 @@ class ProgramConfig(object):
         Args:
             collection (str): identifier of collection
         """
-        result = self.parser['DEFAULT']['reference_diamond_db']
-        if self.parser.has_option(collection, 'reference_diamond_db'):
+        try:
             result = self.parser[collection]['reference_diamond_db']
+        except KeyError:
+            result = self.parser['DEFAULT']['reference_diamond_db']
         return result
 
     def get_background_diamond_db(self, collection):
@@ -149,9 +147,10 @@ class ProgramConfig(object):
         Args:
             collection (str): identifier of collection
         """
-        result = self.parser['DEFAULT']['background_diamond_db']
-        if self.parser.has_option(collection, 'background_diamond_db'):
+        try:
             result = self.parser[collection]['background_diamond_db']
+        except KeyError:
+            result = self.parser['DEFAULT']['background_diamond_db']
         return result
 
     def get_reference_db_size(self, collection):
@@ -160,9 +159,10 @@ class ProgramConfig(object):
         Args:
             collection (str): identifier of collection
         """
-        result = int(self.parser['DEFAULT']['reference_db_size'])
-        if self.parser.has_option(collection, 'reference_db_size'):
+        try:
             result = int(self.parser[collection]['reference_db_size'])
+        except KeyError:
+            result = int(self.parser['DEFAULT']['reference_db_size'])
         return result
 
     def get_background_db_size(self, collection):
@@ -171,9 +171,10 @@ class ProgramConfig(object):
         Args:
             collection (str): identifier of collection
         """
-        result = int(self.parser['DEFAULT']['background_db_size'])
-        if self.parser.has_option(collection, 'background_db_size'):
+        try:
             result = int(self.parser[collection]['background_db_size'])
+        except KeyError:
+            result = int(self.parser['DEFAULT']['background_db_size'])
         return result
 
     @property
@@ -195,11 +196,6 @@ class ProgramConfig(object):
     def collections(self):
         """List of collection names"""
         return self.parser.sections()
-
-    @property
-    def uniprot_diamond_db(self):
-        """Path to Uniprot DIAMOND database"""
-        return self.parser['DEFAULT']['uniprot_db_path']
 
     @property
     def diamond_path(self):

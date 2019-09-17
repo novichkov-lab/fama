@@ -4,6 +4,7 @@ from lib.project.project import Project
 from lib.gene_assembler.gene_assembler import GeneAssembler
 from lib.output.json_util import export_gene_assembly
 
+
 def assembly_pipeline(args):
     """Runs steps of assembly pipeline
 
@@ -14,7 +15,7 @@ def assembly_pipeline(args):
     """
     project = Project(config_file=args.config, project_file=args.project)
     assembler = GeneAssembler(project, assembler=args.assembler)
-    _ = assembler.export_reads(do_coassembly=args.coassembly)
+    assembler.export_reads(do_coassembly=args.coassembly)
     assembler.assemble_contigs()
     assembler.predict_genes()
     assembler.annotate_genes()

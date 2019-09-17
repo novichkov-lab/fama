@@ -15,6 +15,7 @@ from collections import defaultdict
 from lib.utils.const import STATUS_GOOD
 from lib.utils.utils import autovivify, run_external_program
 
+
 def make_functions_chart(parser, score='efpkg'):
     """Writes XML file for functions chart and generates Krona plot from it
 
@@ -22,10 +23,11 @@ def make_functions_chart(parser, score='efpkg'):
         parser (:obj:DiamondParser): parser object with annotated reads
         score (str): scoring metric (efpkg by default)
     """
-    outfile = os.path.join(parser.options.get_project_dir(parser.sample.sample_id),
-                           parser.options.get_output_subdir(parser.sample.sample_id),
-                           parser.sample.sample_id + '_' + parser.end + '_'\
-                           + parser.options.xml_name)
+    outfile = os.path.join(
+        parser.options.get_project_dir(parser.sample.sample_id),
+        parser.options.get_output_subdir(parser.sample.sample_id),
+        parser.sample.sample_id + '_' + parser.end + '_' + parser.options.xml_name
+    )
     with open(outfile, 'w') as out:
         # Write header
         out.write('<krona key="false">\n' +
@@ -98,10 +100,11 @@ def make_functions_chart(parser, score='efpkg'):
                     out.write('\t\t\t\t<' + score + '><val>' + str(functions_rpkm[function])
                               + '</val></' + score + '>\n')
                     if function in functions_identity:
-                        out.write('\t\t\t\t<identity><val>'
-                                  + str(sum(functions_identity[function]) / \
-                                  len(functions_identity[function]))
-                                  + '</val></identity>\n')
+                        out.write(
+                            '\t\t\t\t<identity><val>' + str(sum(
+                                functions_identity[function]
+                            ) / len(functions_identity[function])) + '</val></identity>\n'
+                        )
                     else:
                         out.write('\t\t\t\t<identity><val>0.0</val></identity>\n')
                     out.write('\t\t\t</node>\n')
@@ -116,6 +119,7 @@ def make_functions_chart(parser, score='efpkg'):
                              + parser.options.html_name)
     run_external_program([parser.config.krona_path, '-o', html_file, outfile])
 
+
 def get_taxon_xml(tax_profile, taxid, offset, score='efpkg'):
     """Returns XML node for a phylogenetic tree node and all its children
 
@@ -128,23 +132,22 @@ def get_taxon_xml(tax_profile, taxid, offset, score='efpkg'):
     Returns:
         ret_val (str): XML node
     """
-    #print(taxid)
     if taxid not in tax_profile.tree.data:
         raise KeyError(taxid, 'not found in the tree!!!')
     ret_val = '\t'*offset + '<node name="' + tax_profile.tree.data[taxid].name + '">\n'
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
         if score != 'readcount':
-            ret_val += '\t'*offset + '<readcount><val>'\
-                       + format(tax_profile.tree.data[taxid].attributes['count'], "0.0f")\
-                       + '</val></readcount>\n'
-        ret_val += '\t'*offset + '<' + score + '><val>'\
-                   + format((tax_profile.tree.data[taxid].attributes[score]), "0.2f")\
-                   + '</val></' + score + '>\n'
-        ret_val += '\t'*offset + '<identity><val>'\
-                   + format((tax_profile.tree.data[taxid].attributes['identity'] \
-                   / tax_profile.tree.data[taxid].attributes['hit_count']), "0.1f")\
-                   + '</val></identity>\n'
+            ret_val += '\t'*offset + '<readcount><val>' + format(
+                tax_profile.tree.data[taxid].attributes['count'], "0.0f"
+            ) + '</val></readcount>\n'
+        ret_val += '\t'*offset + '<' + score + '><val>' + format(
+            tax_profile.tree.data[taxid].attributes[score], "0.2f"
+        ) + '</val></' + score + '>\n'
+        ret_val += '\t'*offset + '<identity><val>' + format((
+            tax_profile.tree.data[taxid].attributes['identity']
+            / tax_profile.tree.data[taxid].attributes['hit_count']
+        ), "0.1f") + '</val></identity>\n'
     else:
         if score != 'readcount':
             ret_val += '\t'*offset + '<readcount><val>0</val></readcount>\n'
@@ -157,6 +160,7 @@ def get_taxon_xml(tax_profile, taxid, offset, score='efpkg'):
     offset -= 1
     ret_val += '\t'*offset + '</node>\n'
     return ret_val
+
 
 def get_lca_tax_xml(tax_profile, taxid, offset, score='efpkg'):
     """Returns XML node for a phylogenetic tree node and all its children.
@@ -181,16 +185,16 @@ def get_lca_tax_xml(tax_profile, taxid, offset, score='efpkg'):
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
         if score != 'readcount':
-            ret_val += '\t'*offset + '<readcount><val>' \
-                       + format(tax_profile.tree.data[taxid].attributes['count'], "0.0f")\
-                       + '</val></readcount>\n'
-        ret_val += '\t'*offset + '<' + score + '><val>'\
-                   + format((tax_profile.tree.data[taxid].attributes[score]), "0.2f")\
-                   + '</val></' + score + '>\n'
-        ret_val += '\t'*offset + '<identity><val>'\
-                   + format((tax_profile.tree.data[taxid].attributes['identity']\
-                   / tax_profile.tree.data[taxid].attributes['hit_count']), "0.1f")\
-                   + '</val></identity>\n'
+            ret_val += '\t'*offset + '<readcount><val>' + format(
+                tax_profile.tree.data[taxid].attributes['count'], "0.0f"
+            ) + '</val></readcount>\n'
+        ret_val += '\t'*offset + '<' + score + '><val>' + format(
+            tax_profile.tree.data[taxid].attributes[score], "0.2f"
+        ) + '</val></' + score + '>\n'
+        ret_val += '\t'*offset + '<identity><val>' + format((
+            tax_profile.tree.data[taxid].attributes['identity']
+            / tax_profile.tree.data[taxid].attributes['hit_count']
+        ), "0.1f") + '</val></identity>\n'
     else:
         if score != 'readcount':
             ret_val += '\t'*offset + '<readcount><val>0</val></readcount>\n'
@@ -205,27 +209,31 @@ def get_lca_tax_xml(tax_profile, taxid, offset, score='efpkg'):
                 attribute_values[key] += val
 
         # Add a fictional child node for unclassified reads, if any
-        if tax_profile.tree.data[taxid].attributes \
-        and attribute_values['count'] \
-        < tax_profile.tree.data[taxid].attributes['count']:
+        if tax_profile.tree.data[taxid].attributes and (
+                attribute_values['count'] < tax_profile.tree.data[taxid].attributes['count']
+        ):
             unknown_node = 'Unidentified ' + tax_profile.tree.data[taxid].name
             if offset == 2:
                 unknown_node = 'Unknown'
             ret_val += '\t'*offset + '<node name="' + unknown_node + '">\n'
             offset += 1
             if score != 'readcount':
-                ret_val += '\t'*offset + '<readcount><val>'\
-                           + format((tax_profile.tree.data[taxid].attributes['count']\
-                           - attribute_values['count']), "0.0f") + '</val></readcount>\n'
-            ret_val += '\t'*offset + '<' + score + '><val>'\
-                       + format((tax_profile.tree.data[taxid].attributes[score]\
-                       - attribute_values[score]), "0.2f") + '</val></' + score + '>\n'
+                ret_val += '\t'*offset + '<readcount><val>' + format((
+                    tax_profile.tree.data[taxid].attributes['count']
+                    - attribute_values['count']
+                ), "0.0f") + '</val></readcount>\n'
+            ret_val += '\t'*offset + '<' + score + '><val>' + format((
+                tax_profile.tree.data[taxid].attributes[score]
+                - attribute_values[score]
+            ), "0.2f") + '</val></' + score + '>\n'
             if tax_profile.tree.data[taxid].attributes['hit_count'] > attribute_values['hit_count']:
-                ret_val += '\t'*offset + '<identity><val>'\
-                           + format(((tax_profile.tree.data[taxid].attributes['identity']\
-                           - attribute_values['identity']) / (tax_profile.tree.data[taxid].\
-                           attributes['hit_count'] - attribute_values['hit_count'])), "0.1f")\
-                           + '</val></identity>\n'
+                ret_val += '\t'*offset + '<identity><val>' + format(((
+                    tax_profile.tree.data[taxid].attributes['identity']
+                    - attribute_values['identity']
+                ) / (
+                    tax_profile.tree.data[taxid].attributes['hit_count']
+                    - attribute_values['hit_count']
+                )), "0.1f") + '</val></identity>\n'
             else:
                 ret_val += '\t'*offset + '<identity><val>0.0</val></identity>\n'
             offset -= 1
@@ -239,6 +247,7 @@ def get_lca_tax_xml(tax_profile, taxid, offset, score='efpkg'):
     attribute_values['identity'] = tax_profile.tree.data[taxid].attributes['identity']
     attribute_values['hit_count'] = tax_profile.tree.data[taxid].attributes['hit_count']
     return ret_val, attribute_values
+
 
 def make_taxonomy_chart(tax_profile, sample, outfile, krona_path, score='efpkg'):
     """Writes XML file for taxonomy chart of one sample and generates Krona plot from it
@@ -259,7 +268,7 @@ def make_taxonomy_chart(tax_profile, sample, outfile, krona_path, score='efpkg')
         out.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
         out.write('\t\t<attribute display="AAI %" mono="true">identity</attribute>\n')
         out.write('\t</attributes>\n')
-        out.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0"'\
+        out.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0"'
                   + ' hueEnd="240" default="true"></color>\n')
         # Write dataset
         out.write('\t<datasets>\n')
@@ -278,6 +287,7 @@ def make_taxonomy_chart(tax_profile, sample, outfile, krona_path, score='efpkg')
     html_file = outfile + '.html'
     krona_cmd = [krona_path, '-o', html_file, outfile]
     run_external_program(krona_cmd)
+
 
 def make_taxonomy_series_chart(tax_profile, sample_list, outfile, krona_path, score='efpkg'):
     """Writes XML file for taxonomy chart of multiple samples and generates Krona plot from it
@@ -319,6 +329,7 @@ def make_taxonomy_series_chart(tax_profile, sample_list, outfile, krona_path, sc
     krona_cmd = [krona_path, '-o', html_file, outfile]
     run_external_program(krona_cmd)
 
+
 def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpkg'):
     """Returns XML node for a phylogenetic tree node and all its children.
     Creates additional child node for a fictional "Unclassified..." taxon
@@ -348,31 +359,34 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='ef
         if score != 'readcount':
             ret_val += '\t'*offset + '<readcount>'
             for datapoint in dataseries:
-                if datapoint in tax_profile.tree.data[taxid].attributes\
-                and 'count' in tax_profile.tree.data[taxid].attributes[datapoint]:
-                    ret_val += '<val>' + \
-                        format(tax_profile.tree.data[taxid].attributes[datapoint]['count'], "0.0f")\
-                        + '</val>'
+                if (datapoint in tax_profile.tree.data[taxid].attributes) and (
+                        'count' in tax_profile.tree.data[taxid].attributes[datapoint]
+                ):
+                    ret_val += '<val>' + format(
+                        tax_profile.tree.data[taxid].attributes[datapoint]['count'], "0.0f"
+                        ) + '</val>'
                 else:
                     ret_val += '<val>0</val>'
             ret_val += '</readcount>\n'
         ret_val += '\t'*offset + '<' + score + '>'
         for datapoint in dataseries:
-            if datapoint in tax_profile.tree.data[taxid].attributes\
-            and score in tax_profile.tree.data[taxid].attributes[datapoint]:
-                ret_val += '<val>' + \
-                    format((tax_profile.tree.data[taxid].attributes[datapoint][score]), "0.6f")\
-                    + '</val>'
+            if datapoint in tax_profile.tree.data[taxid].attributes and (
+                    score in tax_profile.tree.data[taxid].attributes[datapoint]
+            ):
+                ret_val += '<val>' + format(
+                    tax_profile.tree.data[taxid].attributes[datapoint][score], "0.6f"
+                ) + '</val>'
             else:
                 ret_val += '<val>0.0</val>'
         ret_val += '</' + score + '>\n' + '\t'*offset + '<identity>'
         for datapoint in dataseries:
-            if datapoint in tax_profile.tree.data[taxid].attributes\
-            and 'identity' in tax_profile.tree.data[taxid].attributes[datapoint]:
-                ret_val += '<val>' + \
-                    format((tax_profile.tree.data[taxid].attributes[datapoint]['identity']\
-                    / tax_profile.tree.data[taxid].attributes[datapoint]['hit_count']), "0.1f")\
-                    + '</val>'
+            if datapoint in tax_profile.tree.data[taxid].attributes and (
+                    'identity' in tax_profile.tree.data[taxid].attributes[datapoint]
+            ):
+                ret_val += '<val>' + format((
+                    tax_profile.tree.data[taxid].attributes[datapoint]['identity']
+                    / tax_profile.tree.data[taxid].attributes[datapoint]['hit_count']
+                ), "0.1f") + '</val>'
             else:
                 ret_val += '<val>0.0</val>'
         ret_val += '</identity>\n'
@@ -402,8 +416,10 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='ef
         unidentified_flag = False
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
-                if attribute_values[datapoint]['count'] < tax_profile.tree.data[taxid]\
-                .attributes[datapoint]['count']:
+                if (
+                        attribute_values[datapoint]['count']
+                        < tax_profile.tree.data[taxid].attributes[datapoint]['count']
+                ):
                     unidentified_flag = True
                     break
 
@@ -417,37 +433,45 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='ef
             if score != 'readcount':
                 ret_val += '\t'*offset + '<readcount>'
                 for datapoint in dataseries:
-                    if datapoint in tax_profile.tree.data[taxid].attributes\
-                    and attribute_values[datapoint]['count']\
-                    < tax_profile.tree.data[taxid].attributes[datapoint]['count']:
-                        ret_val += '<val>'\
-                        + format((tax_profile.tree.data[taxid].attributes[datapoint]['count']\
-                        - attribute_values[datapoint]['count']), "0.0f") + '</val>'
+                    if datapoint in tax_profile.tree.data[taxid].attributes and (
+                            attribute_values[datapoint]['count']
+                            < tax_profile.tree.data[taxid].attributes[datapoint]['count']
+                    ):
+                        ret_val += '<val>' + format((
+                            tax_profile.tree.data[taxid].attributes[datapoint]['count']
+                            - attribute_values[datapoint]['count']
+                        ), "0.0f") + '</val>'
                     else:
                         ret_val += '<val>0</val>'
                 ret_val += '</readcount>\n'
             ret_val += '\t'*offset + '<' + score + '>'
             for datapoint in dataseries:
-                if datapoint in tax_profile.tree.data[taxid].attributes\
-                and attribute_values[datapoint]['count']\
-                < tax_profile.tree.data[taxid].attributes[datapoint]['count']:
-                    ret_val += '<val>' + format((tax_profile.tree.data[taxid]\
-                    .attributes[datapoint][score] - attribute_values[datapoint][score]), "0.6f")\
-                    + '</val>'
+                if datapoint in tax_profile.tree.data[taxid].attributes and (
+                        attribute_values[datapoint]['count']
+                        < tax_profile.tree.data[taxid].attributes[datapoint]['count']
+                ):
+                    ret_val += '<val>' + format((
+                        tax_profile.tree.data[taxid].attributes[datapoint][score]
+                        - attribute_values[datapoint][score]
+                    ), "0.6f") + '</val>'
                 else:
                     ret_val += '<val>0.0</val>'
             ret_val += '</' + score + '>\n'
             ret_val += '\t'*offset + '<identity>'
             for datapoint in dataseries:
-                if datapoint in tax_profile.tree.data[taxid].attributes\
-                and 'hit_count' in tax_profile.tree.data[taxid].attributes[datapoint]\
-                and attribute_values[datapoint]['hit_count']\
-                < tax_profile.tree.data[taxid].attributes[datapoint]['hit_count']:
-                    ret_val += '<val>' + format(((tax_profile.tree.data[taxid]\
-                    .attributes[datapoint]['identity']\
-                    - attribute_values[datapoint]['identity'])/(tax_profile.tree.data[taxid]\
-                    .attributes[datapoint]['hit_count']\
-                    - attribute_values[datapoint]['hit_count'])), "0.1f") + '</val>'
+                if datapoint in tax_profile.tree.data[taxid].attributes and (
+                        'hit_count' in tax_profile.tree.data[taxid].attributes[datapoint]
+                ) and (
+                    attribute_values[datapoint]['hit_count']
+                    < tax_profile.tree.data[taxid].attributes[datapoint]['hit_count']
+                ):
+                    ret_val += '<val>' + format(((
+                        tax_profile.tree.data[taxid].attributes[datapoint]['identity']
+                        - attribute_values[datapoint]['identity']
+                    ) / (
+                        tax_profile.tree.data[taxid].attributes[datapoint]['hit_count']
+                        - attribute_values[datapoint]['hit_count']
+                    )), "0.1f") + '</val>'
                 else:
                     ret_val += '<val>0.0</val>'
             ret_val += '</identity>\n'
@@ -487,7 +511,6 @@ def get_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpkg'
     Returns:
         ret_val (str): XML node
     """
-    #print(taxid)
     if taxid not in tax_profile.tree.data:
         raise KeyError(taxid, 'not found in the tree!!!')
     ret_val = '\t'*offset + '<node name="' + tax_profile.tree.data[taxid].name + '">\n'
@@ -497,24 +520,27 @@ def get_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpkg'
             ret_val += '\t'*offset + '<readcount>'
             for datapoint in dataseries:
                 if datapoint in tax_profile.tree.data[taxid].attributes:
-                    ret_val += '<val>' + format(tax_profile.tree.data[taxid]\
-                    .attributes[datapoint]['count'], "0.0f") + '</val>'
+                    ret_val += '<val>' + format(
+                        tax_profile.tree.data[taxid].attributes[datapoint]['count'], "0.0f"
+                    ) + '</val>'
                 else:
                     ret_val += '<val>0</val>'
             ret_val += '</readcount>\n'
         ret_val += '\t'*offset + '<' + score + '>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
-                ret_val += '<val>' + format((tax_profile.tree.data[taxid]\
-                .attributes[datapoint][score]), "0.5f") + '</val>'
+                ret_val += '<val>' + format((
+                    tax_profile.tree.data[taxid].attributes[datapoint][score]
+                ), "0.5f") + '</val>'
             else:
                 ret_val += '<val>0.0</val>'
         ret_val += '</' + score + '>\n' + '\t'*offset + '<identity>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
-                ret_val += '<val>' + format((tax_profile.tree.data[taxid]\
-                .attributes[datapoint]['identity']/tax_profile.tree.data[taxid]\
-                .attributes[datapoint]['hit_count']), "0.1f") + '</val>'
+                ret_val += '<val>' + format((
+                    tax_profile.tree.data[taxid].attributes[datapoint]['identity']
+                    / tax_profile.tree.data[taxid].attributes[datapoint]['hit_count']
+                ), "0.1f") + '</val>'
             else:
                 ret_val += '<val>0.0</val>'
         ret_val += '</identity>\n'
@@ -535,6 +561,7 @@ def get_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpkg'
     offset -= 1
     ret_val += '\t'*offset + '</node>\n'
     return ret_val
+
 
 def make_function_taxonomy_chart(tax_profile, function_list, outfile, krona_path,
                                  score='efpkg'):
@@ -557,8 +584,8 @@ def make_function_taxonomy_chart(tax_profile, function_list, outfile, krona_path
         out.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
         out.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
         out.write('\t</attributes>\n')
-        out.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" '\
-                  +'hueEnd="240" default="true"></color>\n')
+        out.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" '
+                  + 'hueEnd="240" default="true"></color>\n')
         # Write dataset
         out.write('\t<datasets>\n')
         for function in function_list:
@@ -575,6 +602,7 @@ def make_function_taxonomy_chart(tax_profile, function_list, outfile, krona_path
     html_file = outfile + '.html'
     krona_cmd = [krona_path, '-o', html_file, outfile]
     run_external_program(krona_cmd)
+
 
 def get_genes_xml(gene_data, gene_ids, dataseries, offset, score):
     """Returns XML nodes for all predicted gene from one taxon.
@@ -663,6 +691,7 @@ def get_genes_xml(gene_data, gene_ids, dataseries, offset, score):
         ret_val += '\t'*offset + '</node>\n'
     return ret_val
 
+
 def get_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score='efpkg'):
     """Returns XML node for assembly phylogenetic tree node and all its children.
 
@@ -690,33 +719,37 @@ def get_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score='e
             ret_val += '\t'*offset + '<readcount>'
             for datapoint in dataseries:
                 if datapoint in tax_profile.tree.data[taxid].attributes:
-                    ret_val += '<val>' + format(tax_profile.tree.data[taxid]\
-                               .attributes[datapoint]['count'], "0.0f") + '</val>'
+                    ret_val += '<val>' + format(
+                        tax_profile.tree.data[taxid].attributes[datapoint]['count'], "0.0f"
+                    ) + '</val>'
                 else:
                     ret_val += '<val>0</val>'
             ret_val += '</readcount>\n'
         ret_val += '\t' * offset + '<' + score + '>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
-                ret_val += '<val>' + format((tax_profile.tree.data[taxid]\
-                           .attributes[datapoint][score]), "0.7f") + '</val>'
+                ret_val += '<val>' + format(
+                    tax_profile.tree.data[taxid].attributes[datapoint][score], "0.7f"
+                ) + '</val>'
             else:
                 ret_val += '<val>0.0</val>'
         ret_val += '</' + score + '>\n' + '\t'*offset + '<identity>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
-                ret_val += '<val>' + format((tax_profile.tree.data[taxid]\
-                           .attributes[datapoint]['identity']/tax_profile.tree.data[taxid]\
-                           .attributes[datapoint]['hit_count']), "0.1f") + '</val>'
+                ret_val += '<val>' + format((
+                    tax_profile.tree.data[taxid].attributes[datapoint]['identity']
+                    / tax_profile.tree.data[taxid].attributes[datapoint]['hit_count']
+                ), "0.1f") + '</val>'
             else:
                 ret_val += '<val>0.0%</val>'
         ret_val += '</identity>\n'
-        #if not tax_profile.tree.data[taxid].children:
+        # if not tax_profile.tree.data[taxid].children:
         gene_ids = set()
         for datapoint in tax_profile.tree.data[taxid].attributes:
             if 'genes' in tax_profile.tree.data[taxid].attributes[datapoint]:
-                for gene_id in tax_profile.tree.data[taxid].attributes[datapoint]['genes']\
-                .split(' '):
+                for gene_id in tax_profile.tree.data[taxid].attributes[datapoint]['genes'].split(
+                        ' '
+                ):
                     gene_ids.add(gene_id)
         ret_val += get_genes_xml(genes, sorted(gene_ids), dataseries, offset, score)
 
@@ -738,6 +771,7 @@ def get_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score='e
     offset -= 1
     ret_val += '\t'*offset + '</node>\n'
     return ret_val
+
 
 def make_assembly_taxonomy_chart(tax_profile, genes, function_list, outfile,
                                  krona_path, score='efpkg'):
@@ -765,14 +799,14 @@ def make_assembly_taxonomy_chart(tax_profile, genes, function_list, outfile,
         out.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
         out.write('\t\t<attribute display="Coverage" mono="true">coverage</attribute>\n')
         out.write('\t\t<attribute display="Length" mono="true">Length</attribute>\n')
-        out.write('\t\t<attribute display="CDS completeness %" mono="true">Completeness'\
+        out.write('\t\t<attribute display="CDS completeness %" mono="true">Completeness'
                   + '</attribute>\n')
         out.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
-    #Obsolete
-        out.write('\t\t<attribute display="UniRef hit" hrefbase="https://www.uniprot.org/uniref/" '\
+    # Obsolete
+        out.write('\t\t<attribute display="UniRef hit" hrefbase="https://www.uniprot.org/uniref/" '
                   + 'target="uniref" mono="true">best_hit</attribute>\n')
         out.write('\t</attributes>\n')
-        out.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" '\
+        out.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" '
                   + 'hueEnd="240" default="true"></color>\n')
         # Write dataset
         out.write('\t<datasets>\n')

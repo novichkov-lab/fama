@@ -40,13 +40,15 @@ class Project(object):
         self.options = ProjectOptions(project_file)
         collection = self.options.get_collection()
         if collection not in self.config.collections:
-            raise Exception('Collection ' + collection + \
-                ' not found. Available collections are: ' + (',').join(self.config.collections))
+            raise Exception(
+                'Collection ' + collection + ' not found. Available collections are: '
+                + (',').join(self.config.collections)
+                )
         self.collection = collection
         self.ref_data = ReferenceData(self.config, self.collection)
-        #self.ref_data.load_reference_data(self.collection)
+        # self.ref_data.load_reference_data(self.collection)
         self.taxonomy_data = TaxonomyData(self.config)
-        #self.taxonomy_data.load_taxdata(self.config)
+        # self.taxonomy_data.load_taxdata(self.config)
         if not os.path.exists(self.options.work_dir) and not os.path.isdir(self.options.work_dir):
             os.makedirs(self.options.work_dir, exist_ok=True)
 

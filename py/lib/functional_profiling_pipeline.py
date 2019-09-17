@@ -12,6 +12,7 @@ from lib.output.krona_xml_writer import make_functions_chart
 from lib.output.json_util import export_annotated_reads, export_sample
 from lib.third_party.microbe_census import run_pipeline, report_results
 
+
 def run_ref_search(parser, command):
     """Runs pre-selection DIAMOND search
 
@@ -23,27 +24,31 @@ def run_ref_search(parser, command):
     diamond_args = [parser.config.diamond_path,
                     command,
                     '--db',
-                    parser.config.get_reference_diamond_db(parser.options\
-                    .get_collection(parser.sample.sample_id)),
+                    parser.config.get_reference_diamond_db(
+                        parser.options.get_collection(parser.sample.sample_id)
+                    ),
                     '--query',
                     parser.options.get_fastq_path(parser.sample.sample_id, parser.end),
                     '--out',
-                    os.path.join(parser.options.get_project_dir(parser.sample.sample_id),
-                                 parser.sample.sample_id + '_' + parser.end + '_' \
-                                 + parser.options.ref_output_name),
+                    os.path.join(
+                        parser.options.get_project_dir(parser.sample.sample_id),
+                        parser.sample.sample_id + '_' + parser.end + '_'
+                        + parser.options.ref_output_name
+                    ),
                     '--max-target-seqs',
                     '50',
                     '--evalue',
-                    str(parser.config.get_evalue_cutoff(parser.options\
-                        .get_collection(parser.sample.sample_id))),
+                    str(parser.config.get_evalue_cutoff(
+                        parser.options.get_collection(parser.sample.sample_id)
+                    )),
                     '--threads',
                     parser.config.threads,
                     '--outfmt', '6', 'qseqid', 'sseqid', 'pident', 'length',
                     'mismatch', 'slen', 'qstart', 'qend', 'sstart', 'send',
-                    'evalue', 'bitscore'
-                   ]
+                    'evalue', 'bitscore']
     run_external_program(diamond_args)
     print('DIAMOND finished')
+
 
 def run_bgr_search(parser, command):
     """Runs classification DIAMOND search
@@ -56,32 +61,39 @@ def run_bgr_search(parser, command):
     diamond_args = [parser.config.diamond_path,
                     command,
                     '--db',
-                    parser.config.get_background_diamond_db(parser.options\
-                    .get_collection(parser.sample.sample_id)),
+                    parser.config.get_background_diamond_db(
+                        parser.options.get_collection(parser.sample.sample_id)
+                    ),
                     '--query',
-                    os.path.join(parser.options.get_project_dir(parser.sample.sample_id),
-                                 parser.sample.sample_id + '_' + parser.end + '_' \
-                                 + parser.options.ref_hits_fastq_name),
+                    os.path.join(
+                        parser.options.get_project_dir(parser.sample.sample_id),
+                        parser.sample.sample_id + '_' + parser.end + '_'
+                        + parser.options.ref_hits_fastq_name
+                    ),
                     '--out',
-                    os.path.join(parser.options.get_project_dir(parser.sample.sample_id),
-                                 parser.sample.sample_id + '_' + parser.end + '_' \
-                                 + parser.options.background_output_name),
+                    os.path.join(
+                        parser.options.get_project_dir(parser.sample.sample_id),
+                        parser.sample.sample_id + '_' + parser.end + '_'
+                        + parser.options.background_output_name
+                    ),
                     '--max-target-seqs',
                     '100',
                     '--evalue',
-                    str(parser.config.get_background_db_size(parser.options\
-                    .get_collection(parser.sample.sample_id)) \
-                    * parser.config.get_evalue_cutoff(parser.options\
-                    .get_collection(parser.sample.sample_id)) \
-                    / parser.config.get_reference_db_size(parser.options\
-                    .get_collection(parser.sample.sample_id))),
+                    str(
+                        parser.config.get_background_db_size(
+                            parser.options.get_collection(parser.sample.sample_id)
+                        ) * parser.config.get_evalue_cutoff(
+                            parser.options.get_collection(parser.sample.sample_id)
+                        ) / parser.config.get_reference_db_size(
+                            parser.options.get_collection(parser.sample.sample_id)
+                        )),
                     '--threads',
                     parser.config.threads,
                     '--outfmt', '6', 'qseqid', 'sseqid', 'pident', 'length', 'mismatch',
-                    'slen', 'qstart', 'qend', 'sstart', 'send', 'evalue', 'bitscore'
-                   ]
+                    'slen', 'qstart', 'qend', 'sstart', 'send', 'evalue', 'bitscore']
     run_external_program(diamond_args)
     print('DIAMOND finished')
+
 
 def run_microbecensus(sample, config):
     """Runs MicrobeCensus
@@ -153,6 +165,7 @@ def fastq_pipeline(config_file, project_file, sample_identifier=None, end_identi
     # Rename existing project file and save current version
     project.save_project_options()
 
+
 def run_fastq_pipeline(project, sample, end_id):
     """Functional profiling pipeline for single FASTQ file processing
 
@@ -176,15 +189,18 @@ def run_fastq_pipeline(project, sample, end_id):
                               project.options.get_output_subdir(sample.sample_id)))
 
     # Search in reference database
-    if not os.path.exists(os.path.join(parser.options.get_project_dir(parser.sample.sample_id),
-                                       parser.sample.sample_id + '_' + parser.end + '_'\
-                                       + parser.options.ref_output_name)):
+    if not os.path.exists(
+            os.path.join(
+                parser.options.get_project_dir(parser.sample.sample_id),
+                parser.sample.sample_id + '_' + parser.end + '_' + parser.options.ref_output_name
+            )
+    ):
         run_ref_search(parser, 'blastx')
 
     # Process output of reference DB search
     parser.parse_reference_output()
 
-    #Import sequence data for selected sequence reads
+    # Import sequence data for selected sequence reads
     print('Reading FASTQ file')
     read_count, base_count = parser.import_fastq()
 
@@ -217,9 +233,13 @@ def run_fastq_pipeline(project, sample, end_id):
     parser.export_hit_list()
 
     # Search in background database
-    if not os.path.exists(os.path.join(parser.options.get_project_dir(parser.sample.sample_id),
-                                       parser.sample.sample_id + '_' + parser.end + '_' \
-                                       + parser.options.background_output_name)):
+    if not os.path.exists(
+            os.path.join(
+                parser.options.get_project_dir(parser.sample.sample_id),
+                parser.sample.sample_id + '_' + parser.end + '_'
+                + parser.options.background_output_name
+            )
+    ):
         run_bgr_search(parser, 'blastx')
 
     # Process output of background DB search
@@ -235,9 +255,10 @@ def run_fastq_pipeline(project, sample, end_id):
     generate_pdf_report(parser)
     make_functions_chart(parser)
 
-    #return parser.reads
+    # return parser.reads
     # Return only good reads
-    return {read_id:read for (read_id, read) in parser.reads.items() if read.status == STATUS_GOOD}
+    return {read_id: read for (read_id, read) in parser.reads.items() if read.status == STATUS_GOOD}
+
 
 def main():
     """Main function"""

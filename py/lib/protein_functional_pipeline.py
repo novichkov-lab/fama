@@ -12,8 +12,9 @@ from lib.diamond_parser.diamond_hit_list import DiamondHitList
 from lib.output.json_util import export_annotated_reads, export_sample
 from lib.functional_profiling_pipeline import run_ref_search, run_bgr_search
 from lib.output.report import generate_fasta_report, generate_protein_sample_report, \
-generate_protein_project_report
+    generate_protein_project_report
 from lib.output.krona_xml_writer import make_functions_chart
+
 
 def import_protein_fasta(parser):
     """Reads uncompressed or gzipped FASTA file and stores protein sequences
@@ -63,6 +64,7 @@ def import_protein_fasta(parser):
         file_handle.close()
     return read_count, base_count
 
+
 def load_coverage_data(parser):
     """Loads contig coverage data, if such data were provided
     in project ini
@@ -94,6 +96,7 @@ def load_coverage_data(parser):
         file_handle.close()
     return ret_val
 
+
 def get_protein_score(average_coverage, coverage):
     """Returns relative coverage
 
@@ -106,6 +109,7 @@ def get_protein_score(average_coverage, coverage):
     if average_coverage > 0:
         result = coverage / average_coverage
     return result
+
 
 def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff,
                      average_coverage, taxonomy_data, ref_data, coverage_data=None):
@@ -173,7 +177,7 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                 ]
             if hit.get_subject_id() not in [
                     new_hit.get_subject_id() for new_hit in new_hits
-                ] and hit.bitscore >= best_bitscore:
+            ] and hit.bitscore >= best_bitscore:
                 new_hits.append(hit)
 
             # Collect taxonomy IDs of all hits for LCA inference
@@ -223,6 +227,7 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
             read.set_hit_list(_hit_list)
             # Set read taxonomy ID
             read.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
+
 
 def parse_background_output(parser):
     """Reads and processes DIAMOND tabular output of the second DIAMOND
@@ -284,7 +289,7 @@ def parse_background_output(parser):
                 protein_id = '|'.join(current_query_id_tokens[:-2])
                 hit_start = int(current_query_id_tokens[-2])
                 hit_end = int(current_query_id_tokens[-1])
-                #print (read_id, hit_start, hit_end, biscore_range_cutoff)
+                # print (read_id, hit_start, hit_end, biscore_range_cutoff)
                 if protein_id in parser.reads.keys():
                     compare_hits_lca(
                         parser.reads[protein_id], hit_start, hit_end, _hit_list,
@@ -308,6 +313,7 @@ def parse_background_output(parser):
                 )
         else:
             print('Read not found: ', protein_id)
+
 
 def generate_output(project):
     """Generates output after functional profiling procedure is done
@@ -346,6 +352,7 @@ def generate_output(project):
             else:
                 out_f.write('No proteins found in ' + sample + '\n\n')
 
+
 def functional_profiling_pipeline(project, sample):
     """Functional profiling pipeline for single FASTA file processing
 
@@ -368,7 +375,7 @@ def functional_profiling_pipeline(project, sample):
                 project.options.get_project_dir(sample.sample_id),
                 project.options.get_output_subdir(sample.sample_id)
                 )
-        ):
+    ):
         os.mkdir(
             os.path.join(
                 project.options.get_project_dir(sample.sample_id),
@@ -383,7 +390,7 @@ def functional_profiling_pipeline(project, sample):
                 parser.sample.sample_id + '_' + parser.end + '_'
                 + parser.options.get_ref_output_name()
                 )
-        ):
+    ):
         run_ref_search(parser, 'blastp')
 
     # Process output of reference DB search
@@ -413,7 +420,7 @@ def functional_profiling_pipeline(project, sample):
                 parser.sample.sample_id + '_' + parser.end + '_'
                 + parser.options.get_background_output_name()
                 )
-        ):
+    ):
         run_bgr_search(parser, 'blastp')
 
     # Process output of background DB search
@@ -426,8 +433,8 @@ def functional_profiling_pipeline(project, sample):
 #            sample + '_pe1_' + parser.options.get_reads_json_name())
 #        )
 
-    #calculate_protein_coverage(parser, coverage_file)
-    #calculate_protein_coverage_smooth(parser, coverage_file)
+    # calculate_protein_coverage(parser, coverage_file)
+    # calculate_protein_coverage_smooth(parser, coverage_file)
 
     print('Exporting JSON')
     parser.export_read_fasta()
@@ -438,7 +445,8 @@ def functional_profiling_pipeline(project, sample):
     generate_fasta_report(parser)
 #    generate_protein_pdf_report(parser)
     make_functions_chart(parser, score='readcount')
-    return {read_id:read for (read_id, read) in parser.reads.items() if read.status == 'function'}
+    return {read_id: read for (read_id, read) in parser.reads.items() if read.status == 'function'}
+
 
 def protein_pipeline(args):
     """Functional profiling pipeline for the entire project.
@@ -452,7 +460,7 @@ def protein_pipeline(args):
     sample_ids = []
 
     for sample_id in project.list_samples():
-        if not args.sample is None:
+        if args.sample is not None:
             if args.sample != sample_id:
                 continue
         sample = Sample(sample_id)

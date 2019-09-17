@@ -6,6 +6,7 @@ from lib.utils.const import ENDS
 from lib.functional_profiling_pipeline import fastq_pipeline
 from lib.protein_functional_pipeline import protein_pipeline
 
+
 def get_args():
     """Returns command-line arguments"""
     desc = '''This program runs functional profiling pipeline.'''
@@ -28,6 +29,7 @@ def get_args():
         parser.print_help()
         sys.exit(1)
     return args
+
 
 def main():
     """Main function calling functional profiling module"""

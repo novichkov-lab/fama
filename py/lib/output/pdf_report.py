@@ -5,10 +5,12 @@ from fpdf import FPDF, HTMLMixin
 from lib.diamond_parser.hit_utils import get_paired_end
 from lib.utils.utils import cleanup_protein_id
 
+
 class MyFPDF(FPDF, HTMLMixin):
     """MyFPDF class has two parents, FPDF and HTMLMixin, for easy use of HTML
     formatting for generation of PDF document"""
     pass
+
 
 def generate_pdf_report(parser):
     """Generates PDF report for processing of one FASTQ file
@@ -79,13 +81,15 @@ def generate_pdf_report(parser):
     pdf.cell(335, 10, 'e-value threshold for reference DB search: '
              + '{:.2e}'.format(parser.config.get_evalue_cutoff(parser.collection)))
     pdf.ln(h=5)
-    pdf.cell(335, 10, 'e-value threshold for background DB search: '
-             + '{:.2e}'.format(parser.config.get_background_db_size(parser.options\
-             .get_collection(parser.sample.sample_id)) \
-             * parser.config.get_evalue_cutoff(parser.options\
-             .get_collection(parser.sample.sample_id))\
-             / parser.config.get_reference_db_size(parser.options\
-             .get_collection(parser.sample.sample_id))))
+    pdf.cell(335, 10, 'e-value threshold for background DB search: ' + '{:.2e}'.format(
+        parser.config.get_background_db_size(
+            parser.options.get_collection(parser.sample.sample_id)
+        ) * parser.config.get_evalue_cutoff(
+            parser.options.get_collection(parser.sample.sample_id)
+        ) / parser.config.get_reference_db_size(
+            parser.options.get_collection(parser.sample.sample_id)
+        )
+    ))
     pdf.ln(h=20)
 
     # Write search stats
@@ -99,15 +103,16 @@ def generate_pdf_report(parser):
     read_stats = Counter()
     for read in sorted(parser.reads.keys()):
         read_stats[parser.reads[read].status] += 1
-    pdf.cell(65, 10, 'Number of reads found in background DB search: ' \
-             + str(len(parser.reads) - read_stats['unaccounted']))
+    pdf.cell(
+        65, 10, 'Number of reads found in background DB search: '
+        + str(len(parser.reads) - read_stats['unaccounted'])
+    )
     pdf.ln(h=5)
     pdf.set_font('Arial', '', 12)
     table_rows = ['<table border="0" align="center" width="100%">',
-                  '<thead><tr><th width="90%">Status</th><th width="10%">Read count</th>'\
+                  '<thead><tr><th width="90%">Status</th><th width="10%">Read count</th>'
                   + '</tr></thead>',
-                  '<tbody>'
-                 ]
+                  '<tbody>']
     for status in OrderedDict(read_stats.most_common()):
         if status == 'unaccounted':
             pass
@@ -147,10 +152,9 @@ def generate_pdf_report(parser):
         func_identity[function] = func_identity[function]/func_hit_counts[function]
 
     table_rows = ['<table border="0" align="center" width="100%">',
-                  '<thead><tr><<th width="55%">Definition</th><th width="15%">RPKM Score</th>'+\
+                  '<thead><tr><<th width="55%">Definition</th><th width="15%">RPKM Score</th>' +
                   '<th width="15%">Read count</th><th width="15%">Avg. identity</th></tr></thead>',
-                  '<tbody>'
-                 ]
+                  '<tbody>']
     for function in sorted(func_stats.keys()):
         table_rows.append('<tr><td>' + function
                           + '</td><td>' + '{0:.2f}'.format(func_stats[function])
@@ -184,11 +188,10 @@ def generate_pdf_report(parser):
         func_identity[function] = func_identity[function]/func_hit_counts[function]
 
     table_rows = ['<font size="8"><table border="1" align="center" width="100%">',
-                  '<thead><tr><th width="12%">ID</th><th width="61%">Definition</th>' +\
-                  '<th width="9%">RPKM Score</th><th width="9%">Read count</th>'+\
+                  '<thead><tr><th width="12%">ID</th><th width="61%">Definition</th>' +
+                  '<th width="9%">RPKM Score</th><th width="9%">Read count</th>' +
                   '<th width="9%">Avg. identity</th></tr></thead>',
-                  '<tbody>'
-                 ]
+                  '<tbody>']
     for function in sorted(func_stats.keys()):
         function_definition = parser.ref_data.lookup_function_name(function)
         if len(function_definition) > 80:
@@ -210,29 +213,33 @@ def generate_pdf_report(parser):
         if parser.reads[read].status == 'function':
             hits = parser.reads[read].hit_list.hits
             for hit in hits:
-                protein_taxid = parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit\
-                .subject_id))
+                protein_taxid = parser.ref_data.lookup_protein_tax(
+                    cleanup_protein_id(hit.subject_id)
+                )
                 tax_stats[protein_taxid] += 1
                 identity_stats[protein_taxid] += hit.identity
             if len(hits) == 1:
                 read_functions = parser.reads[read].functions
                 for function in read_functions:
-                    rpkm_stats[parser.ref_data.lookup_protein_tax(cleanup_protein_id(\
-                    hits[0].subject_id))] += read_functions[function]
+                    rpkm_stats[parser.ref_data.lookup_protein_tax(
+                        cleanup_protein_id(hits[0].subject_id)
+                    )] += read_functions[function]
             else:
                 read_functions = parser.reads[read].functions
                 protein_taxids = {}
                 for hit in hits:
-                    hit_taxid = parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit\
-                    .subject_id))
+                    hit_taxid = parser.ref_data.lookup_protein_tax(
+                        cleanup_protein_id(hit.subject_id)
+                    )
                     for hit_function in hit.functions:
                         protein_taxids[hit_taxid] = hit_function
                 for taxid in protein_taxids:
                     if protein_taxids[taxid] in read_functions:
                         rpkm_stats[taxid] += read_functions[protein_taxids[taxid]]
     tax_data = parser.taxonomy_data
-    counts_per_rank, identity_per_rank, rpkm_per_rank = tax_data\
-    .get_taxonomy_profile(counts=tax_stats, identity=identity_stats, scores=rpkm_stats)
+    counts_per_rank, identity_per_rank, rpkm_per_rank = tax_data.get_taxonomy_profile(
+        counts=tax_stats, identity=identity_stats, scores=rpkm_stats
+    )
     ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
     for rank in ranks:
         pdf.add_page()
@@ -243,11 +250,10 @@ def generate_pdf_report(parser):
         pdf.cell(50, 10, '*top 100 entries are shown')
 
         table_rows = ['<table border="0" align="center" width="100%">',
-                      '<thead><tr><<th width="60%">Taxon</th><th width="15%">RPKM score</th>'\
-                      + '<th width="15%">Read count</th><th width="15%">Avg. identity</th>'\
+                      '<thead><tr><<th width="60%">Taxon</th><th width="15%">RPKM score</th>'
+                      + '<th width="15%">Read count</th><th width="15%">Avg. identity</th>'
                       + '</tr></thead>',
-                      '<tbody>'
-                     ]
+                      '<tbody>']
         for tax in OrderedDict(Counter(rpkm_per_rank[rank]).most_common(100)):
             table_rows.append('<tr><td>' + tax
                               + '</td><td>' + '{0:.2f}'.format(rpkm_per_rank[rank][tax])
@@ -257,13 +263,14 @@ def generate_pdf_report(parser):
         table_rows.append('</tbody>\n</table>')
         pdf.write_html('\n'.join(table_rows))
 
-
-    outfile = os.path.join(parser.options.get_project_dir(parser.sample.sample_id),
-                           parser.options.get_output_subdir(parser.sample.sample_id),
-                           parser.sample.sample_id + '_' + parser.end + '_'\
-                           + parser.options.report_name+'.pdf')
+    outfile = os.path.join(
+        parser.options.get_project_dir(parser.sample.sample_id),
+        parser.options.get_output_subdir(parser.sample.sample_id),
+        parser.sample.sample_id + '_' + parser.end + '_' + parser.options.report_name+'.pdf'
+    )
     print('Writing PDF output to ', outfile)
     pdf.output(outfile, 'F')
+
 
 def generate_protein_pdf_report(parser):
     """Generates PDF report for processing of one protein FASTA file
@@ -328,13 +335,15 @@ def generate_protein_pdf_report(parser):
     pdf.cell(335, 10, 'e-value threshold for reference DB search: '
              + '{:.2e}'.format(parser.config.get_evalue_cutoff(parser.collection)))
     pdf.ln(h=5)
-    pdf.cell(335, 10, 'e-value threshold for background DB search: '
-             + '{:.2e}'.format(parser.config.get_background_db_size(parser.options\
-             .get_collection(parser.sample.sample_id))\
-             * parser.config.get_evalue_cutoff(parser.options\
-             .get_collection(parser.sample.sample_id))\
-              / parser.config.get_reference_db_size(parser.options\
-              .get_collection(parser.sample.sample_id))))
+    pdf.cell(335, 10, 'e-value threshold for background DB search: ' + '{:.2e}'.format(
+        parser.config.get_background_db_size(
+            parser.options.get_collection(parser.sample.sample_id)
+        ) * parser.config.get_evalue_cutoff(
+            parser.options.get_collection(parser.sample.sample_id)
+        ) / parser.config.get_reference_db_size(
+            parser.options.get_collection(parser.sample.sample_id)
+        )
+    ))
     pdf.ln(h=20)
 
     # Write search stats
@@ -357,8 +366,7 @@ def generate_protein_pdf_report(parser):
     table_rows = ['<table border="0" align="center" width="100%">',
                   '<thead><tr><th width="90%">Status</th><th width="10%">Read count</th>'
                   + '</tr></thead>',
-                  '<tbody>'
-                 ]
+                  '<tbody>']
     for status in OrderedDict(read_stats.most_common()):
         if status == 'unaccounted':
             pass
@@ -406,8 +414,7 @@ def generate_protein_pdf_report(parser):
                   '<thead><tr><<th width="55%">Definition</th><th width="15%">Norm. abundance</th>'
                   + '<th width="15%">Prot. count</th><th width="15%">Avg. identity</th>'
                   + '</tr></thead>',
-                  '<tbody>'
-                 ]
+                  '<tbody>']
     for function in sorted(func_stats.keys()):
         table_rows.append('<tr><td>' + function
                           + '</td><td>' + '{0:.2f}'.format(func_stats[function])
@@ -444,8 +451,7 @@ def generate_protein_pdf_report(parser):
                   '<thead><tr><th width="12%">ID</th><th width="61%">Definition</th><th width="9%">'
                   + 'Norm. abundance</th><th width="9%">Prot. count</th><th width="9%">'
                   + 'Avg. identity</th></tr></thead>',
-                  '<tbody>'
-                 ]
+                  '<tbody>']
     for function in sorted(func_stats.keys()):
         function_definition = parser.ref_data.lookup_function_name(function)
         if len(function_definition) > 80:
@@ -467,21 +473,24 @@ def generate_protein_pdf_report(parser):
         if parser.reads[read].status == 'function':
             hits = parser.reads[read].hit_list.hits
             for hit in hits:
-                protein_taxid = parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit\
-                .get_subject_id()))
+                protein_taxid = parser.ref_data.lookup_protein_tax(
+                    cleanup_protein_id(hit.get_subject_id())
+                )
                 tax_stats[protein_taxid] += 1
                 identity_stats[protein_taxid] += hit.get_identity()
             if len(hits) == 1:
                 read_functions = parser.reads[read].get_functions()
                 for function in read_functions:
-                    rpkm_stats[parser.ref_data.lookup_protein_tax(cleanup_protein_id(hits[0]\
-                    .get_subject_id()))] += read_functions[function]
+                    rpkm_stats[parser.ref_data.lookup_protein_tax(
+                        cleanup_protein_id(hits[0].get_subject_id())
+                    )] += read_functions[function]
             else:
                 read_functions = parser.reads[read].get_functions()
                 protein_taxids = {}
                 for hit in hits:
-                    hit_taxid = parser.ref_data.lookup_protein_tax(cleanup_protein_id(hit\
-                    .get_subject_id()))
+                    hit_taxid = parser.ref_data.lookup_protein_tax(
+                        cleanup_protein_id(hit.get_subject_id())
+                    )
                     hit_functions = hit.get_functions()
                     for hit_function in hit_functions:
                         protein_taxids[hit_taxid] = hit_function
@@ -489,8 +498,9 @@ def generate_protein_pdf_report(parser):
                     if protein_taxids[taxid] in read_functions:
                         rpkm_stats[taxid] += read_functions[protein_taxids[taxid]]
     tax_data = parser.taxonomy_data
-    counts_per_rank, identity_per_rank, rpkm_per_rank = tax_data\
-    .get_taxonomy_profile(counts=tax_stats, identity=identity_stats, scores=rpkm_stats)
+    counts_per_rank, identity_per_rank, rpkm_per_rank = tax_data.get_taxonomy_profile(
+        counts=tax_stats, identity=identity_stats, scores=rpkm_stats
+    )
     ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
     for rank in ranks:
         pdf.add_page()
@@ -501,11 +511,10 @@ def generate_protein_pdf_report(parser):
         pdf.cell(50, 10, '*top 100 entries are shown')
 
         table_rows = ['<table border="0" align="center" width="100%">',
-                      '<thead><tr><<th width="60%">Taxon</th><th width="15%">Norm. abundance</th>'\
+                      '<thead><tr><<th width="60%">Taxon</th><th width="15%">Norm. abundance</th>'
                       + '<th width="15%">Prot. count</th><th width="15%">Avg. identity</th>'
                       + '</tr></thead>',
-                      '<tbody>'
-                     ]
+                      '<tbody>']
         for tax in OrderedDict(Counter(rpkm_per_rank[rank]).most_common(100)):
             table_rows.append('<tr><td>' + tax
                               + '</td><td>' + '{0:.2f}'.format(rpkm_per_rank[rank][tax])
@@ -515,10 +524,10 @@ def generate_protein_pdf_report(parser):
         table_rows.append('</tbody>\n</table>')
         pdf.write_html('\n'.join(table_rows))
 
-
-    outfile = os.path.join(parser.options.get_project_dir(parser.sample.sample_id),
-                           parser.options.get_output_subdir(parser.sample.sample_id),
-                           parser.sample.sample_id + '_' + parser.end + '_'\
-                           + parser.options.get_report_name()+'.pdf')
+    outfile = os.path.join(
+        parser.options.get_project_dir(parser.sample.sample_id),
+        parser.options.get_output_subdir(parser.sample.sample_id),
+        parser.sample.sample_id + '_' + parser.end + '_' + parser.options.get_report_name()+'.pdf'
+    )
     print('Writing PDF output to ', outfile)
     pdf.output(outfile, 'F')

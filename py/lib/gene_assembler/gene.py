@@ -1,7 +1,7 @@
 """Describes Gene class"""
-#!/usr/bin/python
 from collections import defaultdict
 from lib.utils.const import STATUS_CAND, STATUS_GOOD, STATUS_BAD
+
 
 class Gene:
     """Gene object stores data for a gene predicted in assembled contig

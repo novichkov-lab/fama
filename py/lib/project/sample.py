@@ -5,6 +5,7 @@ from collections import defaultdict
 from lib.utils.const import STATUS_GOOD
 from lib.third_party.lib_est import get_lib_est
 
+
 class Sample(object):
     """Sample object stores selected reads and all sample parameters.
 
@@ -27,12 +28,12 @@ class Sample(object):
             annotation results; outer key is an end identifier, inner key
             is a read identifier, value is an AnnotatedRead object
     """
-    def __init__(self, sample_id='', sample_name=None, is_paired_end=True, \
-                fastq_fwd_path=None, fastq_rev_path=None, fastq_fwd_readcount=0, \
-                fastq_rev_readcount=0, rpkm_scaling_factor=0.0, \
-                fastq_fwd_basecount=0, fastq_rev_basecount=0, \
-                rpkg_scaling_factor=0.0, insert_size=None,\
-                work_directory=None, replicate='0'):
+    def __init__(self, sample_id='', sample_name=None, is_paired_end=True,
+                 fastq_fwd_path=None, fastq_rev_path=None, fastq_fwd_readcount=0,
+                 fastq_rev_readcount=0, rpkm_scaling_factor=0.0,
+                 fastq_fwd_basecount=0, fastq_rev_basecount=0,
+                 rpkg_scaling_factor=0.0, insert_size=None,
+                 work_directory=None, replicate='0'):
         """
         Args:
             sample_id (str): sample identifier. Alphanumeric with underscores

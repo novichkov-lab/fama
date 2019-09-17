@@ -1,6 +1,7 @@
 """Various functions working with DIAMOND hits"""
 from collections import defaultdict, Counter
-from lib.utils.const import ENDS, STATUS_GOOD, STATUS_BAD
+from lib.utils.const import ENDS, STATUS_GOOD, STATUS_BAD, ROOT_TAXONOMY_ID
+
 
 def get_rpkm_score(hit, function_fraction, total_readcount, length_cutoff):
     """Calculates RPKM score of a single hit (number of reads per million
@@ -22,6 +23,7 @@ def get_rpkm_score(hit, function_fraction, total_readcount, length_cutoff):
         ret_val = function_fraction*1000000000.0/(3*total_readcount)
     return ret_val
 
+
 def get_rpk_score(protein_length):
     """Calculates RPK score of a single hit (number of reads per kilobase of reference gene)
 
@@ -33,6 +35,7 @@ def get_rpk_score(protein_length):
 
     """
     return 1000/3/protein_length
+
 
 def get_erpk_score(protein_length, average_read_length, length_cutoff):
     """Calculates ERPK score of a single hit (effective RPK)
@@ -56,6 +59,7 @@ def get_erpk_score(protein_length, average_read_length, length_cutoff):
         result = 1000/effective_gene_length
     return result
 
+
 def get_fpk_score(protein_length):
     """Calculates FPK score of a single hit
 
@@ -69,6 +73,7 @@ def get_fpk_score(protein_length):
 
     """
     return get_rpk_score(protein_length)
+
 
 def get_efpk_score(protein_length, average_read_length, length_cutoff, insert_size=None):
     """Calculates EFPK score of a single hit (effective FPK)
@@ -100,6 +105,7 @@ def get_efpk_score(protein_length, average_read_length, length_cutoff, insert_si
     if effective_gene_length > 0:
         result = 1000/effective_gene_length
     return result
+
 
 def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff,
                           length_cutoff, average_read_length, taxonomy_data,
@@ -157,9 +163,9 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
         selected_hits = [new_hit for new_hit in new_hit_list.hits if
                          new_hit.bitscore > bitscore_lower_cutoff]
         # Add existing hit if it has acceptable bitscore
-        if hit.subject_id not in \
-            [selected_hit.subject_id for selected_hit in selected_hits] \
-            and hit.bitscore >= best_bitscore:
+        if hit.subject_id not in [selected_hit.subject_id for selected_hit in selected_hits] and (
+                hit.bitscore >= best_bitscore
+        ):
             selected_hits.append(hit)
 
         # Collect taxonomy IDs of all hits for LCA inference
@@ -173,7 +179,7 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
             for selected_hit in selected_hits:
                 subject_taxon_id = ref_data.lookup_protein_tax(selected_hit.subject_id)
                 subject_rank = taxonomy_data.get_taxonomy_rank(subject_taxon_id)
-                while subject_taxon_id != taxonomy_data.ROOT:
+                while subject_taxon_id != ROOT_TAXONOMY_ID:
                     if subject_rank not in rank_cutoffs:
                         subject_taxon_id, subject_rank = \
                             taxonomy_data.get_upper_level_taxon(subject_taxon_id)
@@ -194,17 +200,19 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
             for selected_hit_function in selected_hit.functions:
                 selected_functions_counts[selected_hit_function] += 1
                 if selected_hit_function in selected_functions_data:
-                    if selected_hit.bitscore > \
-                        selected_functions_data[selected_hit_function]['bit_score']:
-                        selected_functions_data[selected_hit_function]['bit_score'] \
-                        = selected_hit.bitscore
-                        selected_functions_data[selected_hit_function]['hit'] \
-                        = selected_hit
+                    if (
+                            selected_hit.bitscore >
+                            selected_functions_data[selected_hit_function]['bit_score']
+                    ):
+                        selected_functions_data[selected_hit_function]['bit_score'] = \
+                            selected_hit.bitscore
+                        selected_functions_data[selected_hit_function]['hit'] = \
+                            selected_hit
                 else:
-                    selected_functions_data[selected_hit_function]['bit_score'] \
-                    = selected_hit.bitscore
-                    selected_functions_data[selected_hit_function]['hit'] \
-                    = selected_hit
+                    selected_functions_data[selected_hit_function]['bit_score'] = \
+                        selected_hit.bitscore
+                    selected_functions_data[selected_hit_function]['hit'] = \
+                        selected_hit
 
         # If the most common function in new hits is unknown, set
         # status STATUS_BAD and return
@@ -236,6 +244,7 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
         read.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
         break
 
+
 def get_paired_end(end):
     """ Returns end identifier of the opposite end for paired-end reads
 
@@ -249,6 +258,7 @@ def get_paired_end(end):
     elif end == ENDS[1]:
         result = ENDS[0]
     return result
+
 
 def get_paired_read_id(read_id):
     """ Returns read identifier of mate read for paired-end reads
@@ -277,6 +287,7 @@ def get_paired_read_id(read_id):
         # SRA format
         result = read_id[:-1] + '1'
     return result
+
 
 def parse_fastq_seqid(line):
     """Extracts read identifier and end identifier from different formats of FASTQ sequence IDs
@@ -318,6 +329,7 @@ def parse_fastq_seqid(line):
         result = (line[:-2], line[-1])
     return result
 
+
 def hits_do_overlap(new_hit, hit, overlap_cutoff):
     """Returns True if query sequence of new_hit DiamondHit overlap
     by at least 'overlap_cutoff' base pairs with query sequence of
@@ -339,7 +351,7 @@ def hits_do_overlap(new_hit, hit, overlap_cutoff):
     end = hit.q_end
     result = True
     if new_hit_start < new_hit_end:
-        #existing hit on + strand
+        # existing hit on + strand
         if start > end:
             # hits on different strands: no overlap
             result = False
@@ -349,9 +361,9 @@ def hits_do_overlap(new_hit, hit, overlap_cutoff):
         elif start > (new_hit_end - overlap_cutoff):
             result = False
         else:
-            return True #overlap
+            return True  # overlap
     if new_hit_start > new_hit_end:
-        #existing hit on - strand
+        # existing hit on - strand
         if start < end:
             # hits on different strands: no overlap
             result = False
@@ -361,6 +373,7 @@ def hits_do_overlap(new_hit, hit, overlap_cutoff):
         elif end > (new_hit_start - overlap_cutoff):
             result = False
     return result
+
 
 def hit_overlaps_any_hits(new_hit, hit_list, overlap_cutoff):
     """Returns False if query sequence of new_hit overlap
@@ -384,6 +397,7 @@ def hit_overlaps_any_hits(new_hit, hit_list, overlap_cutoff):
             return True
     return False
 
+
 def has_higher_score(new_hit, hit_list, overlap_cutoff):
     """Returns True if bitscore of new_hit is higher than bitscore of
     all overlapping DiamondHit objects from hit_list list.
@@ -405,6 +419,7 @@ def has_higher_score(new_hit, hit_list, overlap_cutoff):
             if new_hit.bitscore <= hit.bitscore:
                 return False
     return True
+
 
 def replace_hit(new_hit, hit_list, overlap_cutoff):
     """Compares all DiamondHit objects from a list with a

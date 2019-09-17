@@ -13,6 +13,7 @@ from lib.diamond_parser.diamond_hit_list import DiamondHitList
 from lib.sequences.annotated_read import AnnotatedRead
 from lib.diamond_parser.hit_utils import compare_hits_erpk_lca, get_paired_end, parse_fastq_seqid
 
+
 class DiamondParser(object):
     """DiamondParser performs various operations with DIAMOND input and
     output files: imports and exports sequences, imports DIAMOND search
@@ -119,9 +120,10 @@ class DiamondParser(object):
         'reads' dictionary with AnnotatedRead objects.
 
         """
-        tsvfile = os.path.join(self.options.get_project_dir(self.sample.sample_id),
-                               self.sample.sample_id + '_' + self.end
-                               + '_'+ self.options.ref_output_name)
+        tsvfile = os.path.join(
+            self.options.get_project_dir(self.sample.sample_id),
+            self.sample.sample_id + '_' + self.end + '_' + self.options.ref_output_name
+        )
         current_sequence_read_id = ''
         hit_list = DiamondHitList(current_sequence_read_id)
         identity_cutoff = self.config.get_identity_cutoff(self.collection)
@@ -135,9 +137,9 @@ class DiamondParser(object):
                 hit.create_hit(row)
                 # filtering by identity and length
                 if hit.identity < identity_cutoff:
-                    continue # go to next hit
+                    continue  # go to next hit
                 if hit.length < length_cutoff:
-                    continue # go to next hit
+                    continue  # go to next hit
 
                 if hit.query_id != current_sequence_read_id:
                     # when new query ID reached, process collected hits,
@@ -180,9 +182,10 @@ class DiamondParser(object):
             # Let's try to import list of reads from file.
             self.reads = self.import_hit_list()
 
-        tsvfile = os.path.join(self.sample.work_directory,
-                               self.sample.sample_id + '_' + self.end
-                               + '_'+ self.options.background_output_name)
+        tsvfile = os.path.join(
+            self.sample.work_directory,
+            self.sample.sample_id + '_' + self.end + '_' + self.options.background_output_name
+        )
 
         average_read_length = self.sample.get_avg_read_length(self.end)
 
@@ -203,9 +206,9 @@ class DiamondParser(object):
                 hit.create_hit(row)
                 # filtering by identity and length
                 if hit.identity < identity_cutoff:
-                    continue # skip this line
+                    continue  # skip this line
                 if hit.length < length_cutoff:
-                    continue # skip this line
+                    continue  # skip this line
 
                 # when new query ID reached, process collected hits,
                 # then start over with new query identifier
@@ -220,8 +223,8 @@ class DiamondParser(object):
                     try:
                         compare_hits_erpk_lca(
                             self.reads[read_id],
-                            int(current_query_id_tokens[-2]), #hit_start
-                            int(current_query_id_tokens[-1]), #hit_end
+                            int(current_query_id_tokens[-2]),  # hit_start
+                            int(current_query_id_tokens[-1]),  # hit_end
                             hit_list, bitscore_range_cutoff, length_cutoff,
                             average_read_length, self.taxonomy_data, self.ref_data,
                             rank_cutoffs=self.config.get_ranks_cutoffs(
@@ -245,8 +248,8 @@ class DiamondParser(object):
             try:
                 compare_hits_erpk_lca(
                     self.reads[read_id],
-                    int(current_query_id_tokens[-2]), #hit_start
-                    int(current_query_id_tokens[-1]), #hit_end
+                    int(current_query_id_tokens[-2]),  # hit_start
+                    int(current_query_id_tokens[-1]),  # hit_end
                     hit_list, bitscore_range_cutoff, length_cutoff,
                     average_read_length, self.taxonomy_data, self.ref_data,
                     rank_cutoffs=self.config.get_ranks_cutoffs(
@@ -384,8 +387,9 @@ class DiamondParser(object):
                 for hit in read.hit_list.hits:
                     start = hit.q_start
                     end = hit.q_end
-                    outfile.write("@" + read.read_id + '|' + \
-                        str(start) + '|' + str(end) + '\n')
+                    outfile.write(
+                        "@" + read.read_id + '|' + str(start) + '|' + str(end) + '\n'
+                    )
                     if start < end:
                         # hit on + strand
                         start = start - 1
@@ -413,8 +417,9 @@ class DiamondParser(object):
                 for hit in read.hit_list.hits:
                     start = hit.q_start
                     end = hit.q_end
-                    outfile.write(">" + read.read_id + '|' + \
-                        str(start) + '|' + str(end) + '\n')
+                    outfile.write(
+                        ">" + read.read_id + '|' + str(start) + '|' + str(end) + '\n'
+                    )
                     if start < end:
                         # hit on + strand
                         start = start - 1

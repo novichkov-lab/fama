@@ -1,6 +1,7 @@
 """Describes DiamondHitList class"""
 import lib.diamond_parser.hit_utils as hit_utils
 
+
 class DiamondHitList(object):
     """DiamondHitList stores a set of DiamondHit objects for one
     query sequence (usually, query is a sequence read or a protein)
@@ -30,8 +31,11 @@ class DiamondHitList(object):
         if hit.query_id == self.query_id:
             hit_exists = False
             for existing_hit in self.hits:
-                if existing_hit.subject_id == hit.subject_id \
-                    and existing_hit.q_start == hit.q_start and existing_hit.q_end == hit.q_end:
+                if existing_hit.subject_id == hit.subject_id and (
+                        existing_hit.q_start == hit.q_start
+                ) and (
+                    existing_hit.q_end == hit.q_end
+                ):
                     hit_exists = True
                     break
             if not hit_exists:

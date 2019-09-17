@@ -1,6 +1,7 @@
 """This module describes Contig class"""
 from collections import defaultdict
 
+
 class Contig:
     """Contig objects stores data about an assembled contig: sequence,
     number of mapped reads, list of aligned reads, sizes of alignment etc.
@@ -24,8 +25,8 @@ class Contig:
         """
         self.contig_id = contig_id
         self.sequence = sequence
-        self.read_count = defaultdict(int) # Count of reads for each sample
-        self.read_segments = defaultdict(int) # Length of all aligned segments in each sample
+        self.read_count = defaultdict(int)  # Count of reads for each sample
+        self.read_segments = defaultdict(int)  # Length of all aligned segments in each sample
         self.reads = []
         self.genes = {}
 

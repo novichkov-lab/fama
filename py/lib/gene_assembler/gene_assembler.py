@@ -19,6 +19,7 @@ from lib.output.report import generate_assembly_report
 from lib.output.xlsx_util import make_assembly_xlsx
 from lib.reference_library.taxonomy_data import TaxonomyData
 
+
 class GeneAssembler(object):
     """GeneAssembler is a working horse of Fama assembly pipeline. It exports
     sequence reads, feeds external assembler with them, imports resulting
@@ -60,12 +61,7 @@ class GeneAssembler(object):
                 Coassembly_1.fastq (and Coassembly_2.fastq for paired-end
                 reads) files. If False, for each function a separate file
                 (or pair of files) will be created.
-
-        Returns:
-            list of function identifiers. In coassembly mode, it returns
-            a list with the only element, 'Coassembly'
         """
-        result = set()
         # Delete all existing FASTQ files
         for filename in os.listdir(self.assembly_dir):
             if filename.endswith('.fastq'):
@@ -75,8 +71,8 @@ class GeneAssembler(object):
             self.is_paired_end = self.project.samples[sample_id].is_paired_end
             self.project.import_reads_json(sample_id, self.project.ENDS)
             for end in self.project.ENDS:
-                #print ('Loading mapped reads: ', sample, end)
-                #self.project.load_annotated_reads(sample, end) # Lazy load
+                # print ('Loading mapped reads: ', sample, end)
+                # self.project.load_annotated_reads(sample, end) # Lazy load
                 for read_id in self.project.samples[sample_id].reads[end]:
                     read = self.project.samples[sample_id].reads[end][read_id]
                     if read.status != STATUS_GOOD:
@@ -86,7 +82,6 @@ class GeneAssembler(object):
                             continue
                         if do_coassembly:
                             function = 'Coassembly'
-                        result.add(function)
                         self.assembly.reads[function][read_id] = sample_id
                         fwd_outfile = os.path.join(self.assembly_dir, function + '_pe1.fastq')
                         rev_outfile = os.path.join(self.assembly_dir, function + '_pe2.fastq')
@@ -108,7 +103,6 @@ class GeneAssembler(object):
                             fwd_of.write(read.quality + '\n')
                 # Delete reads from memory
                 self.project.samples[sample_id].reads[end] = None
-        return list(result)
 
     def assemble_contigs(self):
         """Assembles contigs from annotated reads, a separate assembly for
@@ -259,9 +253,9 @@ class GeneAssembler(object):
                 hit.create_hit(row)
                 # filtering by identity and length
                 if hit.identity < identity_cutoff:
-                    continue # skip this line
+                    continue  # skip this line
                 if hit.length < length_cutoff:
-                    continue # skip this line
+                    continue  # skip this line
 
                 if hit.query_id != current_id:
                     # filter list for overlapping hits
@@ -288,8 +282,9 @@ class GeneAssembler(object):
 
     def export_hit_fasta(self):
         """Exports hit sequences as gzipped FASTA file"""
-        outfile = os.path.join(self.assembly_dir,
-                               'all_contigs_'+ self.project.options.ref_hits_fastq_name)
+        outfile = os.path.join(
+            self.assembly_dir, 'all_contigs_' + self.project.options.ref_hits_fastq_name
+        )
 
         with open(outfile, 'w') as outfile:
             for function in sorted(self.assembly.contigs.keys()):
@@ -318,7 +313,7 @@ class GeneAssembler(object):
 
         """
         tsvfile = os.path.join(self.assembly_dir,
-                               'all_contigs_'+ self.project.options.background_output_name)
+                               'all_contigs_' + self.project.options.background_output_name)
         current_query_id = None
         hit_list = None
         identity_cutoff = self.project.config.get_identity_cutoff(
@@ -346,7 +341,7 @@ class GeneAssembler(object):
                 hit.create_hit(row)
                 # filtering by identity and length
                 if hit.identity < identity_cutoff or hit.length < length_cutoff:
-                    continue # skip this line
+                    continue  # skip this line
 
                 if hit.query_id != current_query_id:
                     hit_list.annotate_hits(self.project.ref_data)
@@ -360,8 +355,8 @@ class GeneAssembler(object):
                     try:
                         compare_hits_lca(
                             self.assembly.contigs[function_id][contig_id].genes[gene_id],
-                            int(current_query_id_tokens[-2]), #hit_start
-                            int(current_query_id_tokens[-1]), #hit_end
+                            int(current_query_id_tokens[-2]),  # hit_start
+                            int(current_query_id_tokens[-1]),  # hit_end
                             hit_list,
                             biscore_range_cutoff,
                             average_coverage,
@@ -384,18 +379,20 @@ class GeneAssembler(object):
             gene_id = '|'.join(current_query_id_tokens[:-2])
             coverage = self.assembly.contigs[function_id][contig_id].get_coverage()
             try:
-                compare_hits_lca(self.assembly.contigs[function_id][contig_id].genes[gene_id],
-                                 int(current_query_id_tokens[-2]), #hit_start
-                                 int(current_query_id_tokens[-1]), #hit_end
-                                 hit_list,
-                                 biscore_range_cutoff,
-                                 average_coverage,
-                                 coverage,
-                                 self.project.taxonomy_data,
-                                 self.project.ref_data,
-                                 rank_cutoffs=self.project.config.get_ranks_cutoffs(
-                                     self.project.options.get_collection())
-                                )
+                compare_hits_lca(
+                    self.assembly.contigs[function_id][contig_id].genes[gene_id],
+                    int(current_query_id_tokens[-2]),  # hit_start
+                    int(current_query_id_tokens[-1]),  # hit_end
+                    hit_list,
+                    biscore_range_cutoff,
+                    average_coverage,
+                    coverage,
+                    self.project.taxonomy_data,
+                    self.project.ref_data,
+                    rank_cutoffs=self.project.config.get_ranks_cutoffs(
+                        self.project.options.get_collection()
+                    )
+                )
             except KeyError:
                 print(' '.join(['Gene not found:', gene_id, 'in', function_id, contig_id]))
 
@@ -412,9 +409,10 @@ class GeneAssembler(object):
         with open(prodigal_infile, 'w') as outfile:
             for function in sorted(self.assembly.contigs.keys()):
                 for contig in sorted(self.assembly.contigs[function].keys()):
-                    if self.assembly.contigs[function][contig].get_coverage() >= \
-                        contig_coverage_cutoff:
-                        outfile.write('>' + function + '|' + contig  + '\n')
+                    if self.assembly.contigs[function][
+                            contig
+                    ].get_coverage() >= contig_coverage_cutoff:
+                        outfile.write('>' + function + '|' + contig + '\n')
                         outfile.write(self.assembly.contigs[function][contig].sequence + '\n')
 
         # Run Prodigal
@@ -439,7 +437,7 @@ class GeneAssembler(object):
                                     strand=line_tokens[3])
                         self.assembly.contigs[function_id][contig_id].add_gene(gene)
                     line_tokens = line.split(' ')
-                    current_id = line[1:] #line_tokens[0][1:]
+                    current_id = line[1:]  # line_tokens[0][1:]
                     sequence = ''
                 else:
                     sequence += line
@@ -461,23 +459,28 @@ class GeneAssembler(object):
             make contig_coverage_cutoff a parameter or a constant
         """
         # Search in reference database
-        if not os.path.exists(os.path.join(self.assembly_dir, 'all_contigs_' + \
-            self.project.options.ref_output_name)):
+        if not os.path.exists(
+                os.path.join(
+                    self.assembly_dir, 'all_contigs_' + self.project.options.ref_output_name
+                )
+        ):
             run_ref_search(self.project)
 
         # Process output of reference DB search
         self.parse_reference_output()
-        export_gene_assembly(self.assembly,
-                             os.path.join(self.assembly_dir,
-                                          'all_contigs_assembly.json'))
+        export_gene_assembly(
+            self.assembly, os.path.join(self.assembly_dir, 'all_contigs_assembly.json'))
 
-        ##Import sequence data for selected sequence reads
+        # Import sequence data for selected sequence reads
         print('Reading FASTQ file')
         self.export_hit_fasta()
 
         # Search in background database
-        if not os.path.exists(os.path.join(self.assembly_dir, 'all_contigs_'+ \
-            self.project.options.background_output_name)):
+        if not os.path.exists(
+                os.path.join(
+                    self.assembly_dir, 'all_contigs_' + self.project.options.background_output_name
+                )
+        ):
             run_bgr_search(self.project)
 
         # Process output of reference DB search
@@ -497,8 +500,8 @@ class GeneAssembler(object):
             taxonomy_data (:obj:TaxonomyData): NCBI taxonomy data
         '''
         functions_list = set()
-        genes = autovivify(2) # genes[gene][function][parameter] = parameter_value
-        scores = autovivify(2) # scores[taxonomy ID][function][parameter] = parameter_value
+        genes = autovivify(2)  # genes[gene][function][parameter] = parameter_value
+        scores = autovivify(2)  # scores[taxonomy ID][function][parameter] = parameter_value
 
         total_read_count = 0
         for sample in self.project.list_samples():
@@ -510,7 +513,7 @@ class GeneAssembler(object):
                 for gene_id, gene in contig.genes.items():
                     if gene.status != STATUS_GOOD:
                         continue
-                    taxonomy_id = gene.taxonomy # Was get_taxonomy_id()
+                    taxonomy_id = gene.taxonomy  # Was get_taxonomy_id()
                     for hit in gene.hit_list.hits:
                         identity = hit.identity
                         for hit_function in hit.functions:
@@ -548,18 +551,25 @@ class GeneAssembler(object):
 
                             genes[gene_id][hit_function]['Length'] = \
                                 str(len(gene.protein_sequence)) + 'aa'
-                            genes[gene_id][hit_function]['Completeness'] = \
-                                '{0:.0f}'.format(len(gene.protein_sequence) * 100 / hit.s_len)
-                            genes[gene_id][hit_function]['identity'] = \
-                                '{0:.1f}'.format(identity)
-                            genes[gene_id][hit_function]['rpkm'] = \
-                                '{0:.6f}'.format(contig.get_rpkm(total_read_count) * \
-                                len(gene.protein_sequence) * 3 / len(contig.sequence))
-                            genes[gene_id][hit_function]['count'] = \
-                                '{0:.0f}'.format(contig.get_read_count() * \
-                                len(gene.protein_sequence) * 3 / len(contig.sequence))
-                            genes[gene_id][hit_function]['coverage'] = \
-                                '{0:.1f}'.format(contig.get_coverage())
+                            genes[gene_id][hit_function]['Completeness'] = '{0:.0f}'.format(
+                                len(gene.protein_sequence) * 100 / hit.s_len
+                            )
+                            genes[gene_id][hit_function]['identity'] = '{0:.1f}'.format(
+                                identity
+                            )
+                            genes[gene_id][hit_function]['rpkm'] = '{0:.6f}'.format(
+                                contig.get_rpkm(
+                                    total_read_count
+                                ) * len(gene.protein_sequence) * 3 / len(contig.sequence)
+                            )
+                            genes[gene_id][hit_function]['count'] = '{0:.0f}'.format(
+                                contig.get_read_count() * len(
+                                    gene.protein_sequence
+                                ) * 3 / len(contig.sequence)
+                            )
+                            genes[gene_id][hit_function]['coverage'] = '{0:.1f}'.format(
+                                contig.get_coverage()
+                            )
 
         taxonomic_profile = TaxonomyProfile()
         taxonomic_profile.make_assembly_taxonomy_profile(taxonomy_data, scores)
@@ -588,15 +598,14 @@ class GeneAssembler(object):
         # Make list of functions
         for function in self.assembly.contigs:
             for contig in self.assembly.contigs[function]:
-                for gene_id in self.assembly.contigs[function][contig].genes:
-                    if self.assembly.contigs[function][contig].genes[gene_id].status == STATUS_GOOD:
-                        for gene_function in self.assembly.contigs[function][contig].\
-                            genes[gene_id].functions.keys():
+                for gene_id, gene in self.assembly.contigs[function][contig].genes.items():
+                    if gene.status == STATUS_GOOD:
+                        for gene_function in gene.functions:
                             functions_list.add(gene_function)
 
         for function in sorted(functions_list):
-            genes = autovivify(2) # genes[gene][sample][parameter] = parameter_value
-            scores = autovivify(2) # scores[taxonomy ID][sample][parameter] = parameter_value
+            genes = autovivify(2)  # genes[gene][sample][parameter] = parameter_value
+            scores = autovivify(2)  # scores[taxonomy ID][sample][parameter] = parameter_value
             outfile = os.path.join(self.assembly_dir, 'out', function + '_taxonomic_profile.xml')
             for assembly_function in self.assembly.contigs:
                 for _, contig in self.assembly.contigs[assembly_function].items():
@@ -627,9 +636,10 @@ class GeneAssembler(object):
                                     if sample in contig.read_count:
                                         scores[taxonomy_id][sample]['rpkm'] += contig.get_rpkm(
                                             self.project.options.get_fastq1_readcount(sample),
-                                            sample) \
-                                            * len(gene.protein_sequence) \
-                                            * 3 / len(contig.sequence)
+                                            sample
+                                            ) * len(gene.protein_sequence) * 3 / len(
+                                                contig.sequence
+                                            )
                                         scores[taxonomy_id][sample]['count'] += \
                                             contig.get_read_count(sample) * \
                                             len(gene.protein_sequence) * 3 / \
@@ -640,22 +650,30 @@ class GeneAssembler(object):
 
                                         genes[gene_id][sample]['Length'] = \
                                             str(len(gene.protein_sequence)) + 'aa'
-                                        genes[gene_id][sample]['Completeness'] = \
-                                            '{0:.0f}'.format(len(gene.protein_sequence) * \
-                                            100 / hit.s_len)
-                                        genes[gene_id][sample]['identity'] = \
-                                            '{0:.1f}'.format(identity)
-                                        genes[gene_id][sample]['rpkm'] = \
-                                            '{0:.7f}'.format(contig.get_rpkm(\
-                                            self.project.options.\
-                                            get_fastq1_readcount(sample), sample) \
-                                            * len(gene.protein_sequence) * 3 / \
-                                            len(contig.sequence))
-                                        genes[gene_id][sample]['count'] = 3 * \
-                                            '{0:.0f}'.format(contig.get_read_count(sample) *\
-                                            len(gene.protein_sequence) / len(contig.sequence))
-                                        genes[gene_id][sample]['coverage'] = \
-                                            '{0:.1f}'.format(contig.get_coverage(sample))
+                                        genes[gene_id][sample]['Completeness'] = '{0:.0f}'.format(
+                                            len(gene.protein_sequence) * 100 / hit.s_len
+                                        )
+                                        genes[gene_id][sample]['identity'] = '{0:.1f}'.format(
+                                            identity
+                                        )
+                                        genes[gene_id][sample]['rpkm'] = '{0:.7f}'.format(
+                                            contig.get_rpkm(
+                                                self.project.options.get_fastq1_readcount(
+                                                    sample
+                                                ),
+                                                sample
+                                            ) * len(gene.protein_sequence) * 3 / len(
+                                                contig.sequence
+                                            )
+                                        )
+                                        genes[gene_id][sample]['count'] = 3 * '{0:.0f}'.format(
+                                            contig.get_read_count(sample) * len(
+                                                gene.protein_sequence
+                                            ) / len(contig.sequence)
+                                        )
+                                        genes[gene_id][sample]['coverage'] = '{0:.1f}'.format(
+                                            contig.get_coverage(sample)
+                                        )
                                 scores[taxonomy_id]['All samples']['rpkm'] += \
                                     contig.get_rpkm(total_read_count) * \
                                     len(gene.protein_sequence) \
@@ -668,19 +686,24 @@ class GeneAssembler(object):
                                 scores[taxonomy_id]['All samples']['genes'] += gene_id + ' '
                                 genes[gene_id]['All samples']['Length'] = \
                                     str(len(gene.protein_sequence)) + 'aa'
-                                genes[gene_id]['All samples']['Completeness'] = \
-                                    '{0:.0f}'.format(len(gene.protein_sequence) * 100 / \
-                                    hit.s_len)
+                                genes[gene_id]['All samples']['Completeness'] = '{0:.0f}'.format(
+                                    len(gene.protein_sequence) * 100 / hit.s_len
+                                )
                                 genes[gene_id]['All samples']['identity'] = \
                                     '{0:.1f}'.format(identity)
-                                genes[gene_id]['All samples']['rpkm'] = \
-                                    '{0:.7f}'.format(contig.get_rpkm(total_read_count) \
-                                    * len(gene.protein_sequence) * 3 / len(contig.sequence))
-                                genes[gene_id]['All samples']['count'] = \
-                                    '{0:.0f}'.format(contig.get_read_count() * \
-                                    len(gene.protein_sequence) * 3 / len(contig.sequence))
-                                genes[gene_id]['All samples']['coverage'] = \
-                                    '{0:.1f}'.format(contig.get_coverage())
+                                genes[gene_id]['All samples']['rpkm'] = '{0:.7f}'.format(
+                                    contig.get_rpkm(total_read_count) * len(
+                                        gene.protein_sequence
+                                    ) * 3 / len(contig.sequence)
+                                )
+                                genes[gene_id]['All samples']['count'] = '{0:.0f}'.format(
+                                    contig.get_read_count() * len(
+                                        gene.protein_sequence
+                                    ) * 3 / len(contig.sequence)
+                                )
+                                genes[gene_id]['All samples']['coverage'] = '{0:.1f}'.format(
+                                    contig.get_coverage()
+                                )
                                 function_counted = True
             taxonomic_profile = TaxonomyProfile()
             taxonomic_profile.make_assembly_taxonomy_profile(taxonomy_data, scores)
@@ -694,7 +717,7 @@ class GeneAssembler(object):
 
     def write_sequences(self):
         """Exports gene and protein sequences in FASTA format"""
-        genes = autovivify(2) # genes[function][gene][parameter] = parameter_value
+        genes = autovivify(2)  # genes[function][gene][parameter] = parameter_value
 
         for function in self.assembly.contigs:
             for contig in self.assembly.contigs[function]:
@@ -703,9 +726,6 @@ class GeneAssembler(object):
                     if gene.status == STATUS_GOOD:
                         for hit in gene.hit_list.hits:
                             taxonomy_id = gene.taxonomy
-                            #~ if not taxonomy_id:
-                                #~ taxonomy_id = self.project.ref_data.lookup_protein_tax(
-                                #      cleanup_protein_id(hit.subject_id))
                             for hit_function in hit.functions:
                                 start = gene.start
                                 end = gene.end
@@ -715,11 +735,12 @@ class GeneAssembler(object):
                                 genes[hit_function][gene_id]['strand'] = strand
                                 genes[hit_function][gene_id]['taxonomy'] = taxonomy_id
                                 gene_sequence = self.assembly.contigs[function][contig].\
-                                    sequence[int(start) - 1 : int(end)]
+                                    sequence[int(start) - 1: int(end)]
                                 if strand == '-1':
                                     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
-                                    gene_sequence = ''.join([complement[nucl] \
-                                        for nucl in reversed(gene_sequence)])
+                                    gene_sequence = ''.join(
+                                        [complement[nucl] for nucl in reversed(gene_sequence)]
+                                    )
                                 genes[hit_function][gene_id]['sequence'] = gene_sequence
                                 genes[hit_function][gene_id]['protein'] = gene.protein_sequence
                                 genes[hit_function][gene_id]['aai'] = hit.identity
@@ -737,7 +758,7 @@ class GeneAssembler(object):
                                   genes[function][gene_id]['start'] + '|' +
                                   genes[function][gene_id]['end'] + '|' +
                                   genes[function][gene_id]['strand'] + '|' +
-                                  lineage + '\n')#'|'
+                                  lineage + '\n')  # '|'
                     outfile.write(genes[function][gene_id]['sequence'] + '\n')
             outfile = os.path.join(self.project.options.assembly_dir,
                                    'out',
@@ -750,7 +771,7 @@ class GeneAssembler(object):
                                   genes[function][gene_id]['start'] + '|' +
                                   genes[function][gene_id]['end'] + '|' +
                                   genes[function][gene_id]['strand'] + '|' +
-                                  lineage + '\n')#'|'
+                                  lineage + '\n')  # '|'
                     outfile.write(genes[function][gene_id]['protein'] + '\n')
 
     def generate_output(self):
@@ -761,7 +782,7 @@ class GeneAssembler(object):
         taxonomy_data = TaxonomyData(self.project.config)
         taxonomy_data.load_taxdata(self.project.config)
 
-        make_assembly_xlsx(self, taxonomy_data)
+        make_assembly_xlsx(self)
         self.generate_taxonomy_chart(taxonomy_data)
         self.generate_function_taxonomy_charts(taxonomy_data)
         generate_assembly_report(self)
@@ -779,10 +800,10 @@ def run_assembler(functions, assembler, output_dir, is_paired_end=True):
                 'Current version of metaSPAdes does not support single-end libraries.'
                 )
 
+
 def run_megahit(functions, output_dir, assembler_command, is_paired_end=True):
     """Runs MEGAHIT assembler on exported reads"""
     print('Starting assembly')
-    #assembler_command = 'megahit'
     for function in functions:
         print('Run assembler for function', function)
         if is_paired_end:
@@ -792,15 +813,13 @@ def run_megahit(functions, output_dir, assembler_command, is_paired_end=True):
                               '-2',
                               os.path.join(output_dir, function + '_pe2.fastq'),
                               '-o',
-                              os.path.join(output_dir, function)
-                             ]
+                              os.path.join(output_dir, function)]
         else:
             assembler_args = [assembler_command,
                               '-r',
                               os.path.join(output_dir, function + '_pe1.fastq'),
                               '-o',
-                              os.path.join(output_dir, function)
-                             ]
+                              os.path.join(output_dir, function)]
         run_external_program(assembler_args)
         print('Assembler finished for function ', function)
     print('Assembly finished')
@@ -809,7 +828,6 @@ def run_megahit(functions, output_dir, assembler_command, is_paired_end=True):
 def run_spades(functions, output_dir, assembler_command, is_paired_end=True):
     """Runs metaSPAdes assembler on exported reads"""
     print('Starting metaSPAdes')
-    #assembler_command = 'metaspades.py'
     tmp_dir = os.path.join(output_dir, 'tmp')
     for function in functions:
         print('Run metaSPAdes for function', function)
@@ -818,24 +836,21 @@ def run_spades(functions, output_dir, assembler_command, is_paired_end=True):
                           '-t',
                           '12',
                           '-m',
-                          '50', # TODO: make a parameter
+                          '50',  # TODO: make a parameter
                           '-k',
-                          '33,55,71,91,111', # TODO: adjust automatically
+                          '33,55,71,91,111',  # TODO: adjust automatically
                           '-o',
                           os.path.join(output_dir, function),
                           '--tmp-dir',
-                          tmp_dir
-                         ]
+                          tmp_dir]
         if is_paired_end:
             assembler_args.extend(['-1',
                                    os.path.join(output_dir, function + '_pe1.fastq'),
                                    '-2',
-                                   os.path.join(output_dir, function + '_pe2.fastq')
-                                  ])
+                                   os.path.join(output_dir, function + '_pe2.fastq')])
         else:
             assembler_args.extend(['-s',
-                                   os.path.join(output_dir, function + '_pe1.fastq')
-                                  ])
+                                   os.path.join(output_dir, function + '_pe1.fastq')])
 
         run_external_program(assembler_args)
         if os.path.exists(os.path.join(output_dir, function, 'contigs.fasta')):
@@ -843,6 +858,7 @@ def run_spades(functions, output_dir, assembler_command, is_paired_end=True):
                             os.path.join(output_dir, function, 'final.contigs.fa'))
         print('Assembler finished for function ', function)
     print('metaSPAdes finished')
+
 
 def run_mapper_indexing(functions, output_dir, mapper_command):
     """Runs Bowtie2 indexer on filtered contigs"""
@@ -859,9 +875,9 @@ def run_mapper_indexing(functions, output_dir, mapper_command):
             mapper_args = [mapper_command,
                            '-f',
                            os.path.join(output_dir, function, 'final.contigs.filtered.fa'),
-                           os.path.join(output_dir, function, 'index', 'index')
-                          ]
+                           os.path.join(output_dir, function, 'index', 'index')]
             run_external_program(mapper_args)
+
 
 def run_mapper(functions, output_dir, mapper_command, is_paired_end=True):
     """Runs Bowtie2 mapper on filtered contigs"""
@@ -883,8 +899,7 @@ def run_mapper(functions, output_dir, mapper_command, is_paired_end=True):
                                os.path.join(output_dir, function + '_pe1.fastq'),
                                '-2',
                                os.path.join(output_dir, function + '_pe2.fastq'),
-                               '>' + os.path.join(output_dir, function, 'contigs.sam')
-                              ]
+                               '>' + os.path.join(output_dir, function, 'contigs.sam')]
             else:
                 mapper_args = [mapper_command,
                                '-q',
@@ -894,9 +909,9 @@ def run_mapper(functions, output_dir, mapper_command, is_paired_end=True):
                                os.path.join(output_dir, function, 'index', 'index'),
                                '-U',
                                os.path.join(output_dir, function + '_pe1.fastq'),
-                               '>' + os.path.join(output_dir, function, 'contigs.sam')
-                              ]
+                               '>' + os.path.join(output_dir, function, 'contigs.sam')]
             run_external_program(mapper_args)
+
 
 def run_prodigal(infile, outfile, prodigal_path):
     """Runs Prodigal gene prediction on filtered contigs"""
@@ -907,8 +922,7 @@ def run_prodigal(infile, outfile, prodigal_path):
                      '-i',
                      infile,
                      '-o',
-                     outfile+'prodigal.txt',
-                    ]
+                     outfile+'prodigal.txt']
     run_external_program(prodigal_args)
     print('Prodigal finished')
 
@@ -934,10 +948,10 @@ def run_ref_search(project):
                     project.config.threads,
                     '--outfmt', '6', 'qseqid', 'sseqid', 'pident', 'length',
                     'mismatch', 'slen', 'qstart', 'qend', 'sstart', 'send',
-                    'evalue', 'bitscore'
-                   ]
+                    'evalue', 'bitscore']
     run_external_program(diamond_args)
     print('DIAMOND finished')
+
 
 def run_bgr_search(project):
     """Runs DIAMOND classification search on predicted genes"""
@@ -947,11 +961,15 @@ def run_bgr_search(project):
                     '--db',
                     project.config.get_background_diamond_db(project.options.get_collection()),
                     '--query',
-                    os.path.join(project.options.assembly_dir,
-                                 'all_contigs_'+ project.options.ref_hits_fastq_name),
+                    os.path.join(
+                        project.options.assembly_dir,
+                        'all_contigs_' + project.options.ref_hits_fastq_name
+                    ),
                     '--out',
-                    os.path.join(project.options.assembly_dir,
-                                 'all_contigs_'+ project.options.background_output_name),
+                    os.path.join(
+                        project.options.assembly_dir,
+                        'all_contigs_' + project.options.background_output_name
+                    ),
                     '--max-target-seqs',
                     '50',
                     '--evalue',
@@ -962,8 +980,7 @@ def run_bgr_search(project):
                     project.config.threads,
                     '--outfmt', '6', 'qseqid', 'sseqid', 'pident', 'length',
                     'mismatch', 'slen', 'qstart', 'qend', 'sstart', 'send',
-                    'evalue', 'bitscore'
-                   ]
+                    'evalue', 'bitscore']
     run_external_program(diamond_args)
     print('DIAMOND finished')
 
@@ -975,6 +992,7 @@ def parse_gene_id(gene_id):
     gene_id = gene_id_tokens[-1]
     contig_id = '_'.join(gene_id_tokens[:-1])
     return function_id, contig_id, gene_id
+
 
 def get_abundance(function_fraction, average_coverage, coverage):
     """Calculates  relative abundance from contig coverage"""
@@ -1037,11 +1055,13 @@ def compare_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cuto
 
             # Filter list of hits by bitscore
             bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
-            new_hits = [new_hit for new_hit in new_hit_list.hits if \
-                new_hit.bitscore > bitscore_lower_cutoff]
+            new_hits = [
+                new_hit for new_hit in new_hit_list.hits if new_hit.bitscore > bitscore_lower_cutoff
+                ]
 
-            if hit.subject_id not in [new_hit.subject_id for new_hit in new_hits] \
-                and hit.bitscore >= best_bitscore:
+            if hit.subject_id not in [
+                    new_hit.subject_id for new_hit in new_hits
+            ] and hit.bitscore >= best_bitscore:
                 new_hits.append(hit)
 
             # Collect taxonomy IDs of all hits for LCA inference

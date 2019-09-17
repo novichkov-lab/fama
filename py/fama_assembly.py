@@ -4,6 +4,7 @@ import sys
 import argparse
 from lib.assembly_pipeline import assembly_pipeline
 
+
 def get_args():
     """Returns command-line arguments"""
     desc = '''This program runs gene assembly pipeline.'''
@@ -21,6 +22,7 @@ def get_args():
         parser.print_help()
         sys.exit(1)
     return args
+
 
 def main():
     """Main function calling assembly module"""

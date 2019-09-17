@@ -2,6 +2,7 @@
 from collections import defaultdict
 from lib.utils.const import STATUS_CAND, STATUS_GOOD, STATUS_BAD
 
+
 class AnnotatedRead(object):
     """AnnotatedRead stores sequence read data (sequence, identifier, quality
     etc.) together with functional and taxonomic annotations.
@@ -38,7 +39,7 @@ class AnnotatedRead(object):
         self.line3 = None         # 3rd FASTQ line
         self.hit_list = None      # hit_list is a DiamondHitList object
         self.status = STATUS_CAND
-        self.functions = defaultdict(float) # functions dictionary
+        self.functions = defaultdict(float)  # functions dictionary
         self.pe_id = None          # 1st PE FASTQ line
         self.pe_sequence = None    # 2nd PE FASTQ line
         self.pe_quality = None     # 4th PE FASTQ line
@@ -78,5 +79,5 @@ class AnnotatedRead(object):
         self.hit_list.print_hits()
 
     def __str__(self):
-        return 'Annotated read: ' + self.status + '\n'+ str(self.hit_list) \
+        return 'Annotated read: ' + self.status + '\n' + str(self.hit_list) \
             + '\t' + ','.join(self.functions)

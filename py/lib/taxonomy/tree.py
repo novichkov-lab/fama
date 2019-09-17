@@ -3,6 +3,7 @@ import queue
 from collections import defaultdict
 from lib.utils.const import RANKS, ROOT_TAXONOMY_ID
 
+
 class Node(object):
     """Node object stores data of one taxonomic tree node
 
@@ -138,6 +139,7 @@ class Node(object):
         """Returns True if node_id is in children, False if not"""
         return node_id in self.children
 
+
 class Tree(object):
     """Tree stores phylogenetic tree. Phylogenetic tree is an oriented graph
     of nodes. Tree has root node with identifier equal to ROOT_TAXONOMY_ID.
@@ -160,7 +162,7 @@ class Tree(object):
         if node.taxid not in self.data and node.parent in self.data:
             self.data[node.taxid] = node
             self.data[node.parent].add_child(node.taxid)
-        elif not node.parent in self.data:
+        elif node.parent not in self.data:
             print('Parent ', node.parent, ' for node ', node.taxid, 'not found in the tree')
         elif not self.data[node.parent].is_in_children(node.taxid):
             self.data[node.parent].add_child(node.taxid)
@@ -184,7 +186,7 @@ class Tree(object):
             taxonomy_data (:obj:TaxonomyData): taxonomic data instance
         """
         if node.taxid in self.data:
-            return #Nothing to do
+            return  # Nothing to do
         elif node.parent in self.data:
             self.data[node.taxid] = node
             self.data[node.parent].add_child(node.taxid)

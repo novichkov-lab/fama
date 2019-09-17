@@ -1,15 +1,7 @@
 """Describes ReferenceData class"""
 from collections import defaultdict
+from lib.utils.utils import singleton
 
-def singleton(cls):
-    """Implements singleton design pattern"""
-    instances = {}
-    def getinstance(*args, **kwargs):
-        """Creates singleton instance of cls, if not exists, and returns it"""
-        if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
-    return getinstance
 
 @singleton
 class ReferenceData(object):
@@ -48,7 +40,7 @@ class ReferenceData(object):
         with open(infile, 'r') as file_handle:
             for line in file_handle:
                 if line.startswith('#'):
-                    continue #skip header and comments
+                    continue  # skip header and comments
                 else:
                     line = line.rstrip('\n\r')
                     line_tokens = line.split('\t')
@@ -63,7 +55,7 @@ class ReferenceData(object):
         with open(infile, 'r') as file_handle:
             for line in file_handle:
                 if line.startswith('#'):
-                    continue #skip header and comments
+                    continue  # skip header and comments
                 else:
                     line = line.rstrip('\n\r')
                     line_tokens = line.split('\t')
@@ -87,7 +79,7 @@ class ReferenceData(object):
         ret_val = ''
 #        print('Lookup tax for ', protein)
         if protein in self.proteins_dict:
-#            print ('found ', self.proteins_dict[protein]['taxid'])
+            # print('found ', self.proteins_dict[protein]['taxid'])
             ret_val = self.proteins_dict[protein]['taxid']
         return ret_val
 

@@ -7,6 +7,7 @@ from lib.utils.const import STATUS_GOOD
 from lib.utils.utils import autovivify, cleanup_protein_id, sanitize_file_name
 from lib.taxonomy.taxonomy_profile import TaxonomyProfile
 
+
 def make_function_sample_xlsx(project, scores, metrics, sample_id=None):
     """Generates XLSX file for function scores for one or more samples.
 
@@ -21,19 +22,33 @@ def make_function_sample_xlsx(project, scores, metrics, sample_id=None):
         sample_id (str, optional): sample identifier
     """
     if sample_id is None:
-        xlsxfile = sanitize_file_name(os.path.join(project.options.work_dir, \
-        project.options.project_name + '_' + metrics + '_functions.xlsx'))
+        xlsxfile = sanitize_file_name(
+            os.path.join(
+                project.options.work_dir,
+                project.options.project_name + '_' + metrics + '_functions.xlsx'
+            )
+        )
     else:
-        xlsxfile = sanitize_file_name(os.path.join(project.options.work_dir, \
-        sample_id + '_' + metrics + '_functions.xlsx'))
+        xlsxfile = sanitize_file_name(
+            os.path.join(
+                project.options.work_dir,
+                sample_id + '_' + metrics + '_functions.xlsx'
+            )
+        )
 
     print('Writing', xlsxfile)
     workbook = xlsxwriter.Workbook(xlsxfile)
     bold = workbook.add_format({'bold': True})
 
     functions_list = sorted(project.ref_data.functions_dict.keys())
-    categories_list = sorted(list(set([project.ref_data.functions_dict[x]['group'] for x \
-    in project.ref_data.functions_dict.keys()])))
+    categories_list = sorted(
+        list(
+            set(
+                [project.ref_data.functions_dict[x]['group']for x in
+                 project.ref_data.functions_dict.keys()]
+            )
+        )
+    )
 
     scores_cat = autovivify(2, float)
 
@@ -103,6 +118,7 @@ def make_function_sample_xlsx(project, scores, metrics, sample_id=None):
 
     workbook.close()
 
+
 def make_func_tax_sample_xlsx(project, scores, metrics, sample_id=None, rank=None):
     """Generates XLSX file for function and taxon scores for one or more samples.
 
@@ -120,18 +136,35 @@ def make_func_tax_sample_xlsx(project, scores, metrics, sample_id=None, rank=Non
     """
     if sample_id is None:
         if rank is None:
-            xlsxfile = sanitize_file_name(os.path.join(project.options.work_dir, \
-            project.options.project_name + '_' + metrics + '_functions_taxonomy.xlsx'))
+            xlsxfile = sanitize_file_name(
+                os.path.join(
+                    project.options.work_dir,
+                    project.options.project_name + '_' + metrics + '_functions_taxonomy.xlsx'
+                )
+            )
         else:
-            xlsxfile = sanitize_file_name(os.path.join(project.options.work_dir, \
-            project.options.project_name + '_' + metrics + '_functions_' + rank + '_taxonomy.xlsx'))
+            xlsxfile = sanitize_file_name(
+                os.path.join(
+                    project.options.work_dir,
+                    project.options.project_name + '_' + metrics + '_functions_'
+                    + rank + '_taxonomy.xlsx'
+                )
+            )
     else:
         if rank is None:
-            xlsxfile = sanitize_file_name(os.path.join(project.options.work_dir, \
-            sample_id + '_' + metrics + '_functions_taxonomy.xlsx'))
+            xlsxfile = sanitize_file_name(
+                os.path.join(
+                    project.options.work_dir,
+                    sample_id + '_' + metrics + '_functions_taxonomy.xlsx'
+                )
+            )
         else:
-            xlsxfile = sanitize_file_name(os.path.join(project.options.work_dir, \
-            sample_id + '_' + metrics + '_functions_' + rank + '_taxonomy.xlsx'))
+            xlsxfile = sanitize_file_name(
+                os.path.join(
+                    project.options.work_dir,
+                    sample_id + '_' + metrics + '_functions_' + rank + '_taxonomy.xlsx'
+                )
+            )
 
     print('Writing', xlsxfile)
     writer = pd.ExcelWriter(xlsxfile, engine='xlsxwriter')
@@ -165,6 +198,7 @@ def make_func_tax_sample_xlsx(project, scores, metrics, sample_id=None, rank=Non
         format_taxonomy_worksheet(writer, sample)
 
     writer.save()
+
 
 def format_taxonomy_worksheet(xlsx_writer, worksheet_label):
     """Applies formatting to a worksheet in Excel workbook
@@ -204,6 +238,7 @@ def format_taxonomy_worksheet(xlsx_writer, worksheet_label):
     worksheet.set_column(1, 1, 15)
     worksheet.set_column(2, 2, 35)
 
+
 def make_sample_tax_func_xlsx(project, scores, metrics, function_id=None, rank=None):
     """Generates XLSX file for taxa scores for one or all functions in all samples.
 
@@ -222,19 +257,36 @@ def make_sample_tax_func_xlsx(project, scores, metrics, function_id=None, rank=N
     """
     if function_id is None:
         if rank is None:
-            xlsxfile = sanitize_file_name(os.path.join(project.options.work_dir, \
-            project.options.project_name + '_' + metrics + '_samples_taxonomy.xlsx'))
+            xlsxfile = sanitize_file_name(
+                os.path.join(
+                    project.options.work_dir,
+                    project.options.project_name + '_' + metrics + '_samples_taxonomy.xlsx'
+                )
+            )
         else:
-            xlsxfile = sanitize_file_name(os.path.join(project.options.work_dir, \
-            project.options.project_name + '_' + metrics + '_samples_' + rank + '_taxonomy.xlsx'))
+            xlsxfile = sanitize_file_name(
+                os.path.join(
+                    project.options.work_dir,
+                    project.options.project_name + '_' + metrics + '_samples_'
+                    + rank + '_taxonomy.xlsx'
+                )
+            )
 
     else:
         if rank is None:
-            xlsxfile = sanitize_file_name(os.path.join(project.options.work_dir, \
-            function_id + '_' + metrics + '_samples_taxonomy.xlsx'))
+            xlsxfile = sanitize_file_name(
+                os.path.join(
+                    project.options.work_dir,
+                    function_id + '_' + metrics + '_samples_taxonomy.xlsx'
+                )
+            )
         else:
-            xlsxfile = sanitize_file_name(os.path.join(project.options.work_dir, \
-            function_id + '_' + metrics + '_samples_' + rank + '_taxonomy.xlsx'))
+            xlsxfile = sanitize_file_name(
+                os.path.join(
+                    project.options.work_dir,
+                    function_id + '_' + metrics + '_samples_' + rank + '_taxonomy.xlsx'
+                )
+            )
 
     print('Writing', xlsxfile)
     writer = pd.ExcelWriter(xlsxfile, engine='xlsxwriter')
@@ -281,8 +333,8 @@ def make_sample_tax_func_xlsx(project, scores, metrics, function_id=None, rank=N
         for taxonomy_id in sample_scores:
             for sample in sample_scores[taxonomy_id]:
                 sample_scores[taxonomy_id][sample][metrics] = \
-                sample_scores[taxonomy_id][sample][metrics]\
-                / len(project.ref_data.functions_dict.keys())
+                    sample_scores[taxonomy_id][sample][metrics] \
+                    / len(project.ref_data.functions_dict.keys())
 
         tax_profile = TaxonomyProfile()
         tax_profile.make_function_taxonomy_profile(project.taxonomy_data, sample_scores)
@@ -299,14 +351,20 @@ def make_sample_tax_func_xlsx(project, scores, metrics, function_id=None, rank=N
 
     writer.save()
 
+
 def make_assembly_xlsx(assembler):
     """Generates XLSX file for assembly.
 
     Args:
         assembler (:obj:'GeneAssembler'): gene assembler object
     """
-    xlsxfile = sanitize_file_name(os.path.join(assembler.project.options.assembly_dir, \
-    'out', assembler.project.options.project_name + '_assembly.xlsx'))
+    xlsxfile = sanitize_file_name(
+        os.path.join(
+            assembler.project.options.assembly_dir,
+            'out',
+            assembler.project.options.project_name + '_assembly.xlsx'
+        )
+    )
     xlsxfile = xlsxfile.replace(' ', '_')
     xlsxfile = xlsxfile.replace("'", "")
     xlsxfile = xlsxfile.replace('"', '')
@@ -321,8 +379,8 @@ def make_assembly_xlsx(assembler):
 
     functions_list = set()
     samples_list = sorted(assembler.project.list_samples())
-    function_read_counts = autovivify(2, float) # function_read_counts[function][sample]
-    gene_rpkm = autovivify(3, float) # gene_rpkm[function][gene][sample],
+    function_read_counts = autovivify(2, float)  # function_read_counts[function][sample]
+    gene_rpkm = autovivify(3, float)  # gene_rpkm[function][gene][sample],
     # parameters are RPKM, coverage, identity
 
     # count reads per function, per sample
@@ -337,7 +395,7 @@ def make_assembly_xlsx(assembler):
 
     for sample in samples_list:
         total_read_count += assembler.project.options.get_fastq1_readcount(sample)
-        #total_read_count += assembler.project.options.get_fastq2_readcount(sample)
+        total_read_count += assembler.project.options.get_fastq2_readcount(sample)
 
     # generate output
 
@@ -367,8 +425,9 @@ def make_assembly_xlsx(assembler):
         for sample in samples_list:
             col += 1
             if sample in function_read_counts[function]:
-                reads_worksheet.write(row, col, function_read_counts[function][sample]*2,\
-                cell_numformat0)
+                reads_worksheet.write(
+                    row, col, function_read_counts[function][sample]*2, cell_numformat0
+                )
             else:
                 reads_worksheet.write(row, col, 0, cell_numformat0)
         col += 1
@@ -594,8 +653,8 @@ def make_assembly_xlsx(assembler):
                 # Write read count (calculated from read count of contig,
                 # adjusted by gene length)
                 gene_read_count = assembler.assembly.contigs[function][contig].get_read_count()\
-                                  * gene_length \
-                                  / len(assembler.assembly.contigs[function][contig].sequence)
+                    * gene_length \
+                    / len(assembler.assembly.contigs[function][contig].sequence)
                 genes_worksheet.write(row, col, gene_read_count, cell_numformat1)
                 col += 1
                 # Write RPKM
@@ -647,15 +706,13 @@ def make_assembly_xlsx(assembler):
                     col += 1
 
                     # Write Fama best hit organism
-                    gene_organism = [assembler.project.taxonomy_data.names[x]['name'] for x\
-                                     in gene_taxonomy
-                                    ]
+                    gene_organism = [assembler.project.taxonomy_data.names[x]['name'] for x
+                                     in gene_taxonomy]
                     genes_worksheet.write(row, col, ','.join(gene_organism))
                     col += 1
                     # Write Fama best hit taxonomy
                     best_hit_taxonomy = [assembler.project.taxonomy_data.get_lineage_string(x)
-                                         for x in gene_taxonomy
-                                        ]
+                                         for x in gene_taxonomy]
                     genes_worksheet.write(row, col, '|'.join(best_hit_taxonomy))
                     col += 1
 
