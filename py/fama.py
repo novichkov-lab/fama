@@ -2,6 +2,7 @@
 """Runs Fama functional profiling pipeline"""
 import sys
 import argparse
+from lib.utils.const import ENDS
 from lib.functional_profiling_pipeline import fastq_pipeline
 from lib.protein_functional_pipeline import protein_pipeline
 
@@ -22,11 +23,10 @@ def get_args():
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
-    if not args.end is None:
-        if args.end != 'pe1' and args.end != 'pe2':
-            print('End parameter must be either pe1 or pe2')
-            parser.print_help()
-            sys.exit(1)
+    if args.end is not None and args.end not in ENDS:
+        print('End parameter must be either pe1 or pe2')
+        parser.print_help()
+        sys.exit(1)
     return args
 
 def main():

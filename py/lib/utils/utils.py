@@ -1,5 +1,6 @@
 """ Utility functions"""
 from collections import defaultdict
+from subprocess import Popen, PIPE, CalledProcessError
 
 def autovivify(levels=1, final=dict):
     """Creates multi-level dictionary based on defaultdict
@@ -38,3 +39,17 @@ def sanitize_file_name(filename):
     filename = filename.replace("'", "")
     filename = filename.replace('"', '')
     return filename
+
+def run_external_program(cmd):
+    """Starts new process with given arguments
+
+    Args:
+        cmd (list of str): external command with parameters and options
+    Raises:
+        CalledProcessError if external program fails
+    """
+    with Popen(cmd, stdout=PIPE, bufsize=1, universal_newlines=True) as proc:
+        for line in proc.stdout:
+            print(line, end='')
+    if proc.returncode != 0:
+        raise CalledProcessError(proc.returncode, proc.args)

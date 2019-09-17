@@ -4,10 +4,9 @@ accessory functions for running gene-centric assembler
 import os
 import csv
 import shutil
-from subprocess import Popen, PIPE, CalledProcessError
 from collections import Counter, defaultdict
 from lib.utils.const import STATUS_GOOD, STATUS_BAD
-from lib.utils.utils import autovivify
+from lib.utils.utils import autovivify, run_external_program
 from lib.gene_assembler.contig import Contig
 from lib.gene_assembler.gene import Gene
 from lib.gene_assembler.gene_assembly import GeneAssembly
@@ -15,9 +14,9 @@ from lib.diamond_parser.diamond_hit_list import DiamondHitList
 from lib.diamond_parser.diamond_hit import DiamondHit
 from lib.output.json_util import export_gene_assembly
 from lib.taxonomy.taxonomy_profile import TaxonomyProfile
-from lib.output.krona_xml_writer import generate_assembly_taxonomy_chart
+from lib.output.krona_xml_writer import make_assembly_taxonomy_chart
 from lib.output.report import generate_assembly_report
-from lib.output.xlsx_util import create_assembly_xlsx
+from lib.output.xlsx_util import make_assembly_xlsx
 from lib.reference_library.taxonomy_data import TaxonomyData
 
 class GeneAssembler(object):
@@ -563,14 +562,13 @@ class GeneAssembler(object):
                                 '{0:.1f}'.format(contig.get_coverage())
 
         taxonomic_profile = TaxonomyProfile()
-        taxonomic_profile.build_assembly_taxonomic_profile(taxonomy_data, scores)
+        taxonomic_profile.make_assembly_taxonomy_profile(taxonomy_data, scores)
 #        taxonomic_profile.print_taxonomy_profile()
         outfile = os.path.join(self.assembly_dir, 'assembly_taxonomic_profile.xml')
-        generate_assembly_taxonomy_chart(taxonomic_profile,
-                                         genes,
-                                         sorted(functions_list),
-                                         outfile,
-                                         self.project.config.krona_path, score='rpkm')
+        make_assembly_taxonomy_chart(
+            taxonomic_profile, genes, sorted(functions_list), outfile,
+            self.project.config.krona_path, score='rpkm'
+            )
 
     def generate_function_taxonomy_charts(self, taxonomy_data):
         '''
@@ -685,15 +683,14 @@ class GeneAssembler(object):
                                     '{0:.1f}'.format(contig.get_coverage())
                                 function_counted = True
             taxonomic_profile = TaxonomyProfile()
-            taxonomic_profile.build_assembly_taxonomic_profile(taxonomy_data, scores)
+            taxonomic_profile.make_assembly_taxonomy_profile(taxonomy_data, scores)
     #        taxonomic_profile.print_taxonomy_profile()
             output_sample_ids = sorted(self.project.list_samples())
             output_sample_ids.append('All samples')
-            generate_assembly_taxonomy_chart(taxonomic_profile,
-                                             genes,
-                                             output_sample_ids,
-                                             outfile,
-                                             self.project.config.krona_path, score='rpkm')
+            make_assembly_taxonomy_chart(
+                taxonomic_profile, genes, output_sample_ids, outfile,
+                self.project.config.krona_path, score='rpkm'
+                )
 
     def write_sequences(self):
         """Exports gene and protein sequences in FASTA format"""
@@ -764,7 +761,7 @@ class GeneAssembler(object):
         taxonomy_data = TaxonomyData(self.project.config)
         taxonomy_data.load_taxdata(self.project.config)
 
-        create_assembly_xlsx(self, taxonomy_data)
+        make_assembly_xlsx(self, taxonomy_data)
         self.generate_taxonomy_chart(taxonomy_data)
         self.generate_function_taxonomy_charts(taxonomy_data)
         generate_assembly_report(self)
@@ -804,14 +801,8 @@ def run_megahit(functions, output_dir, assembler_command, is_paired_end=True):
                               '-o',
                               os.path.join(output_dir, function)
                              ]
-
-        with Popen(assembler_args, stdout=PIPE, bufsize=1, universal_newlines=True) as process:
-            for line in process.stdout:
-                print(line, end='')
-        if process.returncode != 0:
-            print('Assembler finished with error for function ', function)
-            #raise CalledProcessError(p.returncode, p.args)
-
+        run_external_program(assembler_args)
+        print('Assembler finished for function ', function)
     print('Assembly finished')
 
 
@@ -846,15 +837,11 @@ def run_spades(functions, output_dir, assembler_command, is_paired_end=True):
                                    os.path.join(output_dir, function + '_pe1.fastq')
                                   ])
 
-        with Popen(assembler_args, stdout=PIPE, bufsize=1, universal_newlines=True) as process:
-            for line in process.stdout:
-                print(line, end='')
-        if process.returncode != 0:
-            print('metaSpades finished with error for function ', function)
-            #raise CalledProcessError(p.returncode, p.args)
+        run_external_program(assembler_args)
         if os.path.exists(os.path.join(output_dir, function, 'contigs.fasta')):
             shutil.copyfile(os.path.join(output_dir, function, 'contigs.fasta'),
                             os.path.join(output_dir, function, 'final.contigs.fa'))
+        print('Assembler finished for function ', function)
     print('metaSPAdes finished')
 
 def run_mapper_indexing(functions, output_dir, mapper_command):
@@ -874,12 +861,7 @@ def run_mapper_indexing(functions, output_dir, mapper_command):
                            os.path.join(output_dir, function, 'final.contigs.filtered.fa'),
                            os.path.join(output_dir, function, 'index', 'index')
                           ]
-
-            with Popen(mapper_args, stdout=PIPE, bufsize=1, universal_newlines=True) as process:
-                for line in process.stdout:
-                    print(line, end='')
-            if process.returncode != 0:
-                raise CalledProcessError(process.returncode, process.args)
+            run_external_program(mapper_args)
 
 def run_mapper(functions, output_dir, mapper_command, is_paired_end=True):
     """Runs Bowtie2 mapper on filtered contigs"""
@@ -914,12 +896,7 @@ def run_mapper(functions, output_dir, mapper_command, is_paired_end=True):
                                os.path.join(output_dir, function + '_pe1.fastq'),
                                '>' + os.path.join(output_dir, function, 'contigs.sam')
                               ]
-
-            with Popen(mapper_args, stdout=PIPE, bufsize=1, universal_newlines=True) as process:
-                for line in process.stdout:
-                    print(line, end='')
-            if process.returncode != 0:
-                raise CalledProcessError(process.returncode, process.args)
+            run_external_program(mapper_args)
 
 def run_prodigal(infile, outfile, prodigal_path):
     """Runs Prodigal gene prediction on filtered contigs"""
@@ -932,12 +909,7 @@ def run_prodigal(infile, outfile, prodigal_path):
                      '-o',
                      outfile+'prodigal.txt',
                     ]
-
-    with Popen(prodigal_args, stdout=PIPE, bufsize=1, universal_newlines=True) as process:
-        for line in process.stdout:
-            print(line, end='')
-    if process.returncode != 0:
-        raise CalledProcessError(process.returncode, process.args)
+    run_external_program(prodigal_args)
     print('Prodigal finished')
 
 
@@ -964,13 +936,7 @@ def run_ref_search(project):
                     'mismatch', 'slen', 'qstart', 'qend', 'sstart', 'send',
                     'evalue', 'bitscore'
                    ]
-
-    with Popen(diamond_args, stdout=PIPE, bufsize=1, universal_newlines=True) as process:
-        for line in process.stdout:
-            print(line, end='')
-    if process.returncode != 0:
-        raise CalledProcessError(process.returncode, process.args)
-
+    run_external_program(diamond_args)
     print('DIAMOND finished')
 
 def run_bgr_search(project):
@@ -998,11 +964,7 @@ def run_bgr_search(project):
                     'mismatch', 'slen', 'qstart', 'qend', 'sstart', 'send',
                     'evalue', 'bitscore'
                    ]
-    with Popen(diamond_args, stdout=PIPE, bufsize=1, universal_newlines=True) as process:
-        for line in process.stdout:
-            print(line, end='')
-    if process.returncode != 0:
-        raise CalledProcessError(process.returncode, process.args)
+    run_external_program(diamond_args)
     print('DIAMOND finished')
 
 

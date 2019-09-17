@@ -15,7 +15,7 @@ def singleton(cls):
 class ProgramConfig(object):
     """Configuration parameters for Fama run. Wraps a ConfigParser instance,
     which reads config ini file. This is a singleton class.
-    
+
     Attributes:
         parser (:obj:ConfigParser): underlying ConfigParser instance
     """

@@ -31,7 +31,7 @@ class ReferenceData(object):
         """
         self.functions_dict = defaultdict(dict)
         self.proteins_dict = defaultdict(dict)
-        self.load_reference_data (config, collection)
+        self.load_reference_data(config, collection)
 
     def load_reference_data(self, config, collection):
         """Loads reference data for a given collection"""

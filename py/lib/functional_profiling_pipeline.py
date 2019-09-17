@@ -1,14 +1,14 @@
 """Runs Fama functional profiling pipeline"""
 import os
-from subprocess import Popen, PIPE, CalledProcessError
 
 from lib.utils.const import ENDS, STATUS_GOOD
+from lib.utils.utils import run_external_program
 from lib.project.project import Project
 from lib.project.sample import Sample
 from lib.diamond_parser.diamond_parser import DiamondParser
 from lib.output.report import generate_fastq_report, generate_sample_report
 from lib.output.pdf_report import generate_pdf_report
-from lib.output.krona_xml_writer import generate_functions_chart
+from lib.output.krona_xml_writer import make_functions_chart
 from lib.output.json_util import export_annotated_reads, export_sample
 from lib.third_party.microbe_census import run_pipeline, report_results
 
@@ -42,12 +42,7 @@ def run_ref_search(parser, command):
                     'mismatch', 'slen', 'qstart', 'qend', 'sstart', 'send',
                     'evalue', 'bitscore'
                    ]
-
-    with Popen(diamond_args, stdout=PIPE, bufsize=1, universal_newlines=True) as proc:
-        for line in proc.stdout:
-            print(line, end='')
-    if proc.returncode != 0:
-        raise CalledProcessError(proc.returncode, proc.args)
+    run_external_program(diamond_args)
     print('DIAMOND finished')
 
 def run_bgr_search(parser, command):
@@ -85,12 +80,7 @@ def run_bgr_search(parser, command):
                     '--outfmt', '6', 'qseqid', 'sseqid', 'pident', 'length', 'mismatch',
                     'slen', 'qstart', 'qend', 'sstart', 'send', 'evalue', 'bitscore'
                    ]
-
-    with Popen(diamond_args, stdout=PIPE, bufsize=1, universal_newlines=True) as proc:
-        for line in proc.stdout:
-            print(line, end='')
-    if proc.returncode != 0:
-        raise CalledProcessError(proc.returncode, proc.args)
+    run_external_program(diamond_args)
     print('DIAMOND finished')
 
 def run_microbecensus(sample, config):
@@ -243,7 +233,7 @@ def run_fastq_pipeline(project, sample, end_id):
     # Generate output
     generate_fastq_report(parser)
     generate_pdf_report(parser)
-    generate_functions_chart(parser)
+    make_functions_chart(parser)
 
     #return parser.reads
     # Return only good reads

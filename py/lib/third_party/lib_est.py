@@ -1,3 +1,15 @@
+"""
+Distribution of Read Insert Sizes Model
+
+Reference:
+Kristoffer Sahlin, Mattias Franberg, Lars Arvestad
+Correcting bias from stochastic insert size in read pair data — applications to
+structural variation detection and genome assembly
+http://biorxiv.org/content/biorxiv/early/2015/08/04/023929.full.pdf
+
+Original version: 
+https://github.com/ksahlin/GetDistr/blob/master/getdistr/assemblymodule/lib_est.py
+"""
 import os
 import math
 import bisect

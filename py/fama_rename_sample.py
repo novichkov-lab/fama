@@ -27,7 +27,7 @@ from lib.diamond_parser.diamond_parser import DiamondParser
 
 from lib.output.report import generate_fastq_report
 from lib.output.pdf_report import generate_pdf_report
-from lib.output.krona_xml_writer import generate_functions_chart
+from lib.output.krona_xml_writer import make_functions_chart
 
 # This program renames one sample in a project
 
@@ -232,7 +232,7 @@ def rename_sample(config_file, project_file, old_id, new_id):
         # Generate output
         generate_fastq_report(parser)
         generate_pdf_report(parser)
-        generate_functions_chart(parser)
+        make_functions_chart(parser)
 
 def main():
     """Main function: gets args and calls rename_sample"""
