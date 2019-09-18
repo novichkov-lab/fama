@@ -103,6 +103,11 @@ class Node(object):
         """
         if isinstance(value, dict) and not self.attributes:
             self.attributes = defaultdict(dict)
+            for innner_key in value:
+                if isinstance(value[innner_key], dict):
+                    print(key, value[innner_key])
+                    raise TypeError('Second-level attribute value cannot be dict')
+                self.attributes[key][innner_key] = value[innner_key]
         elif key in self.attributes:
             if isinstance(value, dict):
                 for innner_key in value:
@@ -195,32 +200,32 @@ class Tree(object):
             current_taxid = node.taxid
             nodes_stack.put((current_taxid, True))
             parent_taxid = '0'
-            if current_taxid in taxonomy_data.nodes:
-                parent_taxid = taxonomy_data.nodes[current_taxid]['parent']
+            if taxonomy_data.is_exist(current_taxid):
+                parent_taxid = taxonomy_data.get_parent(current_taxid)
             while True:
-                if current_taxid in taxonomy_data.nodes:
-                    current_taxid = taxonomy_data.nodes[current_taxid]['parent']
+                if taxonomy_data.is_exist(current_taxid):
+                    current_taxid = taxonomy_data.get_parent(current_taxid)
                 else:
                     current_taxid = '0'
 
-                if taxonomy_data.nodes[current_taxid]['rank'] in RANKS:
+                if taxonomy_data.get_rank(current_taxid) in RANKS:
                     nodes_stack.put((current_taxid, True))
                 else:
                     nodes_stack.put((current_taxid, False))
 
-                if taxonomy_data.nodes[current_taxid]['parent'] == '1':
-                    parent_taxid = '1'
+                if taxonomy_data.get_parent(current_taxid) == ROOT_TAXONOMY_ID:
+                    parent_taxid = ROOT_TAXONOMY_ID
                     break
-                elif self.is_in_tree(taxonomy_data.nodes[current_taxid]['parent']):
-                    parent_taxid = taxonomy_data.nodes[current_taxid]['parent']
+                elif self.is_in_tree(taxonomy_data.get_parent(current_taxid)):
+                    parent_taxid = taxonomy_data.get_parent(current_taxid)
                     break
 
             while not nodes_stack.empty():
                 node_id = nodes_stack.get()
                 if node_id[1]:
                     if node_id[0] in taxonomy_data.nodes:
-                        node = Node(rank=taxonomy_data.nodes[node_id[0]]['rank'],
-                                    name=taxonomy_data.names[node_id[0]]['name'],
+                        node = Node(rank=taxonomy_data.get_rank(node_id[0]),
+                                    name=taxonomy_data.get_name(node_id[0]),
                                     taxid=node_id[0],
                                     parent=parent_taxid,
                                     children=set())
@@ -248,7 +253,7 @@ class Tree(object):
         while True:
             if taxid in self.data or taxid == '1':
                 break
-            taxid = taxonomy_data.nodes[taxid]['parent']
+            taxid = taxonomy_data.get_parent(taxid)
         self.data[taxid].add_attribute(key, value)
 
     def add_attribute_recursively(self, taxid, key, value, taxonomy_data):
@@ -266,7 +271,7 @@ class Tree(object):
         while True:
             if taxid in self.data or taxid == '1':
                 break
-            taxid = taxonomy_data.nodes[taxid]['parent']
+            taxid = taxonomy_data.get_parent(taxid)
 
         parent_taxid = self.data[taxid].parent
         while True:
@@ -286,12 +291,12 @@ class Tree(object):
         ret_val = None
         if node.taxid in self.data:
             ret_val = self.data[node.parent]
-        elif node.taxid in taxonomy_data.nodes and node.taxid in taxonomy_data.names:
-            parent_taxid = taxonomy_data.nodes[node.taxid]['parent']
-            if parent_taxid in taxonomy_data.nodes and parent_taxid in taxonomy_data.names:
-                ret_val = Node(rank=taxonomy_data.nodes[parent_taxid]['rank'],
-                               name=taxonomy_data.names[parent_taxid]['name'],
+        elif taxonomy_data.is_exist(node.taxid):
+            parent_taxid = taxonomy_data.get_parent(node.taxid)
+            if taxonomy_data.is_exist(parent_taxid):
+                ret_val = Node(rank=taxonomy_data.get_rank(parent_taxid),
+                               name=taxonomy_data.get_name(parent_taxid),
                                taxid=parent_taxid,
-                               parent=taxonomy_data.nodes[parent_taxid]['parent'])
+                               parent=taxonomy_data.get_parent(parent_taxid))
                 ret_val.add_child(node)
         return ret_val

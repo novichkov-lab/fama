@@ -178,7 +178,7 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
         else:
             for selected_hit in selected_hits:
                 subject_taxon_id = ref_data.lookup_protein_tax(selected_hit.subject_id)
-                subject_rank = taxonomy_data.get_taxonomy_rank(subject_taxon_id)
+                subject_rank = taxonomy_data.get_rank(subject_taxon_id)
                 while subject_taxon_id != ROOT_TAXONOMY_ID:
                     if subject_rank not in rank_cutoffs:
                         subject_taxon_id, subject_rank = \

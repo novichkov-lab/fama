@@ -6,7 +6,8 @@ from collections import Counter,defaultdict
 import xlsxwriter
 import pandas as pd
 
-from context import Fama
+from context import lib
+from lib.utils.const import ENDS
 from lib.utils.utils import autovivify,cleanup_protein_id,sanitize_file_name
 from lib.project.project import Project
 from lib.diamond_parser.diamond_parser import DiamondParser
@@ -14,8 +15,8 @@ from lib.taxonomy.taxonomy_profile import TaxonomyProfile
 
 from lib.output.json_util import import_annotated_reads
 from lib.output.report import generate_fastq_report, get_function_scores, get_function_taxonomy_scores
-from lib.output.xlsx_util import generate_function_sample_xlsx, generate_function_taxonomy_sample_xlsx, generate_sample_taxonomy_function_xlsx
-from lib.output.krona_xml_writer import generate_functional_taxonomy_chart,generate_taxonomy_series_chart
+from lib.output.xlsx_util import make_function_sample_xlsx, make_func_tax_sample_xlsx, make_sample_tax_func_xlsx
+from lib.output.krona_xml_writer import make_function_taxonomy_chart, make_taxonomy_series_chart
 
 data_dir = 'data'
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
@@ -31,9 +32,9 @@ end = 'pe1'
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen8test_t.ini')
 #sample_id = 'sample1'
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_universal1_lca_test.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_universal1_lca_test.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen9_lca.ini')
-sample_id = 'sample6'
+#sample_id = 'sample6'
 
 class FunctionTaxonomyProfilingTest(unittest.TestCase):
 
@@ -1473,15 +1474,15 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
         self.assertTrue(len(scores), 30)
 
     def test_8_build_fragment_function_taxonomy_lca_profile(self):
-        sample_id = 'sample1'
-        self.project.import_reads_json(sample_id, self.project.ENDS)
+        #sample_id = 'sample1'
+        self.project.import_reads_json(sample_id, ENDS)
         
-        outfile = sanitize_file_name(self.project.options.get_name() + '_fpkm_functions_taxonomy.xlsx')
-        metrics = 'fpkg'
+        outfile = sanitize_file_name(self.project.options.project_name + '_fpkm_functions_taxonomy.xlsx')
+        metric = 'efpkg'
         
-        scores = get_function_taxonomy_scores(self.project,sample_id=sample_id,metrics=metrics)
+        scores = get_function_taxonomy_scores(self.project,sample_id=sample_id,metric=metric)
         
-        generate_function_taxonomy_sample_xlsx(self.project, scores, metrics=metrics, sample_id=sample_id)
+        make_func_tax_sample_xlsx(self.project, scores, metric=metric, sample_id=sample_id)
         
         # Subsetting scores
         sample_scores = autovivify(3, float)
@@ -1494,16 +1495,25 @@ class FunctionTaxonomyProfilingTest(unittest.TestCase):
 
 
         tax_profile = TaxonomyProfile()
-        outfile = sanitize_file_name(os.path.join(self.project.options.get_work_dir(), sample_id + '_' + metrics + '_lca_functional_taxonomy_profile.xml'))
-        tax_profile.build_functional_taxonomy_profile(self.project.taxonomy_data, sample_scores)
+        outfile = sanitize_file_name(
+            os.path.join(
+                self.project.options.work_dir,
+                sample_id + '_' + metric + '_lca_functional_taxonomy_profile.xml'
+                )
+            )
+        tax_profile.make_function_taxonomy_profile(self.project.taxonomy_data, sample_scores)
         #generate_lca_taxonomy_chart(tax_profile, sample=sample_id, outfile=outfile, score=metrics)
-        generate_taxonomy_series_chart(tax_profile, sample_list=sorted(self.project.ref_data.functions_dict.keys()), outfile=outfile, score=metrics)
+        make_taxonomy_series_chart(
+            tax_profile,
+            sample_list=sorted(self.project.ref_data.functions_dict.keys()),
+            outfile=outfile, krona_path=self.project.config.krona_path, metric=metric
+            )
         
         self.assertTrue(sample_scores)
 
     def test_9_build_fragment_function_taxonomy_comparison_table (self):
         for sample_id in self.project.list_samples():
-            self.project.import_reads_json(sample_id, self.project.ENDS)
+            self.project.import_reads_json(sample_id, ENDS)
         
         metrics = 'fpkg'
         scores = get_function_taxonomy_scores(self.project,sample_id=None,metrics=metrics)

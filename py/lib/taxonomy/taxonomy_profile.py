@@ -36,20 +36,20 @@ class TaxonomyProfile(object):
                                                         attribute_key,
                                                         scores[taxid][attribute_key],
                                                         taxonomy_data)
-            elif taxid in taxonomy_data.names:
+            elif taxonomy_data.is_exist(taxid):
                 # If taxonomical rank ot taxid is not in RANKS, find parent
                 # taxon with acceptable rank
                 current_id = taxid
-                rank = taxonomy_data.nodes[current_id]['rank']
+                rank = taxonomy_data.get_rank(current_id)
                 while True:
                     if rank in RANKS:
                         break
                     else:
-                        current_id = taxonomy_data.nodes[current_id]['parent']
-                        rank = taxonomy_data.nodes[current_id]['rank']
+                        current_id = taxonomy_data.get_parent(current_id)
+                        rank = taxonomy_data.get_rank(current_id)
                 if not self.tree.is_in_tree(current_id):
-                    parent_taxid = taxonomy_data.nodes[current_id]['parent']
-                    label = taxonomy_data.names[current_id]['name']
+                    parent_taxid = taxonomy_data.get_parent(current_id)
+                    label = taxonomy_data.get_name(current_id)
                     node = Node(rank=rank, name=label, taxid=current_id, parent=parent_taxid)
                     self.tree.add_node_recursively(node, taxonomy_data)
                 for attribute_key in scores[taxid]:
@@ -343,33 +343,33 @@ class TaxonomyProfile(object):
             print('Node not found:', taxid)
             return ''
 
-    def stringify_func_taxon_profile(self, score='rpkm'):
+    def stringify_func_taxon_profile(self, metric='rpkm'):
         """Returns taxonomy profile as text: all nodes starting from root
         (top-down depth-first) as tab-separated fields, with selected node
-        attributes: read count, average amino acid identity % and score (defined
-        by score argument).
+        attributes: read count, average amino acid identity % and metric (defined
+        by metric argument).
 
         Args:
-            score (str): score metric (default value 'rpkm') to be reported
+            metric (str): score metric (default value 'rpkm') to be reported
 
         Returns:
             ret_val(str): string representation of all nodes in the tree
         """
         root_id = ROOT_TAXONOMY_ID
         offset = 0
-        ret_val = self.stringify_node_functions(root_id, offset, score)
+        ret_val = self.stringify_node_functions(root_id, offset, metric)
         return ret_val
 
-    def stringify_node_functions(self, taxid, offset, score='rpkm'):
+    def stringify_node_functions(self, taxid, offset, metric='rpkm'):
         """Returns string representation of node (tab-separated), which includes
         taxonomy identifier, rank, taxon name, parent identifier, children
-        identifiers, stringified attributes: score, read count, average amino
+        identifiers, stringified attributes: metric, read count, average amino
         acid identity %. Recursively called for all children of the node.
 
         Args:
             taxid (str): taxonomy identifier of node
             offset (int): number of tabs in the beginning
-            score (str): score metric (default value 'rpkm') to be reported
+            metric (str): score metric (default value 'rpkm') to be reported
 
         Returns:
             ret_val (str): string representation of node
@@ -383,7 +383,7 @@ class TaxonomyProfile(object):
                 for function in self.tree.data[taxid].attributes:
                     try:
                         ret_val += '\t'*(offset + 5) + function + '\tScore:' + format(
-                            self.tree.data[taxid].attributes[function][score], "0.3f"
+                            self.tree.data[taxid].attributes[function][metric], "0.3f"
                         ) + '\tIdentity:' + format((
                             self.tree.data[taxid].attributes[function]['identity']
                             / self.tree.data[taxid].attributes[function]['hit_count']
@@ -483,11 +483,11 @@ class TaxonomyProfile(object):
             print('Node not found:', taxid)
             return ret_val
 
-    def convert_profile_into_df(self, score='rpkm'):
+    def convert_profile_into_df(self, metric='rpkm'):
         """Converts functional-taxonomic profile into pandas DataFrame object
 
         Args:
-            score (str): score metric (default value 'rpkm') to be reported
+            metric (str): score metric (default value 'rpkm') to be reported
 
         Returns:
             result (pd.DataFrame): functional-taxonomic profile as pandas
@@ -500,13 +500,13 @@ class TaxonomyProfile(object):
         root_id = ROOT_TAXONOMY_ID
         line_number = 1
         tax_dict, _ = self.convert_node_into_dict(
-            root_id, function_list, line_number, score=score
+            root_id, function_list, line_number, metric=metric
             )
         result = pd.DataFrame(tax_dict)
         result = result.transpose()
         return result
 
-    def convert_node_into_dict(self, taxid, function_list, line_number, score='rpkm'):
+    def convert_node_into_dict(self, taxid, function_list, line_number, metric='rpkm'):
         """Returns node of functional-taxonomic profile for conversion into DataFrame.
         Recursively called for all children of the node.
 
@@ -515,7 +515,7 @@ class TaxonomyProfile(object):
             function_list (list of str): function identifiers to be included
                 to the table
             line_number (int): sequential number of node printed
-            score (str): score metric (default value 'rpkm') to be reported
+            metric (str): score metric (default value 'rpkm') to be reported
 
         Returns:
             ret_val (dict[str,dict[tuple(str,str),float]]): outer key is line number,
@@ -524,7 +524,7 @@ class TaxonomyProfile(object):
                 Field names are 'Rank', 'Taxon name', '1.Score', '2.Identity',
                 '3.Read count'. For each function, only the latter three fields are reported.
             attribute_values (defaultdict[str,dict[str,obj]]): outer key is
-                function identifier, inner key may be score, 'hit_count', 'identity'
+                function identifier, inner key may be metric, 'hit_count', 'identity'
                 'hit_count', value is float.
         """
         # Collect values of all required attributes for reporting to the upper level
@@ -533,12 +533,12 @@ class TaxonomyProfile(object):
         if taxid not in self.tree.data:
             return ret_val, attribute_values
         for function in function_list:
-            for attribute_name in ['count', 'identity', 'hit_count', score]:
+            for attribute_name in ['count', 'identity', 'hit_count', metric]:
                 attribute_values[function][attribute_name] = 0.0
             if function in self.tree.data[taxid].attributes:
-                if score in self.tree.data[taxid].attributes[function]:
-                    attribute_values[function][score] = \
-                        self.tree.data[taxid].attributes[function][score]
+                if metric in self.tree.data[taxid].attributes[function]:
+                    attribute_values[function][metric] = \
+                        self.tree.data[taxid].attributes[function][metric]
                 if 'count' in self.tree.data[taxid].attributes[function]:
                     attribute_values[function]['count'] = \
                         self.tree.data[taxid].attributes[function]['count']
@@ -557,7 +557,7 @@ class TaxonomyProfile(object):
                 ret_val[line_number][(function, field_name)] = 0.0
             if function in self.tree.data[taxid].attributes:
                 ret_val[line_number][(function, '1.Score')] = \
-                    self.tree.data[taxid].attributes[function][score]
+                    self.tree.data[taxid].attributes[function][metric]
                 ret_val[line_number][(function, '3.Read count')] = \
                     self.tree.data[taxid].attributes[function]['count']
                 if 'identity' in self.tree.data[taxid].attributes[function]:
@@ -572,7 +572,7 @@ class TaxonomyProfile(object):
                     self.convert_node_into_dict(child_id,
                                                 function_list,
                                                 line_number,
-                                                score)
+                                                metric)
                 for child_line_number, child_line in child_lines.items():
                     ret_val[child_line_number] = child_line
                 line_number += len(child_lines)
@@ -609,8 +609,8 @@ class TaxonomyProfile(object):
                             < self.tree.data[taxid].attributes[function]['count']
                     ):
                         ret_val[line_number][(function, '1.Score')] = \
-                            self.tree.data[taxid].attributes[function][score] \
-                            - children_values[function][score]
+                            self.tree.data[taxid].attributes[function][metric] \
+                            - children_values[function][metric]
                         ret_val[line_number][(function, '3.Read count')] = \
                             self.tree.data[taxid].attributes[function]['count'] \
                             - children_values[function]['count']
@@ -629,11 +629,11 @@ class TaxonomyProfile(object):
                 line_number += 1
         return ret_val, attribute_values
 
-    def convert_profile_into_score_df(self, score='rpkm'):
+    def convert_profile_into_score_df(self, metric='rpkm'):
         """Converts functional-taxonomic profile into pandas DataFrame object
 
         Args:
-            score (str): score metric (default value 'rpkm') to be reported
+            metric (str): score metric (default value 'rpkm') to be reported
 
         Returns:
             result (pd.DataFrame): functional-taxonomic profile as pandas
@@ -648,12 +648,12 @@ class TaxonomyProfile(object):
         tax_dict, _ = self.convert_node_into_values_dict(root_id,
                                                          function_list,
                                                          line_number,
-                                                         score=score)
+                                                         metric=metric)
         result = pd.DataFrame(tax_dict)
         result = result.transpose()
         return result
 
-    def convert_node_into_values_dict(self, taxid, function_list, line_number, score='efpkg'):
+    def convert_node_into_values_dict(self, taxid, function_list, line_number, metric='efpkg'):
         """Returns node of functional-taxonomic profile for conversion into DataFrame.
         Recursively called for all children of the node.
 
@@ -662,35 +662,35 @@ class TaxonomyProfile(object):
             function_list (list of str): function identifiers to be included
                 to the table
             line_number (int): sequential number of node printed
-            score (str): score metric (default value 'efpkg') to be reported
+            metric (str): score metric (default value 'efpkg') to be reported
 
         Returns:
             attribute_values (defaultdict[str,dict[str,float]]): outer key is
-                function identifier, inner key is score,  value is float.
+                function identifier, inner key is metric,  value is float.
             ret_val (dict[str,tuple(str,str)]): key is line number, value is a
                 tuple with function identifier or empty string as first element
                 and field name as second element. Field names are 'Rank',
-                'Taxon name', score.
+                'Taxon name', metric.
         """
         # Collect all attributes for reporting to the upper level
         attribute_values = defaultdict(dict)
         for function in function_list:
             if function in self.tree.data[taxid].attributes:
-                attribute_values[function][score] = 0.0
-                if score in self.tree.data[taxid].attributes[function]:
-                    attribute_values[function][score] = \
-                        self.tree.data[taxid].attributes[function][score]
+                attribute_values[function][metric] = 0.0
+                if metric in self.tree.data[taxid].attributes[function]:
+                    attribute_values[function][metric] = \
+                        self.tree.data[taxid].attributes[function][metric]
 
-        ret_val = {}
+        ret_val = defaultdict(dict)
         children_values = autovivify(2, float)
         if taxid in self.tree.data:
             ret_val[line_number][('', 'Rank')] = self.tree.data[taxid].rank
             ret_val[line_number][('', 'Taxon name')] = self.tree.data[taxid].name
             for function in function_list:
-                ret_val[line_number][(function, score)] = 0.0
+                ret_val[line_number][(function, metric)] = 0.0
                 if function in self.tree.data[taxid].attributes:
-                    ret_val[line_number][(function, score)] = \
-                        self.tree.data[taxid].attributes[function][score]
+                    ret_val[line_number][(function, metric)] = \
+                        self.tree.data[taxid].attributes[function][metric]
             line_number += 1
             if self.tree.data[taxid].children:
                 for child_id in sorted(self.tree.data[taxid].children):
@@ -698,7 +698,7 @@ class TaxonomyProfile(object):
                         self.convert_node_into_values_dict(child_id,
                                                            function_list,
                                                            line_number,
-                                                           score)
+                                                           metric)
                     for child_line_number, child_line in child_lines.items():
                         ret_val[child_line_number] = child_line
                     line_number += len(child_lines)
@@ -710,8 +710,8 @@ class TaxonomyProfile(object):
                 unidentified_flag = False
                 for function in function_list:
                     if function in self.tree.data[taxid].attributes and (
-                            children_values[function][score]
-                            < self.tree.data[taxid].attributes[function][score]
+                            children_values[function][metric]
+                            < self.tree.data[taxid].attributes[function][metric]
                     ):
                         unidentified_flag = True
                         break
@@ -723,14 +723,14 @@ class TaxonomyProfile(object):
                     if taxid == '1':
                         ret_val[line_number][('', 'Taxon name')] = 'Unclassified'
                     for function in function_list:
-                        ret_val[line_number][(function, score)] = 0.0
+                        ret_val[line_number][(function, metric)] = 0.0
                         if function in self.tree.data[taxid].attributes and (
-                                children_values[function][score]
-                                < self.tree.data[taxid].attributes[function][score]
+                                children_values[function][metric]
+                                < self.tree.data[taxid].attributes[function][metric]
                         ):
-                            ret_val[line_number][(function, score)] = \
-                                self.tree.data[taxid].attributes[function][score] \
-                                - children_values[function][score]
+                            ret_val[line_number][(function, metric)] = \
+                                self.tree.data[taxid].attributes[function][metric] \
+                                - children_values[function][metric]
                     line_number += 1
 
             return ret_val, attribute_values

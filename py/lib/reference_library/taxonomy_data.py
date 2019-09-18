@@ -75,6 +75,73 @@ class TaxonomyData(object):
         # make rank of root different from others
         self.nodes[ROOT_TAXONOMY_ID]['rank'] = 'norank'
 
+    def is_exist(self, taxonomy_id):
+        """ Checks if taxonomy identifier exists in taxonomy data)
+        
+        Args:
+            taxonomy_id (str): taxonomy identifier
+
+        Returns:
+            result (bool): True if taxonomy_id exists, False otherwise
+        """
+        result = False
+        try:
+            if taxonomy_id in self.names:
+                result = True
+        except KeyError:
+            print('Taxonomy identifier %s not found' % taxonomy_id)
+        return result
+        
+    def get_name(self, taxonomy_id):
+        """ Look up taxon name by identifier 
+        
+        Args:
+            taxonomy_id (str): taxonomy identifier
+
+        Returns:
+            result (str): taxon name
+        """
+        result = ''
+        try:
+            result = self.names[taxonomy_id]['name']
+        except KeyError:
+            print('Taxonomy identifier %s not found' % taxonomy_id)
+        return result
+
+    def get_rank(self, taxonomy_id):
+        """ Look up taxon rank by identifier 
+        
+        Args:
+            taxonomy_id (str): taxonomy identifier
+
+        Returns:
+            result (str): rank or empty string
+        """
+        result = 'norank'
+        try:
+            result = self.nodes[taxonomy_id]['rank']
+        except KeyError:
+            print('Taxonomy identifier %s not found' % taxonomy_id)
+        return result
+
+    def get_parent(self, taxonomy_id):
+        """ Look up taxon parent by identifier. Returns direct parent reagrdless
+        of its rank. If you need a parent node with rank defined in RANKS, call
+        get_upper_level_taxon method instead.
+        
+        Args:
+            taxonomy_id (str): taxonomy identifier
+
+        Returns:
+            result (str): taxonomy dentifier of parent node or empty string
+        """
+        result = '0'
+        try:
+            result = self.nodes[taxonomy_id]['parent']
+        except KeyError:
+            print('Taxonomy identifier %s not found' % taxonomy_id)
+        return result
+
     def get_lca(self, taxonomy_id_list):
         """Returns Lowest Common Ancestor identifier for a list of taxonomy identifiers"""
         result = UNKNOWN_TAXONOMY_ID
@@ -183,7 +250,8 @@ class TaxonomyData(object):
     def get_taxonomy_profile(self, counts, identity, scores):
         """Calculates taxonomy profile for a number of taxonomy identifiers.
         This function takes three dictionaries, assuming that all of
-        them have equal size and identical keys.
+        them have equal size and identical keys. This function is used only for
+        generation of text and PDF reports for individual FASTQ/FASTA files.
 
         Args:
             counts (dict[str,int]): key is taxonomy identifier, value is count
@@ -284,13 +352,6 @@ class TaxonomyData(object):
                     result = current_id, current_rank
             if result[0] == UNKNOWN_TAXONOMY_ID:
                 result = ROOT_TAXONOMY_ID, self.nodes[ROOT_TAXONOMY_ID]['rank']
-        return result
-
-    def get_taxonomy_rank(self, taxonomy_id):
-        """Returns rank for a given taxonomy identifier"""
-        result = 'norank'
-        if taxonomy_id in self.nodes:
-            result = self.nodes[taxonomy_id]['rank']
         return result
 
     def get_lineage_string(self, taxonomy_id):

@@ -8,7 +8,7 @@ from lib.utils.utils import autovivify, cleanup_protein_id, sanitize_file_name
 from lib.taxonomy.taxonomy_profile import TaxonomyProfile
 
 
-def make_function_sample_xlsx(project, scores, metrics, sample_id=None):
+def make_function_sample_xlsx(project, scores, metric, sample_id=None):
     """Generates XLSX file for function scores for one or more samples.
 
     Args:
@@ -16,7 +16,7 @@ def make_function_sample_xlsx(project, scores, metrics, sample_id=None):
         scores (dict[str, dict[str, dict[str, float]]]): outer key is function
         identifier, middle-level key is sample identifier,
         inner key is metric, value id float
-        metrics (str, optional): acceptable values are 'readcount', 'erpk', 'rpkm',
+        metric (str, optional): acceptable values are 'readcount', 'erpk', 'rpkm',
             'fragmentcount', 'fpk', 'efpk', 'fpkm', 'erpkm', 'efpkm',
             'fpkg', 'rpkg', 'erpkg', 'efpkg'
         sample_id (str, optional): sample identifier
@@ -25,14 +25,14 @@ def make_function_sample_xlsx(project, scores, metrics, sample_id=None):
         xlsxfile = sanitize_file_name(
             os.path.join(
                 project.options.work_dir,
-                project.options.project_name + '_' + metrics + '_functions.xlsx'
+                project.options.project_name + '_' + metric + '_functions.xlsx'
             )
         )
     else:
         xlsxfile = sanitize_file_name(
             os.path.join(
                 project.options.work_dir,
-                sample_id + '_' + metrics + '_functions.xlsx'
+                sample_id + '_' + metric + '_functions.xlsx'
             )
         )
 
@@ -53,7 +53,7 @@ def make_function_sample_xlsx(project, scores, metrics, sample_id=None):
     scores_cat = autovivify(2, float)
 
     # generate tables for functions
-    scores_worksheet = workbook.add_worksheet('Functions ' + metrics)
+    scores_worksheet = workbook.add_worksheet('Functions ' + metric)
 
     row = 0
     col = 0
@@ -77,8 +77,8 @@ def make_function_sample_xlsx(project, scores, metrics, sample_id=None):
                 continue
             col += 1
             if function in scores and sample in scores[function]:
-                scores_worksheet.write(row, col, scores[function][sample][metrics])
-                scores_cat[category][sample] += scores[function][sample][metrics]
+                scores_worksheet.write(row, col, scores[function][sample][metric])
+                scores_cat[category][sample] += scores[function][sample][metric]
             else:
                 scores_worksheet.write(row, col, 0.0)
 
@@ -90,7 +90,7 @@ def make_function_sample_xlsx(project, scores, metrics, sample_id=None):
     scores_worksheet.set_column(col, col, 50)
 
     # Write worksheet for categories
-    scores_cat_worksheet = workbook.add_worksheet('Categories ' + metrics)
+    scores_cat_worksheet = workbook.add_worksheet('Categories ' + metric)
     row = 0
     col = 0
     scores_cat_worksheet.write(row, col, 'Categories', bold)
@@ -119,7 +119,7 @@ def make_function_sample_xlsx(project, scores, metrics, sample_id=None):
     workbook.close()
 
 
-def make_func_tax_sample_xlsx(project, scores, metrics, sample_id=None, rank=None):
+def make_func_tax_sample_xlsx(project, scores, metric, sample_id=None, rank=None):
     """Generates XLSX file for function and taxon scores for one or more samples.
 
     Args:
@@ -127,7 +127,7 @@ def make_func_tax_sample_xlsx(project, scores, metrics, sample_id=None, rank=Non
         scores (dict[str, dict[str, dict[str, float]]]): outer key is function
         identifier, middle-level key is sample identifier,
         inner key is metric, value id float
-        metrics (str, optional): acceptable values are 'readcount', 'erpk', 'rpkm',
+        metric (str, optional): acceptable values are 'readcount', 'erpk', 'rpkm',
             'fragmentcount', 'fpk', 'efpk', 'fpkm', 'erpkm', 'efpkm',
             'fpkg', 'rpkg', 'erpkg', 'efpkg'
         sample_id (str, optional): sample identifier
@@ -139,14 +139,14 @@ def make_func_tax_sample_xlsx(project, scores, metrics, sample_id=None, rank=Non
             xlsxfile = sanitize_file_name(
                 os.path.join(
                     project.options.work_dir,
-                    project.options.project_name + '_' + metrics + '_functions_taxonomy.xlsx'
+                    project.options.project_name + '_' + metric + '_functions_taxonomy.xlsx'
                 )
             )
         else:
             xlsxfile = sanitize_file_name(
                 os.path.join(
                     project.options.work_dir,
-                    project.options.project_name + '_' + metrics + '_functions_'
+                    project.options.project_name + '_' + metric + '_functions_'
                     + rank + '_taxonomy.xlsx'
                 )
             )
@@ -155,14 +155,14 @@ def make_func_tax_sample_xlsx(project, scores, metrics, sample_id=None, rank=Non
             xlsxfile = sanitize_file_name(
                 os.path.join(
                     project.options.work_dir,
-                    sample_id + '_' + metrics + '_functions_taxonomy.xlsx'
+                    sample_id + '_' + metric + '_functions_taxonomy.xlsx'
                 )
             )
         else:
             xlsxfile = sanitize_file_name(
                 os.path.join(
                     project.options.work_dir,
-                    sample_id + '_' + metrics + '_functions_' + rank + '_taxonomy.xlsx'
+                    sample_id + '_' + metric + '_functions_' + rank + '_taxonomy.xlsx'
                 )
             )
 
@@ -185,9 +185,9 @@ def make_func_tax_sample_xlsx(project, scores, metrics, sample_id=None, rank=Non
         tax_profile.make_function_taxonomy_profile(project.taxonomy_data, sample_scores)
 
         if sample_id is None:
-            taxonomy_df = tax_profile.convert_profile_into_score_df(score=metrics)
+            taxonomy_df = tax_profile.convert_profile_into_score_df(metric=metric)
         else:
-            taxonomy_df = tax_profile.convert_profile_into_df(score=metrics)
+            taxonomy_df = tax_profile.convert_profile_into_df(metric=metric)
 
         if rank is None:
             taxonomy_df.to_excel(writer, sheet_name=sample, merge_cells=False)
@@ -239,7 +239,7 @@ def format_taxonomy_worksheet(xlsx_writer, worksheet_label):
     worksheet.set_column(2, 2, 35)
 
 
-def make_sample_tax_func_xlsx(project, scores, metrics, function_id=None, rank=None):
+def make_sample_tax_func_xlsx(project, scores, metric, function_id=None, rank=None):
     """Generates XLSX file for taxa scores for one or all functions in all samples.
 
     Args:
@@ -247,7 +247,7 @@ def make_sample_tax_func_xlsx(project, scores, metrics, function_id=None, rank=N
         scores (dict[str, dict[str, dict[str, float]]]): outer key is function
         identifier, middle-level key is sample identifier,
         inner key is metric, value id float
-        metrics (str, optional): acceptable values are 'readcount', 'erpk', 'rpkm',
+        metric (str, optional): acceptable values are 'readcount', 'erpk', 'rpkm',
             'fragmentcount', 'fpk', 'efpk', 'fpkm', 'erpkm', 'efpkm',
             'fpkg', 'rpkg', 'erpkg', 'efpkg'
         function_id (str, optional): function identifier. If function_id is None, all
@@ -260,14 +260,14 @@ def make_sample_tax_func_xlsx(project, scores, metrics, function_id=None, rank=N
             xlsxfile = sanitize_file_name(
                 os.path.join(
                     project.options.work_dir,
-                    project.options.project_name + '_' + metrics + '_samples_taxonomy.xlsx'
+                    project.options.project_name + '_' + metric + '_samples_taxonomy.xlsx'
                 )
             )
         else:
             xlsxfile = sanitize_file_name(
                 os.path.join(
                     project.options.work_dir,
-                    project.options.project_name + '_' + metrics + '_samples_'
+                    project.options.project_name + '_' + metric + '_samples_'
                     + rank + '_taxonomy.xlsx'
                 )
             )
@@ -277,14 +277,14 @@ def make_sample_tax_func_xlsx(project, scores, metrics, function_id=None, rank=N
             xlsxfile = sanitize_file_name(
                 os.path.join(
                     project.options.work_dir,
-                    function_id + '_' + metrics + '_samples_taxonomy.xlsx'
+                    function_id + '_' + metric + '_samples_taxonomy.xlsx'
                 )
             )
         else:
             xlsxfile = sanitize_file_name(
                 os.path.join(
                     project.options.work_dir,
-                    function_id + '_' + metrics + '_samples_' + rank + '_taxonomy.xlsx'
+                    function_id + '_' + metric + '_samples_' + rank + '_taxonomy.xlsx'
                 )
             )
 
@@ -304,12 +304,12 @@ def make_sample_tax_func_xlsx(project, scores, metrics, function_id=None, rank=N
                         for key, val in scores[taxonomy_id][function][sample].items():
                             sample_scores[taxonomy_id][sample][key] = val
                     else:
-                        sample_scores[taxonomy_id][sample][metrics] = 0.0
+                        sample_scores[taxonomy_id][sample][metric] = 0.0
 
         tax_profile = TaxonomyProfile()
         tax_profile.make_function_taxonomy_profile(project.taxonomy_data, sample_scores)
 
-        taxonomy_df = tax_profile.convert_profile_into_score_df(score=metrics)
+        taxonomy_df = tax_profile.convert_profile_into_score_df(metric=metric)
 
         if rank is None:
             taxonomy_df.to_excel(writer, sheet_name=function, merge_cells=False)
@@ -329,17 +329,17 @@ def make_sample_tax_func_xlsx(project, scores, metrics, function_id=None, rank=N
                             for key, val in scores[taxonomy_id][function][sample].items():
                                 sample_scores[taxonomy_id][sample][key] += val
                         else:
-                            sample_scores[taxonomy_id][sample][metrics] += 0.0
+                            sample_scores[taxonomy_id][sample][metric] += 0.0
         for taxonomy_id in sample_scores:
             for sample in sample_scores[taxonomy_id]:
-                sample_scores[taxonomy_id][sample][metrics] = \
-                    sample_scores[taxonomy_id][sample][metrics] \
+                sample_scores[taxonomy_id][sample][metric] = \
+                    sample_scores[taxonomy_id][sample][metric] \
                     / len(project.ref_data.functions_dict.keys())
 
         tax_profile = TaxonomyProfile()
         tax_profile.make_function_taxonomy_profile(project.taxonomy_data, sample_scores)
 
-        taxonomy_df = tax_profile.convert_profile_into_score_df(score=metrics)
+        taxonomy_df = tax_profile.convert_profile_into_score_df(metric=metric)
 
         if rank is None:
             taxonomy_df.to_excel(writer, sheet_name='Average', merge_cells=False)

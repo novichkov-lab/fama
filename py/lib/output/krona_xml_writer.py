@@ -12,16 +12,16 @@ make_assembly_taxonomy_chart: makes Krona chart of taxon/gene abundances in asse
 """
 import os
 from collections import defaultdict
-from lib.utils.const import STATUS_GOOD
+from lib.utils.const import STATUS_GOOD, ROOT_TAXONOMY_ID
 from lib.utils.utils import autovivify, run_external_program
 
 
-def make_functions_chart(parser, score='efpkg'):
+def make_functions_chart(parser, metric='efpkg'):
     """Writes XML file for functions chart and generates Krona plot from it
 
     Args:
         parser (:obj:DiamondParser): parser object with annotated reads
-        score (str): scoring metric (efpkg by default)
+        metric (str): scoring metric (efpkg by default)
     """
     outfile = os.path.join(
         parser.options.get_project_dir(parser.sample.sample_id),
@@ -31,10 +31,10 @@ def make_functions_chart(parser, score='efpkg'):
     with open(outfile, 'w') as out:
         # Write header
         out.write('<krona key="false">\n' +
-                  '\t<attributes magnitude="' + score + '">\n' +
+                  '\t<attributes magnitude="' + metric + '">\n' +
                   '\t\t<attribute display="Read count">readcount</attribute>\n')
-        if score != 'readcount':
-            out.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
+        if metric != 'readcount':
+            out.write('\t\t<attribute display="Score:' + metric + '">' + metric + '</attribute>\n')
         out.write('\t\t<attribute display="AAI %" mono="true">identity</attribute>\n'
                   + '\t</attributes>\n'
                   + ' '.join(['\t<color attribute="identity"', 'valueStart="50"', 'valueEnd="100"',
@@ -70,19 +70,19 @@ def make_functions_chart(parser, score='efpkg'):
         # Write nodes
         # Write top-level node
         out.write('\t<node name="' + parser.sample.sample_id + '_' + parser.end + '">\n')
-        if score != 'readcount':
+        if metric != 'readcount':
             out.write('\t\t<readcount><val>' + str(read_count) + '</val></readcount>\n')
-        out.write('\t\t<' + score + '><val>' + str(total_rpkm) + '</val></' + score + '>\n')
+        out.write('\t\t<' + metric + '><val>' + str(total_rpkm) + '</val></' + metric + '>\n')
 
         for group in groups_rpkm:
             # Write group-level node
             out.write('\t\t<node name="' + group + '">\n')
-            if score != 'readcount':
+            if metric != 'readcount':
                 out.write('\t\t\t<readcount><val>'
                           + str(len(groups_counts[group]))
                           + '</val></readcount>\n')
-            out.write('\t\t\t<' + score + '><val>' + str(groups_rpkm[group])
-                      + '</val></' + score + '>\n')
+            out.write('\t\t\t<' + metric + '><val>' + str(groups_rpkm[group])
+                      + '</val></' + metric + '>\n')
             if group in groups_identity:
                 out.write('\t\t\t<identity><val>'
                           + str(sum(groups_identity[group]) / len(groups_identity[group]))
@@ -93,12 +93,12 @@ def make_functions_chart(parser, score='efpkg'):
                 if function in functions_rpkm:
                     # Write function-level node
                     out.write('\t\t\t<node name="' + function + '">\n')
-                    if score != 'readcount':
+                    if metric != 'readcount':
                         out.write('\t\t\t\t<readcount><val>'
                                   + str(len(functions_counts[function]))
                                   + '</val></readcount>\n')
-                    out.write('\t\t\t\t<' + score + '><val>' + str(functions_rpkm[function])
-                              + '</val></' + score + '>\n')
+                    out.write('\t\t\t\t<' + metric + '><val>' + str(functions_rpkm[function])
+                              + '</val></' + metric + '>\n')
                     if function in functions_identity:
                         out.write(
                             '\t\t\t\t<identity><val>' + str(sum(
@@ -120,14 +120,14 @@ def make_functions_chart(parser, score='efpkg'):
     run_external_program([parser.config.krona_path, '-o', html_file, outfile])
 
 
-def get_taxon_xml(tax_profile, taxid, offset, score='efpkg'):
+def get_taxon_xml(tax_profile, taxid, offset, metric='efpkg'):
     """Returns XML node for a phylogenetic tree node and all its children
 
     Args:
         tax_profile (:obj:TaxonomyProfile): taxonomy profile
         taxid (str): taxonomy identifier of a node of interest
         offset (int): number of starting tabs
-        score (str): scoring metric (default value 'efpkg')
+        metric (str): scoring metric (default value 'efpkg')
 
     Returns:
         ret_val (str): XML node
@@ -137,32 +137,32 @@ def get_taxon_xml(tax_profile, taxid, offset, score='efpkg'):
     ret_val = '\t'*offset + '<node name="' + tax_profile.tree.data[taxid].name + '">\n'
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
-        if score != 'readcount':
+        if metric != 'readcount':
             ret_val += '\t'*offset + '<readcount><val>' + format(
                 tax_profile.tree.data[taxid].attributes['count'], "0.0f"
             ) + '</val></readcount>\n'
-        ret_val += '\t'*offset + '<' + score + '><val>' + format(
-            tax_profile.tree.data[taxid].attributes[score], "0.2f"
-        ) + '</val></' + score + '>\n'
+        ret_val += '\t'*offset + '<' + metric + '><val>' + format(
+            tax_profile.tree.data[taxid].attributes[metric], "0.2f"
+        ) + '</val></' + metric + '>\n'
         ret_val += '\t'*offset + '<identity><val>' + format((
             tax_profile.tree.data[taxid].attributes['identity']
             / tax_profile.tree.data[taxid].attributes['hit_count']
         ), "0.1f") + '</val></identity>\n'
     else:
-        if score != 'readcount':
+        if metric != 'readcount':
             ret_val += '\t'*offset + '<readcount><val>0</val></readcount>\n'
-        ret_val += '\t'*offset + '<' + score + '><val>0.0</val></' + score + '>\n'
+        ret_val += '\t'*offset + '<' + metric + '><val>0.0</val></' + metric + '>\n'
         ret_val += '\t'*offset + '<identity><val>0.0</val></identity>\n'
 
     if tax_profile.tree.data[taxid].children:
         for child_taxid in tax_profile.tree.data[taxid].children:
-            ret_val += get_taxon_xml(tax_profile, child_taxid, offset, score)
+            ret_val += get_taxon_xml(tax_profile, child_taxid, offset, metric)
     offset -= 1
     ret_val += '\t'*offset + '</node>\n'
     return ret_val
 
 
-def get_lca_tax_xml(tax_profile, taxid, offset, score='efpkg'):
+def get_lca_tax_xml(tax_profile, taxid, offset, metric='efpkg'):
     """Returns XML node for a phylogenetic tree node and all its children.
     Creates additional child node for a fictional "Unclassified..." taxon
     if not all reads of the current node are mapped to children nodes.
@@ -171,7 +171,7 @@ def get_lca_tax_xml(tax_profile, taxid, offset, score='efpkg'):
         tax_profile (:obj:TaxonomyProfile): taxonomy profile
         taxid (str): taxonomy identifier of a node of interest
         offset (int): number of starting tabs
-        score (str): scoring metric (default value 'efpkg')
+        metric (str): scoring metric (default value 'efpkg')
 
     Returns:
         ret_val (str): XML node
@@ -184,26 +184,26 @@ def get_lca_tax_xml(tax_profile, taxid, offset, score='efpkg'):
         raise KeyError
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
-        if score != 'readcount':
+        if metric != 'readcount':
             ret_val += '\t'*offset + '<readcount><val>' + format(
                 tax_profile.tree.data[taxid].attributes['count'], "0.0f"
             ) + '</val></readcount>\n'
-        ret_val += '\t'*offset + '<' + score + '><val>' + format(
-            tax_profile.tree.data[taxid].attributes[score], "0.2f"
-        ) + '</val></' + score + '>\n'
+        ret_val += '\t'*offset + '<' + metric + '><val>' + format(
+            tax_profile.tree.data[taxid].attributes[metric], "0.2f"
+        ) + '</val></' + metric + '>\n'
         ret_val += '\t'*offset + '<identity><val>' + format((
             tax_profile.tree.data[taxid].attributes['identity']
             / tax_profile.tree.data[taxid].attributes['hit_count']
         ), "0.1f") + '</val></identity>\n'
     else:
-        if score != 'readcount':
+        if metric != 'readcount':
             ret_val += '\t'*offset + '<readcount><val>0</val></readcount>\n'
-        ret_val += '\t'*offset + '<' + score + '><val>0.0</val></' + score + '>\n'
+        ret_val += '\t'*offset + '<' + metric + '><val>0.0</val></' + metric + '>\n'
         ret_val += '\t'*offset + '<identity><val>0.0</val></identity>\n'
 
     if tax_profile.tree.data[taxid].children:
         for child_taxid in tax_profile.tree.data[taxid].children:
-            child_node, child_values = get_lca_tax_xml(tax_profile, child_taxid, offset, score)
+            child_node, child_values = get_lca_tax_xml(tax_profile, child_taxid, offset, metric)
             ret_val += child_node
             for key, val in child_values.items():
                 attribute_values[key] += val
@@ -217,15 +217,15 @@ def get_lca_tax_xml(tax_profile, taxid, offset, score='efpkg'):
                 unknown_node = 'Unknown'
             ret_val += '\t'*offset + '<node name="' + unknown_node + '">\n'
             offset += 1
-            if score != 'readcount':
+            if metric != 'readcount':
                 ret_val += '\t'*offset + '<readcount><val>' + format((
                     tax_profile.tree.data[taxid].attributes['count']
                     - attribute_values['count']
                 ), "0.0f") + '</val></readcount>\n'
-            ret_val += '\t'*offset + '<' + score + '><val>' + format((
-                tax_profile.tree.data[taxid].attributes[score]
-                - attribute_values[score]
-            ), "0.2f") + '</val></' + score + '>\n'
+            ret_val += '\t'*offset + '<' + metric + '><val>' + format((
+                tax_profile.tree.data[taxid].attributes[metric]
+                - attribute_values[metric]
+            ), "0.2f") + '</val></' + metric + '>\n'
             if tax_profile.tree.data[taxid].attributes['hit_count'] > attribute_values['hit_count']:
                 ret_val += '\t'*offset + '<identity><val>' + format(((
                     tax_profile.tree.data[taxid].attributes['identity']
@@ -242,14 +242,14 @@ def get_lca_tax_xml(tax_profile, taxid, offset, score='efpkg'):
     offset -= 1
     ret_val += '\t'*offset + '</node>\n'
     attribute_values = defaultdict(float)
-    attribute_values[score] = tax_profile.tree.data[taxid].attributes[score]
+    attribute_values[metric] = tax_profile.tree.data[taxid].attributes[metric]
     attribute_values['count'] = tax_profile.tree.data[taxid].attributes['count']
     attribute_values['identity'] = tax_profile.tree.data[taxid].attributes['identity']
     attribute_values['hit_count'] = tax_profile.tree.data[taxid].attributes['hit_count']
     return ret_val, attribute_values
 
 
-def make_taxonomy_chart(tax_profile, sample, outfile, krona_path, score='efpkg'):
+def make_taxonomy_chart(tax_profile, sample, outfile, krona_path, metric='efpkg'):
     """Writes XML file for taxonomy chart of one sample and generates Krona plot from it
 
     Args:
@@ -257,15 +257,15 @@ def make_taxonomy_chart(tax_profile, sample, outfile, krona_path, score='efpkg')
         sample (str): sample identifier
         outfile (str): path for XML output
         krona_path (str): Krona Tools command
-        score (str): scoring metric (efpkg by default)
+        metric (str): scoring metric (efpkg by default)
     """
     with open(outfile, 'w') as out:
         # Write header
         out.write('<krona key="false">\n')
-        out.write('\t<attributes magnitude="' + score + '">\n')
-        if score != 'readcount':
+        out.write('\t<attributes magnitude="' + metric + '">\n')
+        if metric != 'readcount':
             out.write('\t\t<attribute display="Read count">readcount</attribute>\n')
-        out.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
+        out.write('\t\t<attribute display="Score:' + metric + '">' + metric + '</attribute>\n')
         out.write('\t\t<attribute display="AAI %" mono="true">identity</attribute>\n')
         out.write('\t</attributes>\n')
         out.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0"'
@@ -276,9 +276,8 @@ def make_taxonomy_chart(tax_profile, sample, outfile, krona_path, score='efpkg')
         out.write('\t</datasets>\n')
 
         # Write nodes
-        root_id = '1'
         offset = 1
-        child_node, _ = get_lca_tax_xml(tax_profile, root_id, offset, score=score)
+        child_node, _ = get_lca_tax_xml(tax_profile, ROOT_TAXONOMY_ID, offset, metric=metric)
         out.write(child_node)
         # Close XML
         out.write('</krona>')
@@ -289,23 +288,25 @@ def make_taxonomy_chart(tax_profile, sample, outfile, krona_path, score='efpkg')
     run_external_program(krona_cmd)
 
 
-def make_taxonomy_series_chart(tax_profile, sample_list, outfile, krona_path, score='efpkg'):
-    """Writes XML file for taxonomy chart of multiple samples and generates Krona plot from it
+def make_taxonomy_series_chart(tax_profile, sample_list, outfile, krona_path, metric='efpkg'):
+    """Writes XML file for taxonomy chart of multiple samples and generates Krona plot for it.
+    Taxonomy profile must have two-level attributes, with function identifier as outer key and
+    a metric as inner key.
 
     Args:
         tax_profile (:obj:TaxonomyProfile): taxonomy profile object
         sample_list (list of str): sample identifiers
         outfile (str): path for XML output
         krona_path (str): Krona Tools command
-        score (str): scoring metric (efpkg by default)
+        metric (str): scoring metric (efpkg by default)
     """
     with open(outfile, 'w') as out:
         # Write header
         out.write('<krona key="false">\n')
-        out.write('\t<attributes magnitude="' + score + '">\n')
-        if score != 'readcount':
+        out.write('\t<attributes magnitude="' + metric + '">\n')
+        if metric != 'readcount':
             out.write('\t\t<attribute display="Read count">readcount</attribute>\n')
-        out.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
+        out.write('\t\t<attribute display="Score:' + metric + '">' + metric + '</attribute>\n')
         out.write('\t\t<attribute display="AAI %" mono="true">identity</attribute>\n')
         out.write('\t</attributes>\n')
         out.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" ' +
@@ -316,10 +317,10 @@ def make_taxonomy_series_chart(tax_profile, sample_list, outfile, krona_path, sc
             out.write('\t\t<dataset>' + sample + '</dataset>\n')
         out.write('\t</datasets>\n')
         # Write nodes
-        root_id = '1'
         offset = 1
-        child_nodes, _ = get_lca_dataseries_tax_xml(tax_profile, sample_list, root_id, offset,
-                                                    score=score)
+        child_nodes, _ = get_lca_dataseries_tax_xml(
+            tax_profile, sample_list, ROOT_TAXONOMY_ID, offset, metric=metric
+            )
         out.write(child_nodes)
         # Close XML
         out.write('</krona>')
@@ -330,7 +331,7 @@ def make_taxonomy_series_chart(tax_profile, sample_list, outfile, krona_path, sc
     run_external_program(krona_cmd)
 
 
-def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpkg'):
+def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, metric='efpkg'):
     """Returns XML node for a phylogenetic tree node and all its children.
     Creates additional child node for a fictional "Unclassified..." taxon
     if not all reads of the current node were mapped to children nodes.
@@ -341,12 +342,12 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='ef
             depending on profile type (functional or taxonomic)
         taxid (str): taxonomy identifier of a node of interest
         offset (int): number of starting tabs
-        score (str): scoring metric (default value 'efpkg')
+        metric (str): scoring metric (default value 'efpkg')
 
     Returns:
         ret_val (str): XML node
         attribute_values (defaultdict[str,dict[str,float]]): outer key is
-            one of dataseries members, inner key is in [score, 'count', 'identity'
+            one of dataseries members, inner key is in [metric, 'count', 'identity'
             'hit_count'], value is float.
     """
     attribute_values = autovivify(2, float)
@@ -356,7 +357,7 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='ef
     ret_val = '\t'*offset + '<node name="' + tax_profile.tree.data[taxid].name + '">\n'
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
-        if score != 'readcount':
+        if metric != 'readcount':
             ret_val += '\t'*offset + '<readcount>'
             for datapoint in dataseries:
                 if (datapoint in tax_profile.tree.data[taxid].attributes) and (
@@ -368,17 +369,17 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='ef
                 else:
                     ret_val += '<val>0</val>'
             ret_val += '</readcount>\n'
-        ret_val += '\t'*offset + '<' + score + '>'
+        ret_val += '\t'*offset + '<' + metric + '>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes and (
-                    score in tax_profile.tree.data[taxid].attributes[datapoint]
+                    metric in tax_profile.tree.data[taxid].attributes[datapoint]
             ):
                 ret_val += '<val>' + format(
-                    tax_profile.tree.data[taxid].attributes[datapoint][score], "0.6f"
+                    tax_profile.tree.data[taxid].attributes[datapoint][metric], "0.6f"
                 ) + '</val>'
             else:
                 ret_val += '<val>0.0</val>'
-        ret_val += '</' + score + '>\n' + '\t'*offset + '<identity>'
+        ret_val += '</' + metric + '>\n' + '\t'*offset + '<identity>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes and (
                     'identity' in tax_profile.tree.data[taxid].attributes[datapoint]
@@ -391,13 +392,13 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='ef
                 ret_val += '<val>0.0</val>'
         ret_val += '</identity>\n'
     else:
-        if score != 'readcount':
+        if metric != 'readcount':
             ret_val += '\t'*offset + '<readcount>'
             ret_val += '<val>0</val>'*len(dataseries)
             ret_val += '</readcount>\n'
-        ret_val += '\t'*offset + '<' + score + '>'
+        ret_val += '\t'*offset + '<' + metric + '>'
         ret_val += '<val>0.0</val>'*len(dataseries)
-        ret_val += '<' + score + '>\n' + '\t'*offset + '<identity>'
+        ret_val += '<' + metric + '>\n' + '\t'*offset + '<identity>'
         ret_val += '<val>0.0</val>'*len(dataseries)
         ret_val += '</identity>\n'
 
@@ -407,7 +408,7 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='ef
                                                                   dataseries,
                                                                   child_taxid,
                                                                   offset,
-                                                                  score=score)
+                                                                  metric=metric)
             ret_val += child_node
             for datapoint in child_values.keys():
                 for key, val in child_values[datapoint].items():
@@ -430,7 +431,7 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='ef
                 ret_val += '\t'*offset + '<node name="Unclassified '\
                            + tax_profile.tree.data[taxid].name + '">\n'
             offset += 1
-            if score != 'readcount':
+            if metric != 'readcount':
                 ret_val += '\t'*offset + '<readcount>'
                 for datapoint in dataseries:
                     if datapoint in tax_profile.tree.data[taxid].attributes and (
@@ -444,19 +445,19 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='ef
                     else:
                         ret_val += '<val>0</val>'
                 ret_val += '</readcount>\n'
-            ret_val += '\t'*offset + '<' + score + '>'
+            ret_val += '\t'*offset + '<' + metric + '>'
             for datapoint in dataseries:
                 if datapoint in tax_profile.tree.data[taxid].attributes and (
                         attribute_values[datapoint]['count']
                         < tax_profile.tree.data[taxid].attributes[datapoint]['count']
                 ):
                     ret_val += '<val>' + format((
-                        tax_profile.tree.data[taxid].attributes[datapoint][score]
-                        - attribute_values[datapoint][score]
+                        tax_profile.tree.data[taxid].attributes[datapoint][metric]
+                        - attribute_values[datapoint][metric]
                     ), "0.6f") + '</val>'
                 else:
                     ret_val += '<val>0.0</val>'
-            ret_val += '</' + score + '>\n'
+            ret_val += '</' + metric + '>\n'
             ret_val += '\t'*offset + '<identity>'
             for datapoint in dataseries:
                 if datapoint in tax_profile.tree.data[taxid].attributes and (
@@ -482,9 +483,9 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='ef
     attribute_values = autovivify(1)
     for datapoint in dataseries:
         if datapoint in tax_profile.tree.data[taxid].attributes:
-            if score in tax_profile.tree.data[taxid].attributes[datapoint]:
-                attribute_values[datapoint][score] = tax_profile.tree.data[taxid]\
-                    .attributes[datapoint][score]
+            if metric in tax_profile.tree.data[taxid].attributes[datapoint]:
+                attribute_values[datapoint][metric] = tax_profile.tree.data[taxid]\
+                    .attributes[datapoint][metric]
             if 'count' in tax_profile.tree.data[taxid].attributes[datapoint]:
                 attribute_values[datapoint]['count'] = tax_profile.tree.data[taxid]\
                     .attributes[datapoint]['count']
@@ -497,7 +498,7 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='ef
     return ret_val, attribute_values
 
 
-def get_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpkg'):
+def get_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, metric='efpkg'):
     """Returns XML node for a phylogenetic tree node and all its children.
 
     Args:
@@ -506,7 +507,7 @@ def get_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpkg'
             depending on profile type (functional or taxonomic)
         taxid (str): taxonomy identifier of a node of interest
         offset (int): number of starting tabs
-        score (str): scoring metric (default value 'efpkg')
+        metric (str): scoring metric (default value 'efpkg')
 
     Returns:
         ret_val (str): XML node
@@ -516,7 +517,7 @@ def get_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpkg'
     ret_val = '\t'*offset + '<node name="' + tax_profile.tree.data[taxid].name + '">\n'
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
-        if score != 'readcount':
+        if metric != 'readcount':
             ret_val += '\t'*offset + '<readcount>'
             for datapoint in dataseries:
                 if datapoint in tax_profile.tree.data[taxid].attributes:
@@ -526,15 +527,15 @@ def get_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpkg'
                 else:
                     ret_val += '<val>0</val>'
             ret_val += '</readcount>\n'
-        ret_val += '\t'*offset + '<' + score + '>'
+        ret_val += '\t'*offset + '<' + metric + '>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
                 ret_val += '<val>' + format((
-                    tax_profile.tree.data[taxid].attributes[datapoint][score]
+                    tax_profile.tree.data[taxid].attributes[datapoint][metric]
                 ), "0.5f") + '</val>'
             else:
                 ret_val += '<val>0.0</val>'
-        ret_val += '</' + score + '>\n' + '\t'*offset + '<identity>'
+        ret_val += '</' + metric + '>\n' + '\t'*offset + '<identity>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
                 ret_val += '<val>' + format((
@@ -545,26 +546,28 @@ def get_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, score='efpkg'
                 ret_val += '<val>0.0</val>'
         ret_val += '</identity>\n'
     else:
-        if score != 'readcount':
+        if metric != 'readcount':
             ret_val += '\t'*offset + '<readcount>'
             ret_val += '<val>0</val>'*len(dataseries)
             ret_val += '</readcount>\n'
-        ret_val += '\t'*offset + '<' + score + '>'
+        ret_val += '\t'*offset + '<' + metric + '>'
         ret_val += '<val>0.0</val>'*len(dataseries)
-        ret_val += '<' + score + '>\n' + '\t'*offset + '<identity>'
+        ret_val += '<' + metric + '>\n' + '\t'*offset + '<identity>'
         ret_val += '<val>0.0</val>'*len(dataseries)
         ret_val += '</identity>\n'
 
     if tax_profile.tree.data[taxid].children:
         for child_taxid in tax_profile.tree.data[taxid].children:
-            ret_val += get_dataseries_tax_xml(tax_profile, dataseries, child_taxid, offset, score)
+            ret_val += get_dataseries_tax_xml(
+                tax_profile, dataseries, child_taxid, offset, metric=metric
+                )
     offset -= 1
     ret_val += '\t'*offset + '</node>\n'
     return ret_val
 
 
 def make_function_taxonomy_chart(tax_profile, function_list, outfile, krona_path,
-                                 score='efpkg'):
+                                 metric='efpkg'):
     """Writes XML file for taxonomy chart of multiple functions in one sample
        and generates Krona plot from it
 
@@ -573,15 +576,15 @@ def make_function_taxonomy_chart(tax_profile, function_list, outfile, krona_path
         function_list (list of str): function identifiers
         outfile (str): path for XML output
         krona_path (str): Krona Tools command
-        score (str): scoring metric (efpkg by default)
+        metric (str): scoring metric (efpkg by default)
     """
     with open(outfile, 'w') as out:
         # Write header
         out.write('<krona key="false">\n')
-        out.write('\t<attributes magnitude="' + score + '">\n')
-        if score != 'readcount':
+        out.write('\t<attributes magnitude="' + metric + '">\n')
+        if metric != 'readcount':
             out.write('\t\t<attribute display="Read count">readcount</attribute>\n')
-        out.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
+        out.write('\t\t<attribute display="Score:' + metric + '">' + metric + '</attribute>\n')
         out.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
         out.write('\t</attributes>\n')
         out.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" '
@@ -592,9 +595,10 @@ def make_function_taxonomy_chart(tax_profile, function_list, outfile, krona_path
             out.write('\t\t<dataset>' + function + '</dataset>\n')
         out.write('\t</datasets>\n')
         # Write nodes
-        root_id = '1'
         offset = 1
-        out.write(get_dataseries_tax_xml(tax_profile, function_list, root_id, offset, score))
+        out.write(
+            get_dataseries_tax_xml(tax_profile, function_list, ROOT_TAXONOMY_ID, offset, metric=metric)
+        )
         # Close XML
         out.write('</krona>')
 
@@ -604,24 +608,24 @@ def make_function_taxonomy_chart(tax_profile, function_list, outfile, krona_path
     run_external_program(krona_cmd)
 
 
-def get_genes_xml(gene_data, gene_ids, dataseries, offset, score):
+def get_genes_xml(gene_data, gene_ids, dataseries, offset, metric):
     """Returns XML nodes for all predicted gene from one taxon.
 
     Args:
         gene_data (defaultdict[str,defaultdict[str,dict[str,float]]]): outer key is
             gene identifier, middle key is function identifier, inner key is in
-            [score, 'count', 'identity', 'coverage', 'Length', 'Completeness'],
+            [metric, 'count', 'identity', 'coverage', 'Length', 'Completeness'],
             value is float.
         gene_ids (list of str): gene identifiers
         dataseries (list of str): either sample identifiers or function identifiers,
             depending on profile type (functional or taxonomic)
         offset (int): number of starting tabs
-        score (str): scoring metric
+        metric (str): scoring metric
 
     Returns:
         ret_val (str): XML node
         attribute_values (defaultdict[str,dict[str,float]]): outer key is
-            one of dataseries members, inner key is in [score, 'count', 'identity'
+            one of dataseries members, inner key is in [metric, 'count', 'identity'
             'hit_count'], value is float.
     """
     # gene data: gene_data[gene_id][function][parameter] = parameter_value
@@ -630,7 +634,7 @@ def get_genes_xml(gene_data, gene_ids, dataseries, offset, score):
         ret_val += '\t'*offset + '<node name="' + gene_id + '">\n'
         offset += 1
 
-        if score != 'readcount':
+        if metric != 'readcount':
             ret_val += '\t'*offset + '<readcount>'
             for datapoint in dataseries:
                 if datapoint in gene_data[gene_id]:
@@ -639,13 +643,13 @@ def get_genes_xml(gene_data, gene_ids, dataseries, offset, score):
                     ret_val += '<val>0</val>'
             ret_val += '</readcount>\n'
 
-        ret_val += '\t'*offset + '<' + score + '>'
+        ret_val += '\t'*offset + '<' + metric + '>'
         for datapoint in dataseries:
             if datapoint in gene_data[gene_id]:
-                ret_val += '<val>' + gene_data[gene_id][datapoint][score] + '</val>'
+                ret_val += '<val>' + gene_data[gene_id][datapoint][metric] + '</val>'
             else:
                 ret_val += '<val>0</val>'
-        ret_val += '</' + score + '>\n'
+        ret_val += '</' + metric + '>\n'
         ret_val += '\t'*offset + '<coverage>'
         for datapoint in dataseries:
             if datapoint in gene_data[gene_id]:
@@ -692,19 +696,19 @@ def get_genes_xml(gene_data, gene_ids, dataseries, offset, score):
     return ret_val
 
 
-def get_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score='efpkg'):
+def get_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, metric='efpkg'):
     """Returns XML node for assembly phylogenetic tree node and all its children.
 
     Args:
         tax_profile (:obj:TaxonomyProfile): taxonomy profile
         genes (defaultdict[str,defaultdict[str,dict[str,float]]]): outer key is
             gene identifier, middle key is function identifier, inner key is in
-            [score, 'count', 'identity', 'coverage', 'Length', 'Completeness'],
+            [metric, 'count', 'identity', 'coverage', 'Length', 'Completeness'],
             value is float (genes[gene_id][function_id][parameter_name] = parameter_value).
         dataseries (list of str): function identifiers
         taxid (str): taxonomy identifier of a node of interest
         offset (int): number of starting tabs
-        score (str): scoring metric (default value 'efpkg')
+        metric (str): scoring metric (default value 'efpkg')
 
     Returns:
         ret_val (str): XML node
@@ -715,7 +719,7 @@ def get_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score='e
               + '">\n'
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
-        if score != 'readcount':
+        if metric != 'readcount':
             ret_val += '\t'*offset + '<readcount>'
             for datapoint in dataseries:
                 if datapoint in tax_profile.tree.data[taxid].attributes:
@@ -725,15 +729,15 @@ def get_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score='e
                 else:
                     ret_val += '<val>0</val>'
             ret_val += '</readcount>\n'
-        ret_val += '\t' * offset + '<' + score + '>'
+        ret_val += '\t' * offset + '<' + metric + '>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
                 ret_val += '<val>' + format(
-                    tax_profile.tree.data[taxid].attributes[datapoint][score], "0.7f"
+                    tax_profile.tree.data[taxid].attributes[datapoint][metric], "0.7f"
                 ) + '</val>'
             else:
                 ret_val += '<val>0.0</val>'
-        ret_val += '</' + score + '>\n' + '\t'*offset + '<identity>'
+        ret_val += '</' + metric + '>\n' + '\t'*offset + '<identity>'
         for datapoint in dataseries:
             if datapoint in tax_profile.tree.data[taxid].attributes:
                 ret_val += '<val>' + format((
@@ -751,30 +755,30 @@ def get_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, score='e
                         ' '
                 ):
                     gene_ids.add(gene_id)
-        ret_val += get_genes_xml(genes, sorted(gene_ids), dataseries, offset, score)
+        ret_val += get_genes_xml(genes, sorted(gene_ids), dataseries, offset, metric)
 
     else:
-        if score != 'readcount':
+        if metric != 'readcount':
             ret_val += '\t'*offset + '<readcount>'
             ret_val += '<val>0</val>'*len(dataseries)
             ret_val += '</readcount>\n'
-        ret_val += '\t' * offset + '<' + score + '>'
+        ret_val += '\t' * offset + '<' + metric + '>'
         ret_val += '<val>0.0</val>'*len(dataseries)
-        ret_val += '</' + score + '>\n' + '\t'*offset + '<identity>'
+        ret_val += '</' + metric + '>\n' + '\t'*offset + '<identity>'
         ret_val += '<val>0.0%</val>'*len(dataseries)
         ret_val += '</identity>\n'
 
     if tax_profile.tree.data[taxid].children:
         for child_taxid in tax_profile.tree.data[taxid].children:
             ret_val += get_assembly_tax_xml(tax_profile, genes, dataseries, child_taxid, offset,
-                                            score)
+                                            metric)
     offset -= 1
     ret_val += '\t'*offset + '</node>\n'
     return ret_val
 
 
 def make_assembly_taxonomy_chart(tax_profile, genes, function_list, outfile,
-                                 krona_path, score='efpkg'):
+                                 krona_path, metric='efpkg'):
     """Writes XML file for taxonomy chart of assembly, one chart for all reads and separate charts
        for each function and generates Krona plot from it
 
@@ -782,21 +786,21 @@ def make_assembly_taxonomy_chart(tax_profile, genes, function_list, outfile,
         tax_profile (:obj:TaxonomyProfile): taxonomy profile object
         genes (defaultdict[str,defaultdict[str,dict[str,float]]]): outer key is
             gene identifier, middle key is function identifier, inner key is in
-            [score, 'count', 'identity', 'coverage', 'Length', 'Completeness'],
+            [metric, 'count', 'identity', 'coverage', 'Length', 'Completeness'],
             value is float (genes[gene_id][function_id][parameter_name] = parameter_value).
         function_list (list of str): function identifiers
         outfile (str): path for XML output
         krona_path (str): Krona Tools command
-        score (str): scoring metric (efpkg by default)
+        metric (str): scoring metric (efpkg by default)
     """
     # genes contains gene data:, genes[gene_id][function][parameter] = parameter_value
     with open(outfile, 'w') as out:
         # Write header
         out.write('<krona key="false">\n')
-        out.write('\t<attributes magnitude="' + score + '">\n')
-        if score != 'readcount':
+        out.write('\t<attributes magnitude="' + metric + '">\n')
+        if metric != 'readcount':
             out.write('\t\t<attribute display="Read count">readcount</attribute>\n')
-        out.write('\t\t<attribute display="Score:' + score + '">' + score + '</attribute>\n')
+        out.write('\t\t<attribute display="Score:' + metric + '">' + metric + '</attribute>\n')
         out.write('\t\t<attribute display="Coverage" mono="true">coverage</attribute>\n')
         out.write('\t\t<attribute display="Length" mono="true">Length</attribute>\n')
         out.write('\t\t<attribute display="CDS completeness %" mono="true">Completeness'
@@ -814,9 +818,12 @@ def make_assembly_taxonomy_chart(tax_profile, genes, function_list, outfile,
             out.write('\t\t<dataset>' + function + '</dataset>\n')
         out.write('\t</datasets>\n')
         # Write nodes
-        root_id = '1'
         offset = 1
-        out.write(get_assembly_tax_xml(tax_profile, genes, function_list, root_id, offset, score))
+        out.write(
+            get_assembly_tax_xml(
+                tax_profile, genes, function_list, ROOT_TAXONOMY_ID, offset, metric
+                )
+            )
         # Close XML
         out.write('</krona>')
 
