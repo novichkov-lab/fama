@@ -181,10 +181,10 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
                 subject_rank = taxonomy_data.get_rank(subject_taxon_id)
                 while subject_taxon_id != ROOT_TAXONOMY_ID:
                     if subject_rank not in rank_cutoffs:
-                        subject_taxon_id, subject_rank = \
+                        (subject_taxon_id, subject_rank) = \
                             taxonomy_data.get_upper_level_taxon(subject_taxon_id)
                     elif selected_hit.identity < rank_cutoffs[subject_rank]:
-                        subject_taxon_id, subject_rank = \
+                        (subject_taxon_id, subject_rank) = \
                             taxonomy_data.get_upper_level_taxon(subject_taxon_id)
                     else:
                         taxonomy_ids.add(subject_taxon_id)

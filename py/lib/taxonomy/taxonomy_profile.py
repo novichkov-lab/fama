@@ -89,21 +89,21 @@ class TaxonomyProfile(object):
                     self.tree.add_attribute_recursively(taxid, function,
                                                         scores[taxid][function],
                                                         taxonomy_data)
-            elif taxid in taxonomy_data.names:
+            elif taxonomy_data.is_exist(taxid):
                 current_id = taxid
-                rank = taxonomy_data.nodes[current_id]['rank']
+                rank = taxonomy_data.get_rank(current_id)
                 # If taxonomical rank ot taxid is not in RANKS, find parent
                 # taxon with acceptable rank
                 while True:
                     if rank in RANKS:
                         break
                     else:
-                        current_id = taxonomy_data.nodes[current_id]['parent']
-                        rank = taxonomy_data.nodes[current_id]['rank']
+                        current_id = taxonomy_data.get_parent(current_id)
+                        rank = taxonomy_data.get_rank(current_id)
                 # Add new node if current_id is not in the tree
                 if not self.tree.is_in_tree(current_id):
-                    parent_taxid = taxonomy_data.nodes[current_id]['parent']
-                    label = taxonomy_data.names[current_id]['name']
+                    parent_taxid = taxonomy_data.get_parent(current_id)
+                    label = taxonomy_data.get_name(current_id)
                     node = Node(rank=rank, name=label, taxid=current_id, parent=parent_taxid)
                     self.tree.add_node_recursively(node, taxonomy_data)
                 for function in scores[taxid]:
@@ -152,7 +152,7 @@ class TaxonomyProfile(object):
                         self.tree.add_attribute_recursively(
                             taxid, function, scores[taxid][function], taxonomy_data
                         )
-            elif taxid in taxonomy_data.names:
+            elif taxonomy_data.is_exist(taxid):
                 # If taxonomical rank ot taxid is not in RANKS, find parent
                 # taxon with acceptable rank
                 current_id = taxid
@@ -161,12 +161,12 @@ class TaxonomyProfile(object):
                     if rank in RANKS:
                         break
                     else:
-                        current_id = taxonomy_data.nodes[current_id]['parent']
-                        rank = taxonomy_data.nodes[current_id]['rank']
+                        current_id = taxonomy_data.get_parent(current_id)
+                        rank = taxonomy_data.get_rank(current_id)
 
                 if not self.tree.is_in_tree(current_id):
-                    parent_taxid = taxonomy_data.nodes[current_id]['parent']
-                    label = taxonomy_data.names[current_id]['name']
+                    parent_taxid = taxonomy_data.get_parent(current_id)
+                    label = taxonomy_data.get_name(current_id)
                     node = Node(rank=rank, name=label, taxid=current_id, parent=parent_taxid)
                     self.tree.add_node_recursively(node, taxonomy_data)
 
@@ -318,6 +318,7 @@ class TaxonomyProfile(object):
         Returns:
             ret_val (str): string representation of node
         """
+        ret_val = ''
         if taxid in self.tree.data:
             ret_val = '\t'*offset + taxid + '\t' + self.tree.data[taxid].rank \
                 + '\t' + self.tree.data[taxid].name + '\tParent:' \
@@ -334,14 +335,9 @@ class TaxonomyProfile(object):
             if self.tree.data[taxid].children:
                 for child_id in sorted(self.tree.data[taxid].children):
                     ret_val += self.stringify_node(child_id, offset)
-            else:
-                print('Node has no children:' + taxid + '\t' + self.tree.data[taxid].rank
-                      + '\t' + self.tree.data[taxid].name)
-            print(ret_val)
-            return ret_val
         else:
-            print('Node not found:', taxid)
-            return ''
+            ret_val = ''
+        return ret_val
 
     def stringify_func_taxon_profile(self, metric='rpkm'):
         """Returns taxonomy profile as text: all nodes starting from root

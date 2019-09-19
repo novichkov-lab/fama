@@ -140,9 +140,9 @@ def generate_fastq_report(parser):
                 identity_stats[taxonomy] += sum(
                     list(hit.identity for hit in parser. reads[read].hit_list.hits)
                     )
-        tax_data = parser.taxonomy_data
-        counts_per_rank, identity_per_rank, rpkm_per_rank = tax_data.get_taxonomy_profile(
-            counts=tax_stats, identity=identity_stats, scores=rpkm_stats
+        counts_per_rank, identity_per_rank, rpkm_per_rank = get_scores_per_tax_rank(
+            counts=tax_stats, identity=identity_stats, scores=rpkm_stats,
+            taxonomy_data=parser.taxonomy_data
             )
 
         ranks = RANKS[1:]
@@ -305,9 +305,9 @@ def generate_fasta_report(parser):
                     list(hit.identity for hit in parser.reads[read].hit_list.hits)
                 )
 
-        tax_data = parser.taxonomy_data
-        counts_per_rank, identity_per_rank, rpkm_per_rank = tax_data.get_taxonomy_profile(
-            counts=tax_stats, identity=identity_stats, scores=rpkm_stats
+        counts_per_rank, identity_per_rank, rpkm_per_rank = get_scores_per_tax_rank(
+            counts=tax_stats, identity=identity_stats, scores=rpkm_stats,
+            taxonomy_data=parser.taxonomy_data
             )
 
         ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus']
@@ -1802,3 +1802,84 @@ def generate_assembly_report(assembler):
         for function in assembler.assembly.reads:
             out_f.write(function + '\t' + str(len(assembler.assembly.reads[function])) + '\n')
         out_f.write('\n\n*** End of report ***\n')
+
+
+def get_scores_per_tax_rank(counts, identity, scores, taxonomy_data):
+    """Calculates taxonomy profile for a number of taxonomy identifiers.
+    This function takes three dictionaries, assuming that all of
+    them have equal size and identical keys. This function is used only for
+    generation of text and PDF reports for individual FASTQ/FASTA files.
+
+    Args:
+        counts (dict[str,int]): key is taxonomy identifier, value is count
+        identity (dict[str,float]): key is taxonomy identifier, value is amino acid % identity
+        scores (dict[str,float]): key is taxonomy identifier, value is score
+
+    Returns:
+        counts_per_rank (defaultdict[str, defaultdict[str, float]]):
+            external key is rank, internal key is name, value is count
+        identity_per_rank (defaultdict[str, defaultdict[str, float]]):
+            external key is rank, internal key is name, value is amino acid % identity
+        scores_per_rank (defaultdict[str, defaultdict[str, float]]): ():
+            external key is rank, internal key is name, value is score
+    """
+    unknown_rank = 'superkingdom'
+    cellular_organisms_taxid = '131567'
+    non_cellular_organisms_name = 'Non-cellular'
+    non_cellular_organisms_rank = 'superkingdom'
+
+    rpkm_per_rank = defaultdict(lambda: defaultdict(float))
+    counts_per_rank = defaultdict(lambda: defaultdict(int))
+    identity_per_rank = defaultdict(lambda: defaultdict(float))
+
+    for taxid in counts:
+        current_id = taxid
+        if taxid == UNKNOWN_TAXONOMY_ID:
+            label = taxonomy_data.get_name(UNKNOWN_TAXONOMY_ID)
+            rpkm_per_rank[unknown_rank][label] += scores[taxid]
+            counts_per_rank[unknown_rank][label] += counts[taxid]
+            identity_per_rank[unknown_rank][label] += identity[taxid]
+            continue
+        is_cellular = False
+        not_found = False
+        while current_id != ROOT_TAXONOMY_ID:
+            if current_id == cellular_organisms_taxid:
+                is_cellular = True
+                break
+            if not taxonomy_data.is_exist(current_id):
+                print('A) ncbi_code not found in ncbi_nodes: \'' + current_id + '\'')
+                not_found = True
+                break
+            current_id = taxonomy_data.get_parent(current_id)
+
+        if not_found:
+            continue
+
+        if not is_cellular:
+            rpkm_per_rank[non_cellular_organisms_rank][non_cellular_organisms_name] \
+                += scores[taxid]
+            counts_per_rank[non_cellular_organisms_rank][non_cellular_organisms_name] \
+                += counts[taxid]
+            identity_per_rank[non_cellular_organisms_rank][non_cellular_organisms_name] \
+                += identity[taxid]
+            continue
+
+        current_id = taxid
+        while current_id != ROOT_TAXONOMY_ID:
+            if not taxonomy_data.is_exist(current_id):
+                print('B) Got nothing for ncbi_code in ncbi_nodes: ' + current_id)
+                break
+            rank = taxonomy_data.get_rank(current_id)
+            if rank in RANKS:
+                name = taxonomy_data.get_name(current_id)
+                rpkm_per_rank[rank][name] += scores[taxid]
+                counts_per_rank[rank][name] += counts[taxid]
+                identity_per_rank[rank][name] += identity[taxid]
+            current_id = taxonomy_data.get_parent(current_id)
+
+    for rank in identity_per_rank:
+        for taxon in identity_per_rank[rank]:
+            identity_per_rank[rank][taxon] = \
+                identity_per_rank[rank][taxon]/counts_per_rank[rank][taxon]
+
+    return counts_per_rank, identity_per_rank, rpkm_per_rank

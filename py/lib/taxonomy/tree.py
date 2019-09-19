@@ -223,7 +223,7 @@ class Tree(object):
             while not nodes_stack.empty():
                 node_id = nodes_stack.get()
                 if node_id[1]:
-                    if node_id[0] in taxonomy_data.nodes:
+                    if taxonomy_data.is_exist(node_id[0]):
                         node = Node(rank=taxonomy_data.get_rank(node_id[0]),
                                     name=taxonomy_data.get_name(node_id[0]),
                                     taxid=node_id[0],

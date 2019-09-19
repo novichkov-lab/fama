@@ -10,9 +10,11 @@ from lib.utils.utils import autovivify, cleanup_protein_id, sanitize_file_name
 from lib.diamond_parser.diamond_parser import DiamondParser
 from lib.output.json_util import import_annotated_reads
 from lib.output.report import generate_fastq_report, get_function_taxonomy_scores, get_function_scores
+from lib.taxonomy.tree import Node, Tree
 from lib.taxonomy.taxonomy_profile import TaxonomyProfile
 from lib.output.krona_xml_writer import make_taxonomy_chart, make_taxonomy_series_chart, make_function_taxonomy_chart
 from lib.project.project import Project
+from lib.reference_library.taxonomy_data import TaxonomyData
 
 data_dir = 'data'
 config_path = os.path.join(
@@ -52,15 +54,85 @@ class TaxonomyProfilingTest(unittest.TestCase):
                             ref_data=self.project.ref_data,
                             sample=self.project.samples[sample_id], 
                             end=end)
+        self.taxonomy_data = TaxonomyData(config_path)
+        self.node = Node(rank='genus', name='Escherichia', taxid='561', parent='543', children=None)
 
-
-#    @unittest.skip("for faster testing")
-    def test_1_load_taxdata(self):
+    def test_0010_init_taxdata(self):
         self.assertEqual(len(self.project.taxonomy_data.names), 1770528)
         self.assertEqual(len(self.project.taxonomy_data.nodes), 1770528)
+        self.assertEqual(len(self.taxonomy_data.names), 1770528)
+        self.assertEqual(len(self.taxonomy_data.nodes), 1770528)
 
+    def test_0020_is_exist(self):
+        self.assertTrue(self.taxonomy_data.is_exist('1'))
+        self.assertTrue(self.taxonomy_data.is_exist('0'))
+        self.assertTrue(self.taxonomy_data.is_exist('562'))
+        self.assertFalse(self.taxonomy_data.is_exist('fake_identifier'))
 
-#    @unittest.skip("for faster testing")
+    def test_0030_get_name(self):
+        self.assertEqual(self.taxonomy_data.get_name('1'), 'root')
+        self.assertEqual(self.taxonomy_data.get_name('0'), 'Unknown')
+        self.assertEqual(self.taxonomy_data.get_name('562'), 'Escherichia coli')
+
+    def test_0040_get_rank(self):
+        self.assertEqual(self.taxonomy_data.get_rank('1'), 'norank')  # Test root
+        self.assertEqual(self.taxonomy_data.get_rank('0'), 'norank')  # Test Unknown
+        self.assertEqual(self.taxonomy_data.get_rank('2'), 'superkingdom')  # Test Bacteria
+        self.assertEqual(self.taxonomy_data.get_rank('562'), 'species')  # Test E. coli
+
+    def test_0050_get_parent(self):
+        self.assertEqual(self.taxonomy_data.get_parent('1'), '1')  # Test root
+        self.assertEqual(self.taxonomy_data.get_parent('0'), '1')  # Test Unknown
+        self.assertEqual(self.taxonomy_data.get_parent('2'), '131567')  # Test Bacteria
+        self.assertEqual(self.taxonomy_data.get_parent('562'), '561')  # Test E. coli
+
+    def test_0060_get_lca(self):
+        self.assertEqual(self.taxonomy_data.get_lca(['1']), '1')  # Test root
+        self.assertEqual(self.taxonomy_data.get_lca(['']), '0')  # Test empty string
+        self.assertEqual(self.taxonomy_data.get_lca([]), '0')  # Test empty list
+        self.assertEqual(self.taxonomy_data.get_lca(['0']), '0')  # Test Unknown
+        # Anything with root goes to Unknown
+        self.assertEqual(self.taxonomy_data.get_lca(['562','1']), '0')  # E. coli, root
+        # Anything with Unknown is ignored
+        self.assertEqual(self.taxonomy_data.get_lca(['562','0']), '562')  # E. coli, Unknown
+        self.assertEqual(self.taxonomy_data.get_lca(['2','2157']), '131567')  # Bacteria, Archaea
+        self.assertEqual(self.taxonomy_data.get_lca(['562','564']), '561')  # E. coli, E.fergusonii
+
+    def test_0070_get_upper_level_taxon(self):
+        self.assertEqual(self.taxonomy_data.get_upper_level_taxon('1'), ('1', 'norank'))  # Test root
+        self.assertEqual(self.taxonomy_data.get_upper_level_taxon('0'), ('1', 'norank'))  # Test Unknown
+        # For Bacteria, returns 1 (root), not 131567 ('cellular organisms')
+        self.assertEqual(self.taxonomy_data.get_upper_level_taxon('2'), ('1', 'norank'))  # Test Bacteria
+        # For 651137 (Thaumarchaeota), returns 2157 (Archaea), not 1783275 ('TACK group')
+        self.assertEqual(self.taxonomy_data.get_upper_level_taxon('651137'), ('2157', 'superkingdom'))
+        # Test 1660251 (Acidobacteria bacterium Mor1): skip two taxa and report 57723 (Acidobacteria)
+        self.assertEqual(self.taxonomy_data.get_upper_level_taxon('1660251'), ('57723', 'phylum'))
+
+    def test_0080_get_upper_level_taxon(self):
+        self.assertEqual(self.taxonomy_data.get_taxonomy_lineage('1'), '')  # Test root
+        self.assertEqual(self.taxonomy_data.get_taxonomy_lineage('0'), 'Unknown')  # Test Unknown
+        # For Bacteria, returns 1 (root), not 131567 ('cellular organisms')
+        self.assertEqual(self.taxonomy_data.get_taxonomy_lineage('2'), 'Bacteria')  # Test Bacteria
+        # Test 651137 (Thaumarchaeota), returns 2157 (Archaea), not 1783275 ('TACK group')
+        self.assertEqual(self.taxonomy_data.get_taxonomy_lineage('651137'), 'Archaea_Thaumarchaeota')
+        # Test 1660251 (Acidobacteria bacterium Mor1): skip two taxa and report 57723 (Acidobacteria)
+        self.assertEqual(self.taxonomy_data.get_taxonomy_lineage('1660251'), 'Bacteria_Acidobacteria_Acidobacteria_bacterium_Mor1')
+
+    def test_0090_init_node(self):
+        node = Node(rank='genus', name='Escherichia', taxid='561', parent='543', children=None)
+        self.assertEqual(node.rank, 'genus')
+        self.assertEqual(node.name, 'Escherichia')
+        self.assertEqual(node.taxid, '561')
+        self.assertEqual(node.parent, '543')
+
+    def test_0100_add_child(self):
+        node = Node(rank='species', name='Escherichia coli', taxid='562', parent='561', children=None)
+        self.node.add_child('562')
+        self.assertEqual(len(self.node.children),1)
+        self.assertTrue(self.node.is_in_children('562'))
+        self.assertFalse(self.node.is_in_children('561'))
+
+    @unittest.skip("for faster testing")
     def test_2_get_hits_taxonomy_profile(self):
         self.parser.reads = import_annotated_reads(os.path.join(self.parser.options.get_project_dir(self.parser.sample.sample_id), self.parser.sample.sample_id + '_' + self.parser.end + '_' + self.parser.options.reads_json_name))
         generate_fastq_report(self.parser)
@@ -97,7 +169,7 @@ class TaxonomyProfilingTest(unittest.TestCase):
         self.assertEqual(counts_per_rank['superkingdom']['Bacteria'], 8)
 
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_3_build_taxonomy_profile(self):
         self.parser.reads = import_annotated_reads(os.path.join(self.parser.options.get_project_dir(self.parser.sample.sample_id), self.parser.sample.sample_id + '_' + self.parser.end + '_' + self.parser.options.reads_json_name))
         scores = defaultdict(lambda : defaultdict(float))
@@ -140,7 +212,7 @@ class TaxonomyProfilingTest(unittest.TestCase):
         self.assertTrue(tax_profile.tree.data)
 
     
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_4_build_taxonomy_profile(self):
         
         for sample in self.project.list_samples():
@@ -205,7 +277,7 @@ class TaxonomyProfilingTest(unittest.TestCase):
         #~ self.project.samples[sample].reads[end] = None
 
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_5_build_sample_function_taxonomy_profile(self):
         for sample in self.project.list_samples():
             self.project.import_reads_json(sample,ENDS)
@@ -308,7 +380,7 @@ class TaxonomyProfilingTest(unittest.TestCase):
         self.assertTrue(tax_profile.tree.data)
 
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_6_build_project_taxonomy_profile_1function(self):
         
         target_function = 'GH9'
@@ -400,7 +472,7 @@ class TaxonomyProfilingTest(unittest.TestCase):
         self.assertTrue(tax_profile.tree.data)
 
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_7_build_loose_taxonomy_profile(self):
         metrics = 'rpkm'
         for sample in self.project.list_samples():
@@ -444,7 +516,7 @@ class TaxonomyProfilingTest(unittest.TestCase):
             self.project.samples[sample].reads[end] = None
 
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_8_build_loose_project_taxonomy_profile(self):
         metrics = 'rpkm'
         scores = autovivify(3,float)

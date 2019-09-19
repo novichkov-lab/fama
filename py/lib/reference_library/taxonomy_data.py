@@ -77,7 +77,7 @@ class TaxonomyData(object):
 
     def is_exist(self, taxonomy_id):
         """ Checks if taxonomy identifier exists in taxonomy data)
-        
+
         Args:
             taxonomy_id (str): taxonomy identifier
 
@@ -91,10 +91,10 @@ class TaxonomyData(object):
         except KeyError:
             print('Taxonomy identifier %s not found' % taxonomy_id)
         return result
-        
+
     def get_name(self, taxonomy_id):
-        """ Look up taxon name by identifier 
-        
+        """ Look up taxon name by identifier
+
         Args:
             taxonomy_id (str): taxonomy identifier
 
@@ -109,8 +109,8 @@ class TaxonomyData(object):
         return result
 
     def get_rank(self, taxonomy_id):
-        """ Look up taxon rank by identifier 
-        
+        """ Look up taxon rank by identifier
+
         Args:
             taxonomy_id (str): taxonomy identifier
 
@@ -128,7 +128,7 @@ class TaxonomyData(object):
         """ Look up taxon parent by identifier. Returns direct parent reagrdless
         of its rank. If you need a parent node with rank defined in RANKS, call
         get_upper_level_taxon method instead.
-        
+
         Args:
             taxonomy_id (str): taxonomy identifier
 
@@ -143,7 +143,18 @@ class TaxonomyData(object):
         return result
 
     def get_lca(self, taxonomy_id_list):
-        """Returns Lowest Common Ancestor identifier for a list of taxonomy identifiers"""
+        """Returns Lowest Common Ancestor (LCA) taxonomy identifier for a list
+        of taxonomy identifiers.
+        If any taxon in the list is root, LCA is Unknown.
+        If all taxa in the list are Unknowns, LCA is Unknown.
+        If any taxon in the list is NOT Unknown, any Unknowns are ignored.
+
+        Args:
+            taxonomy_id_list (list of str): taxonomy identifiers
+
+        Returns:
+            result (str): LCA taxonomy dentifier
+        """
         result = UNKNOWN_TAXONOMY_ID
         if len(taxonomy_id_list) == 1:
             taxonomy_id = taxonomy_id_list.pop()
@@ -151,48 +162,43 @@ class TaxonomyData(object):
                 result = taxonomy_id
             return result
 
+        taxonomy_id_list = \
+            [taxon_id for taxon_id in taxonomy_id_list if taxon_id != UNKNOWN_TAXONOMY_ID]
+        if not taxonomy_id_list:
+            # if taxonomy_id_list is empty or contains only Unknowns:
+            return result
+
         taxonomic_lineages = {}
         # Calculate length of the shortest path in taxonomic subtree
         min_depth = 1000
         for taxonomy_id in taxonomy_id_list:
+            if not self.is_exist(taxonomy_id):
+                continue
             depth = 1
-            if taxonomy_id in self.nodes:
-                parent_id = self.nodes[taxonomy_id]['parent']
-            elif taxonomy_id == '':
-                continue
-            else:
-                print('WARNING: taxonomy ID', taxonomy_id, 'not found in NCBI Taxonomy: skipped')
-                continue
+            parent_id = self.get_parent(taxonomy_id)
             lineage = [parent_id, taxonomy_id]
-            while self.nodes[parent_id]['parent'] != ROOT_TAXONOMY_ID:
-                if self.nodes[parent_id]['parent'] in self.names:
-                    parent_id = self.nodes[parent_id]['parent']
-                else:
-                    parent_id = UNKNOWN_TAXONOMY_ID
+            while self.get_parent(parent_id) != ROOT_TAXONOMY_ID:
+                parent_id = self.get_parent(parent_id)
                 lineage.insert(0, parent_id)
                 depth += 1
-#            print(lineage)
             taxonomic_lineages[taxonomy_id] = lineage
             if depth < min_depth:
                 min_depth = depth
-#        print(taxonomic_lineages)
         # Find the deepest common node for all leaves in taxonomic subtree
-        upper_level_taxids = set(UNKNOWN_TAXONOMY_ID)
+        upper_level_taxids = set(UNKNOWN_TAXONOMY_ID)  # top-level LCA is Unknown, not root
         for i in range(0, min_depth+1):
-            id_set = set()
+            next_level_taxonomy_ids = set()
             # For each level of taxonomy, find non-redundant list of taxonomy IDs
             for taxonomy_id in taxonomy_id_list:
-                if taxonomy_id in self.nodes:
-                    id_set.add(taxonomic_lineages[taxonomy_id][i])
-#            print (id_set)
-            if len(id_set) > 1:
+                if self.is_exist(taxonomy_id):
+                    next_level_taxonomy_ids.add(taxonomic_lineages[taxonomy_id][i])
+            if len(next_level_taxonomy_ids) > 1:
                 # If current level of taxonomy subtree has more than one node,
                 # return taxonomy ID of the upper level node. Otherwise,
                 # go one level lower
                 result = upper_level_taxids.pop()
                 break
-            else:
-                upper_level_taxids = id_set
+            upper_level_taxids = next_level_taxonomy_ids
         if len(upper_level_taxids) == 1:
             result = upper_level_taxids.pop()
         return result
@@ -200,35 +206,48 @@ class TaxonomyData(object):
     def get_lca2(self, taxonomy_id_list):
         """Returns Lowest Common Ancestor identifier for a list of
         taxonomy identifiers.
-        The LCA always has one of ranks defined in RANKS.
+        If any taxon in the input list is root, LCA is Unknown.
+        If all taxa in the list are Unknowns, LCA is Unknown.
+        If any taxon in the list is NOT Unknown, any Unknowns are ignored.
+        Note: resulting LCA always has one of ranks defined in RANKS.
+
+        Args:
+            taxonomy_id_list (list of str): taxonomy identifiers
+
+        Returns:
+            result (str): LCA taxonomy dentifier
         """
-        ret_val = UNKNOWN_TAXONOMY_ID
+        result = UNKNOWN_TAXONOMY_ID
 
         if len(taxonomy_id_list) == 1:
             taxonomy_id = taxonomy_id_list.pop()
             if taxonomy_id != '':
-                ret_val = taxonomy_id
-            return ret_val
+                result = taxonomy_id
+            return result
+
+        taxonomy_id_list = \
+            [taxon_id for taxon_id in taxonomy_id_list if taxon_id != UNKNOWN_TAXONOMY_ID]
+        if not taxonomy_id_list:
+            # if taxonomy_id_list is empty or contains only Unknowns:
+            return result
 
         # Collect taxonomy IDs for each taxonomic rank
         taxonomic_levels = defaultdict(set)
         for taxonomy_id in taxonomy_id_list:
-            if taxonomy_id == '':
-                continue
-            if taxonomy_id in self.nodes:
-                taxonomic_levels[self.nodes[taxonomy_id]['rank']].add(taxonomy_id)
-                parent_id = self.nodes[taxonomy_id]['parent']
+            if self.is_exist(taxonomy_id):
+                taxonomic_levels[self.get_rank(taxonomy_id)].add(taxonomy_id)
+                parent_id = self.get_upper_level_taxon(taxonomy_id)[0]
                 while parent_id != ROOT_TAXONOMY_ID:
-                    taxonomic_levels[self.nodes[parent_id]['rank']].add(parent_id)
-                    parent_id = self.nodes[parent_id]['parent']
+                    taxonomic_levels[self.get_rank(parent_id)].add(parent_id)
+                    parent_id = self.get_upper_level_taxon(parent_id)[0]
             else:
                 print('WARNING: taxonomy ID', taxonomy_id, 'not found in NCBI Taxonomy: skipped')
                 continue
 
         if not taxonomic_levels:
-            return ret_val
+            return result
         # Look for lowest taxonomic rank with one taxonomy ID
-        last_good_level = set(ROOT_TAXONOMY_ID)
+        last_good_level = set(UNKNOWN_TAXONOMY_ID)  # top-level LCA is Unknown, not root
         for rank in RANKS[1:]:
             if len(taxonomic_levels[rank]) > 1:
                 print(rank, 'is not good!')
@@ -236,167 +255,67 @@ class TaxonomyData(object):
             else:
                 print(rank, 'is good!')
                 last_good_level = taxonomic_levels[rank]
-        ret_val = last_good_level.pop()
+        result = last_good_level.pop()
 
-        # Additional check if LCA has acceptable rank
-        while ret_val != ROOT_TAXONOMY_ID:
-            print('LCA', ret_val)
-            if self.nodes[ret_val]['rank'] in RANKS:
-                break
-            ret_val = self.nodes[ret_val]['parent']
-
-        return ret_val
-
-    def get_taxonomy_profile(self, counts, identity, scores):
-        """Calculates taxonomy profile for a number of taxonomy identifiers.
-        This function takes three dictionaries, assuming that all of
-        them have equal size and identical keys. This function is used only for
-        generation of text and PDF reports for individual FASTQ/FASTA files.
-
-        Args:
-            counts (dict[str,int]): key is taxonomy identifier, value is count
-            identity (dict[str,float]): key is taxonomy identifier, value is amino acid % identity
-            scores (dict[str,float]): key is taxonomy identifier, value is score
-
-        Returns:
-            counts_per_rank (defaultdict[str, defaultdict[str, float]]):
-                external key is rank, internal key is name, value is count
-            identity_per_rank (defaultdict[str, defaultdict[str, float]]):
-                external key is rank, internal key is name, value is amino acid % identity
-            scores_per_rank (defaultdict[str, defaultdict[str, float]]): ():
-                external key is rank, internal key is name, value is score
-        """
-        unknown_label = 'Unknown'
-        unknown_rank = 'superkingdom'
-        cellular_organisms_taxid = '131567'
-        non_cellular_organisms_name = 'Non-cellular'
-        non_cellular_organisms_rank = 'superkingdom'
-
-        rpkm_per_rank = defaultdict(lambda: defaultdict(float))
-        counts_per_rank = defaultdict(lambda: defaultdict(int))
-        identity_per_rank = defaultdict(lambda: defaultdict(float))
-
-        for taxid in counts:
-            current_id = taxid
-            if taxid == 0:
-                label = unknown_label
-                rpkm_per_rank[unknown_rank][label] += scores[taxid]
-                counts_per_rank[unknown_rank][label] += counts[taxid]
-                identity_per_rank[unknown_rank][label] += identity[taxid]
-                continue
-            is_cellular = False
-            not_found = False
-            while current_id != ROOT_TAXONOMY_ID:
-                if current_id == cellular_organisms_taxid:
-                    is_cellular = True
-                    break
-                if current_id not in self.nodes:
-                    print('A) ncbi_code not found in ncbi_nodes: \'' + current_id + '\'')
-                    not_found = True
-                    break
-                current_id = self.nodes[current_id]['parent']
-
-            if not_found:
-                continue
-
-            if not is_cellular:
-                rpkm_per_rank[non_cellular_organisms_rank][non_cellular_organisms_name] \
-                    += scores[taxid]
-                counts_per_rank[non_cellular_organisms_rank][non_cellular_organisms_name] \
-                    += counts[taxid]
-                identity_per_rank[non_cellular_organisms_rank][non_cellular_organisms_name] \
-                    += identity[taxid]
-                continue
-
-            current_id = taxid
-            while current_id != ROOT_TAXONOMY_ID:
-                if current_id not in self.nodes:
-                    print('B) Got nothing for ncbi_code in ncbi_nodes: ' + current_id)
-                    break
-                parent = self.nodes[current_id]['parent']
-                rank = self.nodes[current_id]['rank']
-                if rank in RANKS:
-                    name = self.names[current_id]['name']
-                    rpkm_per_rank[rank][name] += scores[taxid]
-                    counts_per_rank[rank][name] += counts[taxid]
-                    identity_per_rank[rank][name] += identity[taxid]
-                current_id = parent
-
-        for rank in identity_per_rank:
-            for taxon in identity_per_rank[rank]:
-                identity_per_rank[rank][taxon] = \
-                    identity_per_rank[rank][taxon]/counts_per_rank[rank][taxon]
-
-        return counts_per_rank, identity_per_rank, rpkm_per_rank
-
-    def get_upper_level_taxon(self, taxonomy_id):
-        """Finds upper level taxon having rank from RANKS and returns its taxonomy ID"""
-        result = UNKNOWN_TAXONOMY_ID, self.nodes[UNKNOWN_TAXONOMY_ID]['rank']
-        if taxonomy_id not in self.names:
-            return result
-
-        current_id = self.nodes[taxonomy_id]['parent']
-        current_rank = self.nodes[current_id]['rank']
-
-        if current_id == UNKNOWN_TAXONOMY_ID:
-            pass
-        elif taxonomy_id == ROOT_TAXONOMY_ID:
-            result = ROOT_TAXONOMY_ID, self.nodes[ROOT_TAXONOMY_ID]['rank']
-        elif current_rank in RANKS:
-            result = current_id, current_rank
-        else:
-            while current_id != '1':
-                current_id = self.nodes[current_id]['parent']
-                current_rank = self.nodes[current_id]['rank']
-                if current_rank in RANKS:
-                    result = current_id, current_rank
-            if result[0] == UNKNOWN_TAXONOMY_ID:
-                result = ROOT_TAXONOMY_ID, self.nodes[ROOT_TAXONOMY_ID]['rank']
         return result
 
-    def get_lineage_string(self, taxonomy_id):
-        """Returns taxonomic lineage as concatenated string for a given
-        taxonomy identifier
+    def get_upper_level_taxon(self, taxonomy_id):
+        """Finds upper level taxon having rank from RANKS and returns its taxonomy ID and rank
 
-        Todo: replace with get_taxonomy_lineage
+        Args:
+            taxonomy_id_list (list of str): taxonomy identifiers
+
+        Returns:
+            result (tuple(str, str)): LCA taxonomy dentifier and LCA rank
         """
-        ret_val = ''
-        if taxonomy_id not in self.nodes:
-            return ret_val
+        print('taxonomy_id', taxonomy_id)
+        result = (UNKNOWN_TAXONOMY_ID, self.nodes[UNKNOWN_TAXONOMY_ID]['rank'])
+        if not self.is_exist(taxonomy_id):
+            return result
 
-        lineage = [self.names[taxonomy_id]['name']]
-        parent_id = self.nodes[taxonomy_id]['parent']
-        while self.nodes[parent_id]['parent'] != '1':
-            if self.nodes[parent_id]['rank'] in RANKS:
-                lineage.insert(0, self.names[parent_id]['name'])
-            if self.nodes[parent_id]['parent'] in self.names:
-                parent_id = self.nodes[parent_id]['parent']
-            else:
-                parent_id = '0'
-        ret_val = '_'.join(lineage)
-        ret_val = ret_val.replace(' ', '_')
-        ret_val = ret_val.replace('(', '_')
-        ret_val = ret_val.replace(')', '_')
-        return ret_val
+        upper_level_id = self.get_parent(taxonomy_id)
+        upper_level_rank = self.get_rank(upper_level_id)
+
+        if upper_level_id == UNKNOWN_TAXONOMY_ID:
+            pass
+        elif taxonomy_id == ROOT_TAXONOMY_ID:
+            result = (ROOT_TAXONOMY_ID, self.nodes[ROOT_TAXONOMY_ID]['rank'])
+        elif upper_level_rank in RANKS:
+            result = (upper_level_id, upper_level_rank)
+        else:
+            while upper_level_id != ROOT_TAXONOMY_ID:
+                upper_level_id = self.get_parent(upper_level_id)
+                upper_level_rank = self.get_rank(upper_level_id)
+                if upper_level_rank in RANKS:
+                    result = (upper_level_id, upper_level_rank)
+                    break
+#            if result[0] == UNKNOWN_TAXONOMY_ID:
+#                result = (ROOT_TAXONOMY_ID, self.nodes[ROOT_TAXONOMY_ID]['rank'])
+        return result
 
     def get_taxonomy_lineage(self, taxonomy_id):
         """Returns taxonomic lineage as concatenated string for a given
-        taxonomy identifier
+        taxonomy identifier. Separator is underscore ('_'), spaces and
+        parentheses are replaced with underscores.
+
+        Note: Only taxa with ranks defined in RANKS are reported in the lineage
+
+        Args:
+            taxonomy_id (str): taxonomy identifier
+
+        Returns:
+            result (str)): taxonomic lineage
         """
-        ret_val = ''
-        if taxonomy_id not in self.nodes:
-            return ret_val
-        lineage = [self.names[taxonomy_id]['name']]
-        parent_id = self.nodes[taxonomy_id]['parent']
-        while self.nodes[parent_id]['parent'] != '1':
-            if self.nodes[parent_id]['rank'] in RANKS:
-                lineage.insert(0, self.names[parent_id]['name'])
-            if self.nodes[parent_id]['parent'] in self.names:
-                parent_id = self.nodes[parent_id]['parent']
-            else:
-                parent_id = '0'
-        ret_val = '_'.join(lineage)
-        ret_val = ret_val.replace(' ', '_')
-        ret_val = ret_val.replace('(', '_')
-        ret_val = ret_val.replace(')', '_')
-        return ret_val
+        result = ''
+        if not self.is_exist(taxonomy_id) or taxonomy_id == ROOT_TAXONOMY_ID:
+            return result
+        lineage = [self.get_name(taxonomy_id)]
+        (parent_id, _) = self.get_upper_level_taxon(taxonomy_id)
+        while parent_id != '1':
+            lineage.insert(0, self.get_name(parent_id))
+            (parent_id, _) = self.get_upper_level_taxon(parent_id)
+        result = '_'.join(lineage)
+        result = result.replace(' ', '_')
+        result = result.replace('(', '_')
+        result = result.replace(')', '_')
+        return result
