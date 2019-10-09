@@ -4,6 +4,7 @@ from collections import defaultdict, Counter, OrderedDict
 from fpdf import FPDF, HTMLMixin
 from lib.diamond_parser.hit_utils import get_paired_end
 from lib.utils.utils import cleanup_protein_id
+from lib.output.report import get_scores_per_tax_rank
 
 
 class MyFPDF(FPDF, HTMLMixin):
@@ -237,8 +238,8 @@ def generate_pdf_report(parser):
                     if protein_taxids[taxid] in read_functions:
                         rpkm_stats[taxid] += read_functions[protein_taxids[taxid]]
     tax_data = parser.taxonomy_data
-    counts_per_rank, identity_per_rank, rpkm_per_rank = tax_data.get_taxonomy_profile(
-        counts=tax_stats, identity=identity_stats, scores=rpkm_stats
+    counts_per_rank, identity_per_rank, rpkm_per_rank = get_scores_per_tax_rank(
+        counts=tax_stats, identity=identity_stats, scores=rpkm_stats, taxonomy_data=tax_data
     )
     ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
     for rank in ranks:

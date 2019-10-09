@@ -5,11 +5,11 @@ from collections import Counter, defaultdict
 
 from context import lib
 
-from lib.utils.const import ENDS, STATUS_GOOD
+from lib.utils.const import ENDS, STATUS_GOOD, ROOT_TAXONOMY_ID
 from lib.utils.utils import autovivify, cleanup_protein_id, sanitize_file_name
 from lib.diamond_parser.diamond_parser import DiamondParser
 from lib.output.json_util import import_annotated_reads
-from lib.output.report import generate_fastq_report, get_function_taxonomy_scores, get_function_scores
+from lib.output.report import generate_fastq_report, get_function_taxonomy_scores, get_function_scores, slice_function_taxonomy_scores
 from lib.taxonomy.tree import Node, Tree
 from lib.taxonomy.taxonomy_profile import TaxonomyProfile
 from lib.output.krona_xml_writer import make_taxonomy_chart, make_taxonomy_series_chart, make_function_taxonomy_chart
@@ -54,14 +54,13 @@ class TaxonomyProfilingTest(unittest.TestCase):
                             ref_data=self.project.ref_data,
                             sample=self.project.samples[sample_id], 
                             end=end)
-        self.taxonomy_data = TaxonomyData(config_path)
+        self.taxonomy_data = TaxonomyData(self.project.config, '')
         self.node = Node(rank='genus', name='Escherichia', taxid='561', parent='543', children=None)
+        self.tree = Tree()
 
-    def test_0010_init_taxdata(self):
-        self.assertEqual(len(self.project.taxonomy_data.names), 1770528)
-        self.assertEqual(len(self.project.taxonomy_data.nodes), 1770528)
-        self.assertEqual(len(self.taxonomy_data.names), 1770528)
-        self.assertEqual(len(self.taxonomy_data.nodes), 1770528)
+# Tests of TaxonomyData class
+    def test_0010_init_taxonomy_data(self):
+        self.assertEqual(len(self.taxonomy_data.data), 6568)  # Nitrogen collection
 
     def test_0020_is_exist(self):
         self.assertTrue(self.taxonomy_data.is_exist('1'))
@@ -92,11 +91,11 @@ class TaxonomyProfilingTest(unittest.TestCase):
         self.assertEqual(self.taxonomy_data.get_lca([]), '0')  # Test empty list
         self.assertEqual(self.taxonomy_data.get_lca(['0']), '0')  # Test Unknown
         # Anything with root goes to Unknown
-        self.assertEqual(self.taxonomy_data.get_lca(['562','1']), '0')  # E. coli, root
+        self.assertEqual(self.taxonomy_data.get_lca(['571','1']), '0')  # K. oxytoca, root
         # Anything with Unknown is ignored
-        self.assertEqual(self.taxonomy_data.get_lca(['562','0']), '562')  # E. coli, Unknown
+        self.assertEqual(self.taxonomy_data.get_lca(['571','0']), '571')  # K. oxytoca, Unknown
         self.assertEqual(self.taxonomy_data.get_lca(['2','2157']), '131567')  # Bacteria, Archaea
-        self.assertEqual(self.taxonomy_data.get_lca(['562','564']), '561')  # E. coli, E.fergusonii
+        self.assertEqual(self.taxonomy_data.get_lca(['571','573']), '570')  # K. oxytoca, K. pneumoniae
 
     def test_0070_get_upper_level_taxon(self):
         self.assertEqual(self.taxonomy_data.get_upper_level_taxon('1'), ('1', 'norank'))  # Test root
@@ -105,8 +104,8 @@ class TaxonomyProfilingTest(unittest.TestCase):
         self.assertEqual(self.taxonomy_data.get_upper_level_taxon('2'), ('1', 'norank'))  # Test Bacteria
         # For 651137 (Thaumarchaeota), returns 2157 (Archaea), not 1783275 ('TACK group')
         self.assertEqual(self.taxonomy_data.get_upper_level_taxon('651137'), ('2157', 'superkingdom'))
-        # Test 1660251 (Acidobacteria bacterium Mor1): skip two taxa and report 57723 (Acidobacteria)
-        self.assertEqual(self.taxonomy_data.get_upper_level_taxon('1660251'), ('57723', 'phylum'))
+        # Test 44260 (Moorella): skip parent taxon 42857 and report 186814 (Thermoanaerobacteriaceae family)
+        self.assertEqual(self.taxonomy_data.get_upper_level_taxon('44260'), ('186814', 'family'))
 
     def test_0080_get_upper_level_taxon(self):
         self.assertEqual(self.taxonomy_data.get_taxonomy_lineage('1'), '')  # Test root
@@ -116,8 +115,11 @@ class TaxonomyProfilingTest(unittest.TestCase):
         # Test 651137 (Thaumarchaeota), returns 2157 (Archaea), not 1783275 ('TACK group')
         self.assertEqual(self.taxonomy_data.get_taxonomy_lineage('651137'), 'Archaea_Thaumarchaeota')
         # Test 1660251 (Acidobacteria bacterium Mor1): skip two taxa and report 57723 (Acidobacteria)
-        self.assertEqual(self.taxonomy_data.get_taxonomy_lineage('1660251'), 'Bacteria_Acidobacteria_Acidobacteria_bacterium_Mor1')
+        self.assertEqual(self.taxonomy_data.get_taxonomy_lineage('1525'),
+            'Bacteria_Firmicutes_Clostridia_Thermoanaerobacterales_Thermoanaerobacteraceae_Moorella_Moorella_thermoacetica'
+            )
 
+# Tests of Node class
     def test_0090_init_node(self):
         node = Node(rank='genus', name='Escherichia', taxid='561', parent='543', children=None)
         self.assertEqual(node.rank, 'genus')
@@ -126,433 +128,262 @@ class TaxonomyProfilingTest(unittest.TestCase):
         self.assertEqual(node.parent, '543')
 
     def test_0100_add_child(self):
-        node = Node(rank='species', name='Escherichia coli', taxid='562', parent='561', children=None)
         self.node.add_child('562')
         self.assertEqual(len(self.node.children),1)
-        self.assertTrue(self.node.is_in_children('562'))
-        self.assertFalse(self.node.is_in_children('561'))
+        self.assertTrue(self.node.has_child('562'))
+        self.assertFalse(self.node.has_child('561'))
 
-    @unittest.skip("for faster testing")
-    def test_2_get_hits_taxonomy_profile(self):
-        self.parser.reads = import_annotated_reads(os.path.join(self.parser.options.get_project_dir(self.parser.sample.sample_id), self.parser.sample.sample_id + '_' + self.parser.end + '_' + self.parser.options.reads_json_name))
-        generate_fastq_report(self.parser)
-        tax_stats = Counter()
-        identity_stats = defaultdict(float)
-        rpkm_stats = defaultdict(float)
-        for read_id, read in self.parser.reads.items():
-            print(read.status, read.read_id, read.taxonomy, self.project.taxonomy_data.get_name(read.taxonomy))
-            if read.status == STATUS_GOOD:
-                hits = read.hit_list.hits
-                for hit in read.hit_list.hits:
-                    protein_taxid = self.parser.ref_data.lookup_protein_tax(hit.subject_id)
-                    tax_stats[protein_taxid] += 1
-                    identity_stats[protein_taxid] += hit.identity
-                if len(hits) == 1:
-                    for function in read.functions:
-                        rpkm_stats[self.parser.ref_data.lookup_protein_tax(hits[0].subject_id)] += read.functions[function]
-                else:
-                    protein_taxids = {}
-                    for hit in read.hit_list.hits:
-                        hit_taxid = self.parser.ref_data.lookup_protein_tax(hit.subject_id)
-                        hit_functions = hit.functions
-                        for hit_function in hit_functions:
-                            protein_taxids[hit_taxid] = hit_function
-                    for taxid in protein_taxids:
-                        if protein_taxids[taxid] in read.functions:
-                            rpkm_stats[taxid] += read.functions[protein_taxids[taxid]]
+    def test_0110_set_parent(self):
+        node = Node(rank='species')
+        node.set_parent('')
+        self.assertIsNone(node.parent)
+        # Set parent if None
+        node.set_parent('561')
+        self.assertEqual(node.parent,'561')
+        # Change parent
+        node.set_parent('2')
+        self.assertEqual(node.parent,'2')
 
-        print(tax_stats)
-        counts_per_rank, identity_per_rank, rpkm_per_rank = self.project.taxonomy_data.get_taxonomy_profile(tax_stats, identity_stats, rpkm_stats)
-        print(counts_per_rank)
-        print([self.project.taxonomy_data.get_name(taxid) + ':' + str(rpkm_stats[taxid]) for taxid in rpkm_stats])
-        self.assertEqual(len(counts_per_rank), 7)
-        self.assertEqual(counts_per_rank['superkingdom']['Bacteria'], 8)
+    def test_0120_set_taxid(self):
+        node = Node(rank='species')
+        # Set taxid if None
+        node.set_taxid('561')
+        self.assertEqual(node.taxid,'561')
+        # Changing taxid is not possible
+        node.set_taxid('2')
+        self.assertEqual(node.taxid,'561')
 
+    def test_0130_set_rank(self):
+        self.assertEqual(self.node.rank,'genus')
+        # Change rank
+        self.assertTrue(self.node.set_rank('species'))
+        self.assertEqual(self.node.rank,'species')
+        # Rank must be defined in RANKS
+        self.assertFalse(self.node.set_rank('#^$%@!'))
+        self.assertEqual(self.node.rank,'species')
 
-    @unittest.skip("for faster testing")
-    def test_3_build_taxonomy_profile(self):
-        self.parser.reads = import_annotated_reads(os.path.join(self.parser.options.get_project_dir(self.parser.sample.sample_id), self.parser.sample.sample_id + '_' + self.parser.end + '_' + self.parser.options.reads_json_name))
-        scores = defaultdict(lambda : defaultdict(float))
-        print(sample_id, end, 'read count', str(len(self.parser.reads)))
-        for read_id, read in self.parser.reads.keys():
-            if read.status == STATUS_GOOD:
-                for hit in read.hit_list.hits:
-                    protein_taxid = self.parser.ref_data.lookup_protein_tax(hit.subject_id)
-                    scores[protein_taxid]['count'] += 1.0
-                    scores[protein_taxid]['identity'] += hit.identity
-                if len(hits) == 1:
-                    for function in read.functions:
-                        scores[self.parser.ref_data.lookup_protein_tax(hits[0].subject_id)]['rpkm'] += read.functions[function]
-                else:
-                    read_functions = self.parser.reads[read].functions
-                    protein_taxids = {}
-                    for hit in read.hit_list.hits:
-                        hit_taxid = self.parser.ref_data.lookup_protein_tax(hit.subject_id)
-                        for hit_function in hit.functions:
-                            protein_taxids[hit_taxid] = hit_function
-                    for taxid in protein_taxids:
-                        if protein_taxids[taxid] in read.functions:
-                            scores[taxid]['rpkm'] += read.functions[protein_taxids[taxid]]
+    def test_0140_set_attribute(self):
+        self.node.set_attribute('score', 0.001)
+        self.assertEqual(self.node.attributes['score'], 0.001)
+        self.node.set_attribute('score', 1)
+        self.assertEqual(self.node.attributes['score'], 1)
 
-        print(sample_id, end, 'tax id count', str(len(scores)))
-        tax_profile = TaxonomyProfile()
-        print(scores)
-        tax_profile.make_taxonomy_profile(self.project.taxonomy_data,scores)
-        print ('Root children:',','.join(tax_profile.tree.data['1'].children))
-        if '2157' in tax_profile.tree.data:
-            print ('Archaea found') 
-        if '10239' in tax_profile.tree.data:
-            print ('Viruses found') 
-        make_taxonomy_chart(tax_profile, self.parser.sample.sample_id, 'test.xml', self.project.config.krona_path)
-        print(tax_profile.print_taxonomy_profile())
-        #for taxid in tax_profile.tree.data:
-        #    print(taxid, tax_profile.tree.data[taxid].name, tax_profile.tree.data[taxid].rank, tax_profile.tree.data[taxid].get_attribute('score'))
-        
-        #self.assertEqual(len(tax_profile.tree.data), 47)
-        self.assertTrue(tax_profile.tree.data)
+    def test_0150_add_attribute(self):
+        self.node.set_attribute('score_float', 0.5)
+        self.node.add_attribute('score_float', 0.2)
+        self.assertEqual(self.node.attributes['score_float'], 0.7)
+        self.node.set_attribute('score_int', 1)
+        self.node.add_attribute('score_int', 999)
+        self.assertEqual(self.node.attributes['score_int'], 1000)
 
-    
-    @unittest.skip("for faster testing")
-    def test_4_build_taxonomy_profile(self):
-        
-        for sample in self.project.list_samples():
-            self.project.import_reads_json(sample,ENDS)
-        metrics = 'efpkg'
-        scores_function_taxonomy = get_function_taxonomy_scores(
-            self.project, sample_id, metrics=metrics
-        )
-        print(scores_function_taxonomy)
-            #~ for end in ENDS:
-                
-                #~ #print(sample, end, 'read count', str(len(reads)))
-                #~ scores = defaultdict(lambda : defaultdict(float))
-                #~ for read_id,read in self.project.samples[sample_id].reads[end].items():
-                    
-                    #~ if read.status == 'function':
-                        #~ hits = read.hit_list.hits
-                        #~ for hit in hits:
-                            #~ protein_taxid = self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.subject_id))
-                            #~ scores[protein_taxid]['count'] += 1.0
-                            #~ scores[protein_taxid]['identity'] += hit.identity
-                        #~ if len(hits) == 1:
-                            #~ read_functions = read.functions
-                            #~ for function in read_functions:
-                                #~ scores[self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hits[0].subject_id))]['rpkm'] += read_functions[function]
-                        #~ else:
-                            #~ read_functions = read.functions
-                            #~ protein_taxids = {}
-                            #~ for hit in hits:
-                                #~ hit_taxid = self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.subject_id))
-                                #~ hit_functions = hit.functions
-                                #~ for hit_function in hit_functions:
-                                    #~ protein_taxids[hit_taxid] = hit_function
-                            #~ for taxid in protein_taxids:
-                                #~ if protein_taxids[taxid] in read_functions:
-                                    #~ scores[taxid]['rpkm'] += read_functions[protein_taxids[taxid]]
-                #~ print(sample, end, 'tax id count', str(len(scores)))
-        scores = defaultdict(lambda : defaultdict(float))
-        for tax_id in scores_function_taxonomy:
-            for func_id in scores_function_taxonomy[tax_id]:
-                for key, val in scores_function_taxonomy[tax_id][func_id][sample_id].items():
-                    scores[tax_id][key] += val
-        print('Scores',str(scores))
-        tax_profile = TaxonomyProfile()
-        outfile = os.path.join(
-            self.project.options.get_project_dir(sample_id),
-            self.project.options.get_output_subdir(sample_id),
-            sample_id + '_' + end + '_' + 'taxonomy_profile.xml'
-        )
-        tax_profile.make_taxonomy_profile(self.project.taxonomy_data, scores)
-        print ('Root children:',','.join(tax_profile.tree.data['1'].children))
-        if '2157' in tax_profile.tree.data:
-            print ('Archaea found') 
-        if '10239' in tax_profile.tree.data:
-            print ('Viruses found') 
-        print(tax_profile.stringify_taxonomy_profile())
-        make_taxonomy_chart(
-            tax_profile, sample_id, outfile, self.project.config.krona_path, score=metrics
-        )
-        self.assertTrue(tax_profile.tree.data)
-                
-        #~ self.project.samples[sample].reads[end] = None
+    def test_0160_get_attribute(self):
+        self.node.set_attribute('score_float', 0.5)
+        self.assertEqual(self.node.get_attribute('score_float'), 0.5)
+        self.assertIsNone(self.node.get_attribute('nonexisting_key'))
 
+    def test_0170_is_in_children(self):
+        self.node.add_child('562')
+        self.assertEqual(len(self.node.children),1)
+        self.assertTrue(self.node.has_child('562'))
+        self.assertFalse(self.node.has_child('561'))
 
-    @unittest.skip("for faster testing")
-    def test_5_build_sample_function_taxonomy_profile(self):
-        for sample in self.project.list_samples():
-            self.project.import_reads_json(sample,ENDS)
-        scores = defaultdict(lambda : defaultdict(dict))
-        metric = 'efpkg'
-        all_scores = get_function_taxonomy_scores(self.project, sample_id, metric=metric)
-        
-        functions = set()
-        for tax_id in all_scores:
-            for func_id in all_scores[tax_id]:
-                functions.add(func_id)
-                scores[tax_id][func_id] = all_scores[tax_id][func_id][sample_id]
-        #~ for sample in self.project.list_samples():
-            #~ self.project.import_reads_json(sample,ENDS)
-            #~ for end in ENDS:
-                #~ scaling_factor = 1.0
-                #~ if end == 'pe1':
-                    #~ scaling_factor = self.project.options.get_fastq1_readcount(sample)/(
-                        #~ self.project.options.get_fastq1_readcount(sample)
-                        #~ + self.project.options.get_fastq2_readcount(sample)
-                    #~ )
-                #~ elif end == 'pe2':
-                    #~ scaling_factor = self.project.options.get_fastq2_readcount(sample)/(
-                        #~ self.project.options.get_fastq1_readcount(sample)
-                        #~ + self.project.options.get_fastq2_readcount(sample)
-                    #~ )
-                #~ else:
-                    #~ raise Exception('Unknown end identifier')
+# Tests of Tree class
+    def test_0180_init_tree(self):
+        tree = Tree()
+        self.assertEqual(tree.root.taxid, '1')
+        self.assertEqual(len(tree.data), 1)
+        self.assertEqual(tree.data[ROOT_TAXONOMY_ID].taxid, ROOT_TAXONOMY_ID)
 
-                #~ multiple_hits = 0
-                #~ read_count = 0
-                
-                #~ for read_id in self.project.samples[sample].reads[end]:
-                    #~ read = self.project.samples[sample].reads[end][read_id]
-                    #~ if read.status == 'function':
-                        
-                        #~ read_functions = read.functions
-                        #~ hits = read.hit_list.hits
-                        #~ if len(hits) >1:
-                            #~ multiple_hits += 1
-                        #~ read_count += 1
-                        #~ # Count hits and identity
-                        #~ for hit in hits:
-                            #~ hit_taxid = self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.subject_id))
-                            #~ if sample in scores[hit_taxid]:
-                                #~ scores[hit_taxid][sample]['count'] += 1.0/len(hits)
-                                #~ scores[hit_taxid][sample]['hit_count'] += 1.0
-                                #~ scores[hit_taxid][sample]['identity'] += hit.identity
-                            #~ else:
-                                #~ scores[hit_taxid][sample]['count'] = 1.0/len(hits)
-                                #~ scores[hit_taxid][sample]['hit_count'] = 1.0 # we need hit count to calculate average identity
-                                #~ scores[hit_taxid][sample]['identity'] = hit.identity
-                                #~ # Initialize 'rpkm' here
-                                #~ scores[hit_taxid][sample]['rpkm'] = 0.0
+    def test_0190_add_node(self):
+        # Adding node with non-existing parent must fail
+        self.assertFalse(self.tree.add_node(
+            Node(rank='genus', name='Escherichia', taxid='561', parent='543', children=None)
+            ))
+        # Adding empty node must fail
+        self.assertFalse(self.tree.add_node(
+            Node(rank='species')
+            ))
+        # Adding second root must fail
+        self.assertFalse(self.tree.add_node(
+            Node(rank='norank', name='root', taxid='1', parent='1', children=None)
+            ))
+        # Adding node with existing parent must succeed
+        self.assertTrue(self.tree.add_node(
+            Node(rank='superkingdom', name='Bacteria', taxid='2', parent='1', children=None)
+            ))
+        self.assertEqual(len(self.tree.get_node('1').children), 1)
+        # Adding node if its parent has children must succeed
+        self.assertTrue(self.tree.add_node(
+            Node(rank='superkingdom', name='Archaea', taxid='2157', parent='1', children=None)
+            ))
+        self.assertEqual(len(self.tree.get_node('1').children), 2)
 
-                            
-                        #~ # Count RPKM
-                        #~ # If we have only one hit, all RPKM scores of the read would be assigned to the tax id of the hit
-                        #~ # If we have more than one hit, RPKM scores would be equally divided between tax ids of the hits, with regard to functional assignments of the hits
-                        #~ function_taxids = defaultdict(list)
-                        #~ # First, collect all taxonomy IDs for each function assigned to the hit
-                        #~ for function in read_functions:
-                            #~ for hit in hits:
-                                #~ hit_taxid = self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.subject_id))
-                                #~ for hit_function in hit.functions:
-                                    #~ if hit_function == function:
-                                        #~ function_taxids[function].append(hit_taxid)
-                        #~ # Second, for each tax ID add its share of the RPKM score assigned to hit's function
-                        #~ for function in function_taxids:
-                            #~ tax_count = len(function_taxids[function])
-                            #~ for hit_taxid in function_taxids[function]:
-                                #~ scores[hit_taxid][sample]['rpkm'] += read_functions[function] * scaling_factor/tax_count
-                #~ print(sample, end, 'read count', str(read_count))
-                #~ print ('Reads with multiple hits: ', multiple_hits)
-                
-                #~ self.project.samples[sample].reads[end] = None
-                
-        # Now, we have all taxonomy ids, from each samples, in a single nested dictionary. 
-        print('tax id count', str(len(scores)))
-
-        
-        tax_profile = TaxonomyProfile()
-        outfile = os.path.join(
-            self.project.options.work_dir,
-            self.project.options.project_name + '_taxonomy_profile.xml'
+    def test_0200_get_node(self):
+        self.tree.add_node(
+            Node(rank='superkingdom', name='Bacteria', taxid='2', parent='1', children=None)
             )
-        outfile = outfile.replace(' ', '_')
-        outfile = outfile.replace("'", "")
+        # Getting existing node must succeed
+        self.assertEqual(self.tree.get_node('2').parent, '1')
+        # Getting non-existing node must fail
+        self.assertIsNone(self.tree.get_node('561'))
 
-        tax_profile.make_function_taxonomy_profile(
-            self.project.taxonomy_data,
-            scores
+    def test_0210_is_in_tree(self):
+        self.tree.add_node(
+            Node(rank='superkingdom', name='Bacteria', taxid='2', parent='1', children=None)
             )
-        print(tax_profile.stringify_taxonomy_profile())
-        make_function_taxonomy_chart(
-#        make_taxonomy_series_chart(
-            tax_profile, sorted(list(functions)),  # sorted(self.project.samples.keys()),
-            outfile, self.project.config.krona_path
+        self.assertTrue(self.tree.is_in_tree('2'))
+        self.assertFalse(self.tree.is_in_tree('562'))
+        self.assertFalse(self.tree.is_in_tree(True))
+
+    def test_0220_add_node_recursively(self):
+        self.assertFalse(self.tree.is_in_tree('562'))
+        self.assertTrue(self.tree.add_node_recursively(
+            Node(rank='species', name='Escherichia coli', taxid='562', parent='561', children=None),
+            self.taxonomy_data
+            ))
+        self.assertTrue(self.tree.is_in_tree('562'))
+        self.assertTrue(self.tree.is_in_tree('561'))
+        self.assertTrue(self.tree.is_in_tree('2'))
+        # Adding second root must fail
+        self.assertFalse(self.tree.add_node_recursively(
+            Node(rank='norank', name='root', taxid='1', parent='1', children=None),
+            self.taxonomy_data
+            ))
+        # Adding node with existing parent must succeed
+        self.assertFalse(self.tree.is_in_tree('564'))
+        self.assertTrue(self.tree.add_node_recursively(
+            Node(rank='species', name='Escherichia fergusonii', taxid='564', parent='561', children=None),
+            self.taxonomy_data
+            ))
+        self.assertTrue(self.tree.is_in_tree('564'))
+
+    def test_0230_add_attribute(self):
+        self.tree.add_node(
+            Node(rank='superkingdom', name='Bacteria', taxid='2', parent='1', children=None)
             )
-        self.assertTrue(tax_profile.tree.data)
+        # Add attribute to existing node
+        self.assertFalse(self.tree.get_node('2').attributes)
+        self.tree.add_attribute('2', 'score_float', 0.42, self.taxonomy_data)
+        self.assertTrue(self.tree.get_node('2').attributes)
+        self.assertEqual(self.tree.get_node('2').attributes['score_float'], 0.42)
+        # Add attribute to non-existing node
+        self.assertFalse(self.tree.get_node('1').attributes)
+        self.tree.add_attribute('2157', 'score_float', 0.42, self.taxonomy_data)
+        self.assertTrue(self.tree.get_node('1').attributes)
+        self.assertEqual(self.tree.get_node('1').attributes['score_float'], 0.42)
 
+    def test_0240_add_attribute_recursively(self):
+        self.tree.add_node(
+            Node(rank='superkingdom', name='Bacteria', taxid='2', parent='1', children=None)
+            )
+        # Add attribute to existing node
+        self.assertFalse(self.tree.get_node('2').attributes)
+        self.tree.add_attribute_recursively('2', 'score_float', 0.42, self.taxonomy_data)
+        self.assertTrue(self.tree.get_node('2').attributes)
+        self.assertEqual(self.tree.get_node('2').attributes['score_float'], 0.42)
+        self.assertEqual(self.tree.get_node('1').attributes['score_float'], 0.42)
+        # Add attribute to non-existing node
+        self.tree.add_attribute_recursively('2157', 'score_float', 0.42, self.taxonomy_data)
+        self.assertEqual(self.tree.get_node('1').attributes['score_float'], 0.84)
 
-    @unittest.skip("for faster testing")
-    def test_6_build_project_taxonomy_profile_1function(self):
-        
-        target_function = 'GH9'
-        
-        
-        scores = defaultdict(lambda : defaultdict(dict))
-        
-        for sample in self.project.list_samples():
-            self.project.import_reads_json(sample,ENDS)
-            for end in ENDS:
-                
-                
-                scaling_factor = 1.0
-                if end == 'pe1':
-                    scaling_factor = self.project.options.get_fastq1_readcount(sample)/(self.project.options.get_fastq1_readcount(sample) + self.project.options.get_fastq2_readcount(sample))
-                elif end == 'pe2':
-                    scaling_factor = self.project.options.get_fastq2_readcount(sample)/(self.project.options.get_fastq1_readcount(sample) + self.project.options.get_fastq2_readcount(sample))
-                else:
-                    raise Exception('Unknown end identifier')
+    def test_0250_get_parent(self):
+        self.assertTrue(self.tree.add_node_recursively(
+            Node(rank='species', name='Escherichia coli', taxid='562', parent='561', children=None),
+            self.taxonomy_data
+            ))
+        # Getting parent of existing node must succeed
+        node = self.tree.get_node('561')
+        self.assertEqual(node.parent, '543')
+        parent_node = self.tree.get_parent(node, self.taxonomy_data)
+        self.assertEqual(parent_node.taxid, '543')
+        # Getting parent of non-existing node must fail
+        node = Node(rank='species')
+        parent_node = self.tree.get_parent(node, self.taxonomy_data)
+        self.assertIsNone(parent_node)
 
-                multiple_hits = 0
-                read_count = 0
-                
-                for read_id,read in self.project.samples[sample].reads[end].items():
-                    #read = self.project.samples[sample].reads[end][read_id]
-                    if read.status == 'function':
-                        
-                        read_functions = read.functions
-                        
-                        if target_function not in read_functions:
-                            continue
-                            
-                        hits = read.hit_list.hits
-                        if len(hits) >1:
-                            multiple_hits += 1
-                        read_count += 1
-                        # Count hits and identity
-                        for hit in hits:
-                            hit_taxid = self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
-                            if sample in scores[hit_taxid]:
-                                scores[hit_taxid][sample]['count'] += 1.0/len(hits)
-                                scores[hit_taxid][sample]['hit_count'] += 1.0
-                                scores[hit_taxid][sample]['identity'] += hit.get_identity()
-                            else:
-                                scores[hit_taxid][sample]['count'] = 1.0/len(hits)
-                                scores[hit_taxid][sample]['hit_count'] = 1.0 # we need hit count to calculate average identity
-                                scores[hit_taxid][sample]['identity'] = hit.get_identity()
-                                # Initialize 'rpkm' here
-                                scores[hit_taxid][sample]['rpkm'] = 0.0
+# Tests of TaxonomyProfile class
+    def test_0260_init_taxonomy_profile(self):
+        taxonomy_profile = TaxonomyProfile()
+        self.assertIsNotNone(taxonomy_profile.tree)
+        self.assertEqual(len(taxonomy_profile.tree.data), 1)
+        self.assertEqual(taxonomy_profile.tree.root.taxid, ROOT_TAXONOMY_ID)
+        self.assertEqual(taxonomy_profile.tree.data[ROOT_TAXONOMY_ID].taxid, ROOT_TAXONOMY_ID)
 
-                            
-                        # Count RPKM
-                        # If we have only one hit, all RPKM scores of the read would be assigned to the tax id of the hit
-                        # If we have more than one hit, RPKM scores would be equally divided between tax ids of the hits, with regard to functional assignments of the hits
-                        function_taxids = defaultdict(list)
-                        # First, collect all taxonomy IDs for each function assigned to the hit
-                        for function in read_functions:
-                            if function != target_function:
-                                continue
-                            for hit in hits:
-                                hit_taxid = self.project.ref_data.lookup_protein_tax(cleanup_protein_id(hit.get_subject_id()))
-                                hit_functions = hit.get_functions()
-                                for hit_function in hit.get_functions():
-                                    if hit_function == function:
-                                        function_taxids[function].append(hit_taxid)
-                        # Second, for each tax ID add its share of the RPKM score assigned to hit's function
-                        for function in function_taxids:
-                            if function != target_function:
-                                continue
-                            tax_count = len(function_taxids[function])
-                            for hit_taxid in function_taxids[function]:
-                                scores[hit_taxid][sample]['rpkm'] += read_functions[function] * scaling_factor/tax_count
-                print(sample, end, 'read count', str(read_count))
-                print ('Reads with multiple hits: ', multiple_hits)
-                
-                self.project.samples[sample].reads[end] = None
-                
-        # Now, we have all taxonomy ids, from each samples, in a single nested dictionary. 
-        print('tax id count', str(len(scores)))
+    def test_0270_make_function_taxonomy_profile(self):
+        self.project.import_reads_json(sample_id, ENDS)
+        scores = get_function_taxonomy_scores(self.project, sample_id=sample_id, metric='fpk')
+        sample_scores_taxonomy = slice_function_taxonomy_scores(scores, sample_id)
+        taxonomy_profile = TaxonomyProfile()
+        taxonomy_profile.make_function_taxonomy_profile(self.project.taxonomy_data, sample_scores_taxonomy)
+        print(taxonomy_profile)
+        self.assertEqual(len(taxonomy_profile.tree.data), 22)
+        self.assertEqual(taxonomy_profile.tree.data[ROOT_TAXONOMY_ID].attributes['NirK']['count'], 1.0)
+        self.assertEqual(taxonomy_profile.tree.data[ROOT_TAXONOMY_ID].attributes['UreA']['count'], 3.0)
+        self.assertEqual(taxonomy_profile.tree.data['118883'].attributes['UreC']['count'], 1.0)
 
-        tax_profile = TaxonomyProfile()
-        outfile = os.path.join(self.project.options.work_dir, self.project.options.project_name + '_' + target_function + '_taxonomy_profile.xml')
-        outfile = outfile.replace(' ', '_')
-        outfile = outfile.replace("'", "")
+    def test_0280_str(self):
+        taxonomy_profile = TaxonomyProfile()
+        self.assertEqual(str(taxonomy_profile),
+            '1\tnorank\troot\tParent:None\tChildren:None\tScore:N/A\tIdentity:N/A\tRead count:N/A\n'
+        )
 
-        tax_profile.make_function_taxonomy_profile(self.project.taxonomy_data, scores)
+    def test_0290_stringify_node(self):
+        self.project.import_reads_json(sample_id, ENDS)
+        scores = get_function_taxonomy_scores(self.project, sample_id=sample_id, metric='fpk')
+        sample_scores_taxonomy = slice_function_taxonomy_scores(scores, sample_id)
+        taxonomy_profile = TaxonomyProfile()
+        taxonomy_profile.make_function_taxonomy_profile(self.project.taxonomy_data, sample_scores_taxonomy)
+        self.assertEqual(taxonomy_profile.stringify_node('118883',0),
+            "118883\tfamily\tSulfolobaceae\tParent:2281\tChildren:None\tUreC:{'count': 1.0, 'hit_count': 1.0"
+            ", 'identity': 68.8, 'fpk': 0.5984440454817475}\n"
+        )
 
-        make_taxonomy_series_chart(tax_profile, sorted(self.project.list_samples()), outfile, self.project.config.krona_path)
-        self.assertTrue(tax_profile.tree.data)
+    def test_0300_convert_profile_into_df(self):
+        self.project.import_reads_json(sample_id, ENDS)
+        scores = get_function_taxonomy_scores(self.project, sample_id=sample_id, metric='fpk')
+        sample_scores_taxonomy = slice_function_taxonomy_scores(scores, sample_id)
+        taxonomy_profile = TaxonomyProfile()
+        taxonomy_profile.make_function_taxonomy_profile(self.project.taxonomy_data, sample_scores_taxonomy)
+        result = taxonomy_profile.convert_profile_into_df(metric='fpk')
+        self.assertEqual(result.iloc[0][1], 'root')
+        self.assertEqual(result.iloc[1][0], 'superkingdom')
 
+    def test_0310_convert_node_into_dict(self):
+        self.project.import_reads_json(sample_id, ENDS)
+        scores = get_function_taxonomy_scores(self.project, sample_id=sample_id, metric='fpk')
+        sample_scores_taxonomy = slice_function_taxonomy_scores(scores, sample_id)
+        print(sample_scores_taxonomy)
+        taxonomy_profile = TaxonomyProfile()
+        taxonomy_profile.make_function_taxonomy_profile(self.project.taxonomy_data, sample_scores_taxonomy)
+        result, attributes = taxonomy_profile.convert_node_into_dict('118883', ['UreC', 'UreA'], 1, metric='fpk')
+        self.assertEqual(result[1][('', 'Taxon name')], 'Sulfolobaceae')
+        self.assertEqual(result[1][('UreC', '1.Score')], 0.5984440454817475)
+        self.assertEqual(result[1][('UreA', '1.Score')], 0.0)
+        self.assertEqual(attributes['UreC']['fpk'], 0.5984440454817475)
+        self.assertEqual(attributes['UreA']['fpk'], 0.0)
 
-    @unittest.skip("for faster testing")
-    def test_7_build_loose_taxonomy_profile(self):
-        metrics = 'rpkm'
-        for sample in self.project.list_samples():
-            if sample != sample_id:
-                continue
-            self.project.import_reads_json(sample, ENDS)
-            
-            norm_factor = 1000000/self.project.options.get_fastq1_readcount(sample_id)
+    def test_0320_convert_profile_into_score_df(self):
+        self.project.import_reads_json(sample_id, ENDS)
+        scores = get_function_taxonomy_scores(self.project, sample_id=sample_id, metric='fpk')
+        sample_scores_taxonomy = slice_function_taxonomy_scores(scores, sample_id)
+        taxonomy_profile = TaxonomyProfile()
+        taxonomy_profile.make_function_taxonomy_profile(self.project.taxonomy_data, sample_scores_taxonomy)
+        result = taxonomy_profile.convert_profile_into_score_df(metric='fpk')
+        self.assertEqual(result.iloc[0][1], 'root')
+        self.assertEqual(result.iloc[1][0], 'superkingdom')
 
-            for end in ENDS:
-                
-                #print(sample, end, 'read count', str(len(reads)))
-                scores = autovivify(2,float)
-                for read_id,read in self.project.samples[sample_id].reads[end].items():
-                    
-                    if read.status != 'function':
-                        continue
-                    
-                    if read.taxonomy is None:
-                        print ('No taxonomy ID assigned to ' + read_id)
-                       # raise ValueError('No taxonomy ID assigned to ' + read_id)
-                    else:
-                        scores[read.taxonomy]['count'] += 1
-                        scores[read.taxonomy][metrics] += norm_factor * sum(list(read.functions.values()))
-                        scores[read.taxonomy]['hit_count'] += 1
-                        scores[read.taxonomy]['identity'] += max([hit.identity for hit in read.hit_list.hits])
-
-                print(sample, end, 'tax id count', str(len(scores)))
-                tax_profile = TaxonomyProfile()
-                outfile = os.path.join(self.project.options.get_project_dir(sample), self.project.options.get_output_subdir(sample), sample + '_' + end + '_' + metrics + '_taxonomy_profile.xml')
-                tax_profile.make_taxonomy_profile(self.project.taxonomy_data, scores)
-                #print ('Root children:',','.join(tax_profile.tree.data['1'].children))
-                #if '2157' in tax_profile.tree.data:
-                #    print ('Archaea found') 
-                #if '10239' in tax_profile.tree.data:
-                #    print ('Viruses found') 
-                #print(tax_profile.print_taxonomy_profile())
-                make_taxonomy_chart(tax_profile, sample, outfile, self.project.config.krona_path, score=metrics)
-                self.assertTrue(tax_profile.tree.data)
-                
-            self.project.samples[sample].reads[end] = None
-
-
-    @unittest.skip("for faster testing")
-    def test_8_build_loose_project_taxonomy_profile(self):
-        metrics = 'rpkm'
-        scores = autovivify(3,float)
-        for sample in self.project.list_samples():
-            self.project.import_reads_json(sample, ENDS)
-            
-            norm_factor = 1000000/self.project.options.get_fastq1_readcount(sample)
-
-            for end in ENDS:
-                
-                #print(sample, end, 'read count', str(len(reads)))
-                for read_id,read in self.project.samples[sample].reads[end].items():
-                    
-                    if read.status != 'function':
-                        continue
-                    
-                    if read.taxonomy is None:
-                        print ('No taxonomy ID assigned to ' + read_id)
-                       # raise ValueError('No taxonomy ID assigned to ' + read_id)
-                    else:
-                        scores[read.taxonomy][sample]['count'] += 1
-                        scores[read.taxonomy][sample][metrics] += norm_factor * sum(list(read.functions.values()))
-                        scores[read.taxonomy][sample]['hit_count'] += 1
-                        scores[read.taxonomy][sample]['identity'] += max([hit.identity for hit in read.hit_list.hits])
-
-                print(sample, end, 'tax id count', str(len(scores)))
-                
-            self.project.samples[sample].reads[end] = None
-
-
-        tax_profile = TaxonomyProfile()
-        outfile = sanitize_file_name(os.path.join(self.project.options.work_dir, self.project.options.project_name + '_' + metrics + '_taxonomy_profile.xml'))
-
-        tax_profile.make_function_taxonomy_profile(self.project.taxonomy_data, scores)
-        make_taxonomy_series_chart(tax_profile, sorted(self.project.samples.keys()), outfile, self.project.config.krona_path, score=metrics)
-        self.assertTrue(tax_profile.tree.data)
+    def test_0330_convert_node_into_dict(self):
+        self.project.import_reads_json(sample_id, ENDS)
+        scores = get_function_taxonomy_scores(self.project, sample_id=sample_id, metric='fpk')
+        sample_scores_taxonomy = slice_function_taxonomy_scores(scores, sample_id)
+        taxonomy_profile = TaxonomyProfile()
+        taxonomy_profile.make_function_taxonomy_profile(self.project.taxonomy_data, sample_scores_taxonomy)
+        result, attributes = taxonomy_profile.convert_node_into_values_dict('118883', ['UreC', 'UreA'], 1, metric='fpk')
+        self.assertEqual(result[1][('', 'Taxon name')], 'Sulfolobaceae')
+        self.assertEqual(result[1][('UreC', 'fpk')], 0.5984440454817475)
+        self.assertEqual(result[1][('UreA', 'fpk')], 0.0)
+        self.assertEqual(attributes['UreC']['fpk'], 0.5984440454817475)
+        self.assertNotIn('UreA', attributes.keys())
 
     def tearDown(self):
         self.parser = None

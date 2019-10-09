@@ -70,7 +70,7 @@ class FamaReportTest(unittest.TestCase):
         outfile = os.path.join(data_dir,'collection_list.pdf')
         pdf.output(outfile, 'F')
         self.assertTrue(os.path.exists(outfile))
-        # if this test fails, function names may contain 'bad' symbols 
+        # If function names contain 'bad' symbols, this test fails
 
     @unittest.skip("for faster testing")
     def test_2_get_functions_in_group(self):

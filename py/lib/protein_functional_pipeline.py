@@ -43,8 +43,8 @@ def import_protein_fasta(parser):
                 read_count += 1
                 if current_id != '':
                     seq_id = current_id[1:].split(' ')[0]
-                    parser.reads[seq_id].set_read_id_line(current_id)
-                    parser.reads[seq_id].set_sequence(''.join(sequence))
+                    parser.reads[seq_id].read_id_line = current_id
+                    parser.reads[seq_id].sequence = ''.join(sequence)
                     read_count += 1
                     base_count += len(''.join(sequence))
                 sequence = []
@@ -59,8 +59,8 @@ def import_protein_fasta(parser):
                 if current_id != '':
                     sequence.append(line)
         if current_id != '':
-            parser.reads[seq_id].set_read_id_line(current_id)
-            parser.reads[seq_id].set_sequence(''.join(sequence))
+            parser.reads[seq_id].read_id_line = current_id
+            parser.reads[seq_id].sequence = ''.join(sequence)
         file_handle.close()
     return read_count, base_count
 
@@ -140,7 +140,7 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
 
     """
     # Find coverage value for protein 'read'
-    protein_id = read.get_read_id_line()
+    protein_id = read.read_id_line
     protein_id_tokens = protein_id.split(' # ')
     contig_id = '_'.join(protein_id_tokens[0].split('_')[:-1])[1:]
     coverage = 1.0
@@ -150,7 +150,7 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
     #
     # Find best hit
     for hit in read.hit_list.hits:
-        if hit.get_query_start() == hit_start and hit.get_query_end() == hit_end:
+        if hit.q_start == hit_start and hit.q_end == hit_end:
             best_bitscore = 0.0
             best_hit = None
             for new_hit in new_hit_list.hits:
@@ -175,8 +175,8 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                 new_hit for new_hit in new_hit_list.hits
                 if new_hit.bitscore > bitscore_lower_cutoff
                 ]
-            if hit.get_subject_id() not in [
-                    new_hit.get_subject_id() for new_hit in new_hits
+            if hit.subject_id not in [
+                    new_hit.subject_id for new_hit in new_hits
             ] and hit.bitscore >= best_bitscore:
                 new_hits.append(hit)
 
@@ -193,11 +193,11 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                 for new_func in new_hit.functions:
                     new_functions_counter[new_func] += 1
                     if new_func in new_functions_dict:
-                        if new_hit.get_bitscore() > new_functions_dict[new_func]['bit_score']:
+                        if new_hit.bitscore > new_functions_dict[new_func]['bit_score']:
                             new_functions_dict[new_func]['bit_score'] = new_hit.bitscore
                             new_functions_dict[new_func]['hit'] = new_hit
                     else:
-                        new_functions_dict[new_func]['bit_score'] = new_hit.get_bitscore()
+                        new_functions_dict[new_func]['bit_score'] = new_hit.bitscore
                         new_functions_dict[new_func]['hit'] = new_hit
 
             # If the most common function in new hits is unknown, set status "nofunction" and return
@@ -215,16 +215,16 @@ def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cuto
             read.append_functions(new_functions)
 
             # Set new list of hits
-            _hit_list = DiamondHitList(read.get_read_id())
+            _hit_list = DiamondHitList(read.read_id)
             for new_func in new_functions_dict:
                 if new_func == '':
                     continue
                 good_hit = new_functions_dict[new_func]['hit']
-                good_hit.query_id = read.get_read_id()
+                good_hit.query_id = read.read_id
                 good_hit.annotate_hit(ref_data)
                 _hit_list.add_hit(good_hit)
 
-            read.set_hit_list(_hit_list)
+            read.hit_list = _hit_list
             # Set read taxonomy ID
             read.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
 
@@ -247,7 +247,7 @@ def parse_background_output(parser):
     tsvfile = os.path.join(
         parser.sample.work_directory,
         parser.sample.sample_id + '_' + parser.end + '_'
-        + parser.options.get_background_output_name()
+        + parser.options.background_output_name
         )
 
     coverage_data = load_coverage_data(parser)
@@ -321,7 +321,7 @@ def generate_output(project):
     Args:
         project (:obj:Project): current project
     """
-    outfile = os.path.join(project.options.get_work_dir(), 'all_proteins.list.txt')
+    outfile = os.path.join(project.options.work_dir, 'all_proteins.list.txt')
     with open(outfile, 'w') as out_f:
         out_f.write(
             'Sample\tProtein\tFunction(s)\tDescription\tFama %id.\tTaxonomy ID\tTaxonomy name\n'
@@ -330,15 +330,15 @@ def generate_output(project):
             if 'pe1' in project.samples[sample].reads:
                 for protein_id in sorted(project.samples[sample].reads['pe1'].keys()):
                     protein = project.samples[sample].reads['pe1'][protein_id]
-                    if protein.get_status() == 'function':
+                    if protein.status == 'function':
                         fama_identity = sum(
-                            [x.get_identity() for x in protein.hit_list.get_hits()]
-                            ) / len(protein.hit_list.get_hits())
-                        function = ','.join(sorted(protein.get_functions().keys()))
+                            [x.identity for x in protein.hit_list.hits]
+                            ) / len(protein.hit_list.hits)
+                        function = ','.join(sorted(protein.functions.keys()))
                         description = '|'.join(
                             sorted([
                                 project.ref_data.lookup_function_name(f) for f
-                                in protein.get_functions().keys()
+                                in protein.functions.keys()
                                 ])
                             )
                         out_f.write(sample + '\t' +
@@ -347,7 +347,7 @@ def generate_output(project):
                                     description + '\t' +
                                     '{0:.1f}'.format(fama_identity) + '\t' +
                                     protein.taxonomy + '\t' +
-                                    project.taxonomy_data.names[protein.taxonomy]['name'] + '\n')
+                                    project.taxonomy_data.data[protein.taxonomy]['name'] + '\n')
                 out_f.write('\n')
             else:
                 out_f.write('No proteins found in ' + sample + '\n\n')
@@ -388,7 +388,7 @@ def functional_profiling_pipeline(project, sample):
             os.path.join(
                 parser.options.get_project_dir(parser.sample.sample_id),
                 parser.sample.sample_id + '_' + parser.end + '_'
-                + parser.options.get_ref_output_name()
+                + parser.options.ref_output_name
                 )
     ):
         run_ref_search(parser, 'blastp')
@@ -418,7 +418,7 @@ def functional_profiling_pipeline(project, sample):
             os.path.join(
                 parser.options.get_project_dir(parser.sample.sample_id),
                 parser.sample.sample_id + '_' + parser.end + '_'
-                + parser.options.get_background_output_name()
+                + parser.options.background_output_name
                 )
     ):
         run_bgr_search(parser, 'blastp')
@@ -444,7 +444,7 @@ def functional_profiling_pipeline(project, sample):
     print('Generating reports')
     generate_fasta_report(parser)
 #    generate_protein_pdf_report(parser)
-    make_functions_chart(parser, score='readcount')
+    make_functions_chart(parser, metric='readcount')
     return {read_id: read for (read_id, read) in parser.reads.items() if read.status == 'function'}
 
 
@@ -478,7 +478,7 @@ def protein_pipeline(args):
             )
         export_sample(project.samples[sample_id])
         # Generate output for the sample or delete sample from memory
-        generate_protein_sample_report(project, sample_id, metrics='readcount')
+        generate_protein_sample_report(project, sample_id, metric='readcount')
         project.options.set_sample_data(project.samples[sample_id])
 
     # Generate output for the project

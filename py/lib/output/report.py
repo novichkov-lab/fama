@@ -3,7 +3,8 @@
 import os
 from collections import defaultdict, Counter, OrderedDict
 
-from lib.utils.const import RANKS, STATUS_CAND, STATUS_GOOD, STATUS_BAD
+from lib.utils.const import RANKS, STATUS_CAND, STATUS_GOOD, STATUS_BAD, \
+    UNKNOWN_TAXONOMY_ID, ROOT_TAXONOMY_ID
 from lib.utils.utils import autovivify, sanitize_file_name
 from lib.diamond_parser.hit_utils import get_efpk_score, get_fpk_score
 from lib.taxonomy.taxonomy_profile import TaxonomyProfile
@@ -660,6 +661,14 @@ def get_function_scores(project, sample_id=None, metric=None):
                         print('Function', function, 'not found in hits of read', read_id)
     return ret_val
 
+def slice_function_taxonomy_scores(scores, sample_id):
+    result = defaultdict(dict)
+    for tax in scores.keys():
+        for function_id in scores[tax].keys():
+            if sample_id in scores[tax][function_id]:
+                result[tax][function_id] = scores[tax][function_id][sample_id]
+    return result
+    
 
 def get_function_taxonomy_scores(project, sample_id=None, metric=None):
     """Builds three-dimensional (taxonomy ID/ function ID / sample ID) tables for read
@@ -1069,14 +1078,7 @@ def generate_sample_report(project, sample_id, metric=None):
     make_func_tax_sample_xlsx(
         project, scores_function_taxonomy, metric=metric, sample_id=sample_id
         )
-    sample_scores_taxonomy = autovivify(3, float)
-    for tax in scores_function_taxonomy.keys():
-        for function_id in scores_function_taxonomy[tax].keys():
-            if sample_id in scores_function_taxonomy[tax][function_id]:
-                sample_scores_taxonomy[tax][function_id] = \
-                    scores_function_taxonomy[tax][function_id][sample_id]
-                #~ for key, val in scores_function_taxonomy[tax][function_id][sample_id].items():
-                    #~ sample_scores_taxonomy[tax][function_id][key] = val
+    sample_scores_taxonomy = slice_function_taxonomy_scores(scores_function_taxonomy, sample_id)
 
     tax_profile = TaxonomyProfile()
     outfile = sanitize_file_name(
@@ -1138,7 +1140,7 @@ def generate_protein_sample_report(project, sample_id, metric=None):
             if tax_id is None:
                 out_f.write(' No taxonomy\n')
             else:
-                out_f.write(' Taxonomy :' + project.taxonomy_data.names[tax_id]['name']
+                out_f.write(' Taxonomy :' + project.taxonomy_data.data[tax_id]['name']
                             + '(' + tax_id + ')\n')
             out_f.write(' Hits:\n')
             for hit in protein.hit_list.hits:
@@ -1263,7 +1265,7 @@ def generate_protein_project_report(project):
                         '\t'.join([
                             sample_id,
                             protein_id,
-                            project.taxonomy_data.names[protein.taxonomy]['name'],
+                            project.taxonomy_data.data[protein.taxonomy]['name'],
                             str(hit)
                             ]) + '\n'
                         )

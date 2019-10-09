@@ -17,63 +17,76 @@ class TaxonomyData(object):
             of taxonomy ranks and parent IDs, external key is taxonomy
             identifier, internal keys are 'rank' and 'parent'
     """
-    def __init__(self, config):
+    def __init__(self, config, collection):
         """Args:
            config (:obj:'ProgramConfig') Fama configuration parameters
+           collection (str): collection identifier
         """
+        self.data = defaultdict(dict)
         self.names = defaultdict(dict)
         self.nodes = defaultdict(dict)
-        self.load_taxdata(config)
+        self.load_taxdata(config, collection)
 
-    def load_taxdata(self, config):
+    def load_taxdata(self, config, collection):
         """Loads taxonomic data from NCBI files"""
-        names_file = config.taxonomy_names_file
-        nodes_file = config.taxonomy_nodes_file
-        merged_file = config.taxonomy_merged_file
-
-        # initialize self.names
-        print('Loading names file', names_file)
-        with open(names_file, 'r') as infile:
+        taxonomy_file = config.get_taxonomy_file(collection)
+        #~ names_file = config.taxonomy_names_file
+        #~ nodes_file = config.taxonomy_nodes_file
+        #~ merged_file = config.taxonomy_merged_file
+        print('Loading taxonomy file', taxonomy_file)
+        with open(taxonomy_file, 'r') as infile:
             for line in infile:
-                line = line.rstrip('\n\r')
-                line_tokens = line.split('\t|\t')
-                if line_tokens[3] == 'scientific name\t|':
-                    self.names[line_tokens[0]]['name'] = line_tokens[1]
+                line_tokens = line.rstrip('\n\r').split('\t')
+                self.data[line_tokens[0]]['name'] = line_tokens[1]
+                self.data[line_tokens[0]]['rank'] = line_tokens[2]
+                self.data[line_tokens[0]]['parent'] = line_tokens[3]
 
-        if not self.names:
+        if not self.data:
             raise Exception('Taxonomy names load failed')
+        
+        # initialize self.names
+        #~ print('Loading names file', names_file)
+        #~ with open(names_file, 'r') as infile:
+            #~ for line in infile:
+                #~ line = line.rstrip('\n\r')
+                #~ line_tokens = line.split('\t|\t')
+                #~ if line_tokens[3] == 'scientific name\t|':
+                    #~ self.names[line_tokens[0]]['name'] = line_tokens[1]
 
-        # initialize self.nodes
-        print('Loading nodes file', nodes_file)
-        with open(nodes_file, 'r') as infile:
-            for line in infile:
-                line = line.rstrip('\n\r')
-                line_tokens = line.split('\t|\t')
-                taxid = line_tokens[0]
-                parent = line_tokens[1]
-                rank = line_tokens[2]
-                self.nodes[taxid]['parent'] = parent
-                self.nodes[taxid]['rank'] = rank
+        #~ if not self.names:
+            #~ raise Exception('Taxonomy names load failed')
 
-        # merge
-        print('Loading merged file', merged_file)
-        with open(merged_file, 'r') as infile:
-            for line in infile:
-                line = line.rstrip('\n\r')
-                line_tokens = line.split('\t')
-                old_id = line_tokens[0]
-                new_id = line_tokens[2]
-                if new_id in self.names:
-                    self.names[old_id]['name'] = self.names[new_id]['name']
-                    self.nodes[old_id]['parent'] = self.nodes[new_id]['parent']
-                    self.nodes[old_id]['rank'] = self.nodes[new_id]['rank']
+        #~ # initialize self.nodes
+        #~ print('Loading nodes file', nodes_file)
+        #~ with open(nodes_file, 'r') as infile:
+            #~ for line in infile:
+                #~ line = line.rstrip('\n\r')
+                #~ line_tokens = line.split('\t|\t')
+                #~ taxid = line_tokens[0]
+                #~ parent = line_tokens[1]
+                #~ rank = line_tokens[2]
+                #~ self.nodes[taxid]['parent'] = parent
+                #~ self.nodes[taxid]['rank'] = rank
+
+        #~ # merge
+        #~ print('Loading merged file', merged_file)
+        #~ with open(merged_file, 'r') as infile:
+            #~ for line in infile:
+                #~ line = line.rstrip('\n\r')
+                #~ line_tokens = line.split('\t')
+                #~ old_id = line_tokens[0]
+                #~ new_id = line_tokens[2]
+                #~ if new_id in self.names:
+                    #~ self.names[old_id]['name'] = self.names[new_id]['name']
+                    #~ self.nodes[old_id]['parent'] = self.nodes[new_id]['parent']
+                    #~ self.nodes[old_id]['rank'] = self.nodes[new_id]['rank']
 
         # inject 'Unknown' entry
-        self.names[UNKNOWN_TAXONOMY_ID]['name'] = 'Unknown'
-        self.nodes[UNKNOWN_TAXONOMY_ID]['parent'] = ROOT_TAXONOMY_ID
-        self.nodes[UNKNOWN_TAXONOMY_ID]['rank'] = 'norank'
+        self.data[UNKNOWN_TAXONOMY_ID]['name'] = 'Unknown'
+        self.data[UNKNOWN_TAXONOMY_ID]['parent'] = ROOT_TAXONOMY_ID
+        self.data[UNKNOWN_TAXONOMY_ID]['rank'] = 'norank'
         # make rank of root different from others
-        self.nodes[ROOT_TAXONOMY_ID]['rank'] = 'norank'
+        self.data[ROOT_TAXONOMY_ID]['rank'] = 'norank'
 
     def is_exist(self, taxonomy_id):
         """ Checks if taxonomy identifier exists in taxonomy data)
@@ -86,7 +99,7 @@ class TaxonomyData(object):
         """
         result = False
         try:
-            if taxonomy_id in self.names:
+            if taxonomy_id in self.data:
                 result = True
         except KeyError:
             print('Taxonomy identifier %s not found' % taxonomy_id)
@@ -103,7 +116,7 @@ class TaxonomyData(object):
         """
         result = ''
         try:
-            result = self.names[taxonomy_id]['name']
+            result = self.data[taxonomy_id]['name']
         except KeyError:
             print('Taxonomy identifier %s not found' % taxonomy_id)
         return result
@@ -119,7 +132,7 @@ class TaxonomyData(object):
         """
         result = 'norank'
         try:
-            result = self.nodes[taxonomy_id]['rank']
+            result = self.data[taxonomy_id]['rank']
         except KeyError:
             print('Taxonomy identifier %s not found' % taxonomy_id)
         return result
@@ -137,7 +150,7 @@ class TaxonomyData(object):
         """
         result = '0'
         try:
-            result = self.nodes[taxonomy_id]['parent']
+            result = self.data[taxonomy_id]['parent']
         except KeyError:
             print('Taxonomy identifier %s not found' % taxonomy_id)
         return result
@@ -203,7 +216,7 @@ class TaxonomyData(object):
             result = upper_level_taxids.pop()
         return result
 
-    def get_lca2(self, taxonomy_id_list):
+    def get_lca_defined_rank(self, taxonomy_id_list):
         """Returns Lowest Common Ancestor identifier for a list of
         taxonomy identifiers.
         If any taxon in the input list is root, LCA is Unknown.
@@ -250,11 +263,8 @@ class TaxonomyData(object):
         last_good_level = set(UNKNOWN_TAXONOMY_ID)  # top-level LCA is Unknown, not root
         for rank in RANKS[1:]:
             if len(taxonomic_levels[rank]) > 1:
-                print(rank, 'is not good!')
                 break
-            else:
-                print(rank, 'is good!')
-                last_good_level = taxonomic_levels[rank]
+            last_good_level = taxonomic_levels[rank]
         result = last_good_level.pop()
 
         return result
@@ -268,8 +278,7 @@ class TaxonomyData(object):
         Returns:
             result (tuple(str, str)): LCA taxonomy dentifier and LCA rank
         """
-        print('taxonomy_id', taxonomy_id)
-        result = (UNKNOWN_TAXONOMY_ID, self.nodes[UNKNOWN_TAXONOMY_ID]['rank'])
+        result = (UNKNOWN_TAXONOMY_ID, self.get_rank(UNKNOWN_TAXONOMY_ID))
         if not self.is_exist(taxonomy_id):
             return result
 
@@ -279,7 +288,7 @@ class TaxonomyData(object):
         if upper_level_id == UNKNOWN_TAXONOMY_ID:
             pass
         elif taxonomy_id == ROOT_TAXONOMY_ID:
-            result = (ROOT_TAXONOMY_ID, self.nodes[ROOT_TAXONOMY_ID]['rank'])
+            result = (ROOT_TAXONOMY_ID, self.get_rank(ROOT_TAXONOMY_ID))
         elif upper_level_rank in RANKS:
             result = (upper_level_id, upper_level_rank)
         else:

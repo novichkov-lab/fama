@@ -19,7 +19,8 @@ class ReferenceData(object):
 
     def __init__(self, config, collection):
         """Args:
-           config (:obj:'ProgramConfig') Fama configuration parameters
+           config (:obj:'ProgramConfig'): Fama configuration parameters
+           collection (str): collection identifier
         """
         self.functions_dict = defaultdict(dict)
         self.proteins_dict = defaultdict(dict)

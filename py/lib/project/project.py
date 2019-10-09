@@ -46,9 +46,7 @@ class Project(object):
                 )
         self.collection = collection
         self.ref_data = ReferenceData(self.config, self.collection)
-        # self.ref_data.load_reference_data(self.collection)
-        self.taxonomy_data = TaxonomyData(self.config)
-        # self.taxonomy_data.load_taxdata(self.config)
+        self.taxonomy_data = TaxonomyData(self.config, self.collection)
         if not os.path.exists(self.options.work_dir) and not os.path.isdir(self.options.work_dir):
             os.makedirs(self.options.work_dir, exist_ok=True)
 

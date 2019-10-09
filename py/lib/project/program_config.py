@@ -51,6 +51,21 @@ class ProgramConfig(object):
             result = self.parser['DEFAULT']['proteins_list_file']
         return result
 
+    def get_taxonomy_file(self, collection):
+        """Returns path to file with list of taxonomy identifiers for collection.
+        If collection has no link to such file, returns default path.
+
+        Args:
+            collection (str): identifier of collection
+        """
+        try:
+            result = self.parser[collection]['taxonomy_file']
+        except KeyError:
+            print('Taxonomy file for collection' + collection + 
+                  ' not found. Loading entire NCBI taxonomy instead.')
+            result = self.parser['DEFAULT']['taxonomy_file']
+        return result
+
     def get_identity_cutoff(self, collection):
         """Returns minimal amino acid identity % for DIAMOND hits.
 
@@ -177,20 +192,20 @@ class ProgramConfig(object):
             result = int(self.parser['DEFAULT']['background_db_size'])
         return result
 
-    @property
-    def taxonomy_names_file(self):
-        """Path to NCBI taxonomy names.dmp file"""
-        return self.parser['DEFAULT']['taxonomy_names_file']
+    #~ @property
+    #~ def taxonomy_names_file(self):
+        #~ """Path to NCBI taxonomy names.dmp file"""
+        #~ return self.parser['DEFAULT']['taxonomy_names_file']
 
-    @property
-    def taxonomy_nodes_file(self):
-        """Path to NCBI taxonomy nodes.dmp file"""
-        return self.parser['DEFAULT']['taxonomy_nodes_file']
+    #~ @property
+    #~ def taxonomy_nodes_file(self):
+        #~ """Path to NCBI taxonomy nodes.dmp file"""
+        #~ return self.parser['DEFAULT']['taxonomy_nodes_file']
 
-    @property
-    def taxonomy_merged_file(self):
-        """Path to NCBI taxonomy merged.dmp file"""
-        return self.parser['DEFAULT']['taxonomy_merged_file']
+    #~ @property
+    #~ def taxonomy_merged_file(self):
+        #~ """Path to NCBI taxonomy merged.dmp file"""
+        #~ return self.parser['DEFAULT']['taxonomy_merged_file']
 
     @property
     def collections(self):

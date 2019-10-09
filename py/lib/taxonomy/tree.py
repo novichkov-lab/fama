@@ -1,7 +1,7 @@
 """Describes Node and Tree classes"""
 import queue
 from collections import defaultdict
-from lib.utils.const import RANKS, ROOT_TAXONOMY_ID
+from lib.utils.const import RANKS, ROOT_TAXONOMY_ID, UNKNOWN_TAXONOMY_ID
 
 
 class Node(object):
@@ -140,7 +140,7 @@ class Node(object):
             result = self.attributes[key]
         return result
 
-    def is_in_children(self, node_id):
+    def has_child(self, node_id):
         """Returns True if node_id is in children, False if not"""
         return node_id in self.children
 
@@ -163,14 +163,39 @@ class Tree(object):
 
         Args:
             node (:obj:Node): new node
+
+        Returns:
+            ret_val (bool): True on success, False on failure
         """
-        if node.taxid not in self.data and node.parent in self.data:
-            self.data[node.taxid] = node
-            self.data[node.parent].add_child(node.taxid)
+        ret_val = False
+        if node.taxid == node.parent:
+            print('Possible cyclic link, node', node.taxid, 'was not added')
         elif node.parent not in self.data:
             print('Parent ', node.parent, ' for node ', node.taxid, 'not found in the tree')
-        elif not self.data[node.parent].is_in_children(node.taxid):
+        elif node.taxid not in self.data:
+            self.data[node.taxid] = node
             self.data[node.parent].add_child(node.taxid)
+            ret_val = True
+        elif not self.data[node.parent].has_child(node.taxid):
+            self.data[node.parent].add_child(node.taxid)
+            ret_val = True
+        return ret_val
+
+    def get_node(self, identifier):
+        """Returns tree node by identifier.
+
+        Args:
+            identifier (str): node identifier
+
+        Returns:
+            result (:obj:Node): node of the tree
+        """
+        ret_val = None
+        try:
+            ret_val = self.data[identifier]
+        except KeyError:
+            pass  # do not raise
+        return ret_val
 
     def is_in_tree(self, taxid):
         """Checks if taxonomy ID exists in tree. Returns True if yes, False if not
@@ -189,9 +214,16 @@ class Tree(object):
         Args:
             node (:obj:Node): new node
             taxonomy_data (:obj:TaxonomyData): taxonomic data instance
+
+        Returns:
+            ret_val (bool): Trus on success, False otherwise
         """
+        ret_val = True
         if node.taxid in self.data:
-            return  # Nothing to do
+            ret_val = False  # Do not add
+        elif node.taxid == node.parent:
+            print('Possible cyclic link, node', node.taxid, 'was not added')
+            ret_val = False  # Do not add
         elif node.parent in self.data:
             self.data[node.taxid] = node
             self.data[node.parent].add_child(node.taxid)
@@ -199,14 +231,14 @@ class Tree(object):
             nodes_stack = queue.LifoQueue()
             current_taxid = node.taxid
             nodes_stack.put((current_taxid, True))
-            parent_taxid = '0'
+            parent_taxid = UNKNOWN_TAXONOMY_ID
             if taxonomy_data.is_exist(current_taxid):
                 parent_taxid = taxonomy_data.get_parent(current_taxid)
             while True:
                 if taxonomy_data.is_exist(current_taxid):
                     current_taxid = taxonomy_data.get_parent(current_taxid)
                 else:
-                    current_taxid = '0'
+                    current_taxid = UNKNOWN_TAXONOMY_ID
 
                 if taxonomy_data.get_rank(current_taxid) in RANKS:
                     nodes_stack.put((current_taxid, True))
@@ -238,6 +270,7 @@ class Tree(object):
 
                     self.add_node(node)
                     parent_taxid = node_id[0]
+        return ret_val
 
     def add_attribute(self, taxid, key, value, taxonomy_data):
         """Adds value for the given key to a node with 'taxid' identifier. If

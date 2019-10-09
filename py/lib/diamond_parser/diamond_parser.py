@@ -97,11 +97,9 @@ class DiamondParser(object):
         self.ref_data = ref_data
         if self.ref_data is None:
             self.ref_data = ReferenceData(self.config, self.collection)
-#            self.ref_data.load_reference_data(self.collection)
         self.taxonomy_data = taxonomy_data
         if self.taxonomy_data is None:
-            self.taxonomy_data = TaxonomyData(self.config)
-#            self.taxonomy_data.load_taxdata(self.config)
+            self.taxonomy_data = TaxonomyData(self.config, self.collection)
 
     def parse_reference_output(self):
         """Reads and processes DIAMOND tabular output of the first DIAMOND
