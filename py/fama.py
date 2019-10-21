@@ -3,8 +3,10 @@
 import sys
 import argparse
 from lib.utils.const import ENDS
-from lib.functional_profiling_pipeline import fastq_pipeline
+from lib.project.project import Project
+from lib.se_functional_pipeline import fastq_pipeline
 from lib.protein_functional_pipeline import protein_pipeline
+from lib.pe_functional_pipeline import fastq_pe_pipeline
 
 
 def get_args():
@@ -41,9 +43,15 @@ def main():
             print('Running functional profiling for all samples in the project')
         else:
             print('Running functional profiling only for ', args.sample)
-        fastq_pipeline(
-            config_file=args.config, project_file=args.project,
-            sample_identifier=args.sample, end_identifier=args.end)
+        project = Project(config_file=args.config, project_file=args.project)
+        if project.is_paired_end():
+            fastq_pe_pipeline(
+                project, sample_identifier=args.sample, end_identifier=args.end
+                )
+        else:
+            fastq_pipeline(
+                project, sample_identifier=args.sample, end_identifier=args.end
+            )
     print('Done!')
 
 if __name__ == '__main__':

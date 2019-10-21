@@ -126,17 +126,14 @@ def run_microbecensus(sample, config):
     report_results(args, est_ags, None)
 
 
-def fastq_pipeline(config_file, project_file, sample_identifier=None, end_identifier=None):
+def fastq_pipeline(project, sample_identifier=None, end_identifier=None):
     """Functional profiling pipeline for entire project
 
     Args:
-        config_file (str): program configuration file
-        project_file (str): project parameters file
-        sample_identifier (str): sample identifier
-        end_identifier (str): end identifier
+        project (:obj:Project): current project
+        sample_identifier (str, optional): sample identifier
+        end_identifier (str, optional): end identifier
     """
-    project = Project(config_file=config_file, project_file=project_file)
-
     for sample_id in project.list_samples():
         if sample_identifier and sample_identifier != sample_id:
             continue
@@ -146,7 +143,7 @@ def fastq_pipeline(config_file, project_file, sample_identifier=None, end_identi
         for end in ENDS:
             if end_identifier is not None and end != end_identifier:
                 continue
-            if end == 'pe2' and not project.samples[sample_id].is_paired_end:
+            if end == 'pe2' and project.options.get_fastq_path(sample_id, end) is None:
                 continue
             project.samples[sample_id].reads[end] = \
                 run_fastq_pipeline(project,

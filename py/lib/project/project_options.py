@@ -20,7 +20,7 @@ class ProjectOptions(object):
         """
         self.project_file = project_file
         self.parser = configparser.ConfigParser()
-        self.parser.read(project_file)
+        self.load_project(project_file)
 
     # Properties
     @property

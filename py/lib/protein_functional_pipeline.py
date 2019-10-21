@@ -10,7 +10,7 @@ from lib.diamond_parser.diamond_parser import DiamondParser
 from lib.diamond_parser.diamond_hit import DiamondHit
 from lib.diamond_parser.diamond_hit_list import DiamondHitList
 from lib.output.json_util import export_annotated_reads, export_sample
-from lib.functional_profiling_pipeline import run_ref_search, run_bgr_search
+from lib.se_functional_pipeline import run_ref_search, run_bgr_search
 from lib.output.report import generate_fasta_report, generate_protein_sample_report, \
     generate_protein_project_report
 from lib.output.krona_xml_writer import make_functions_chart

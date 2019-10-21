@@ -128,6 +128,13 @@ class Project(object):
                 outfile.write('\n')
         generate_project_report(self, metrics)
 
+    def is_paired_end(self):
+        ret_val = True
+        for sample in self.options.list_samples():
+            if self.options.get_fastq_path(sample, ENDS[1]) is None:
+               ret_val = False
+        return ret_val
+
     def check_project(self):
         """Checks if all files and directories of a project do exist.
 
