@@ -536,7 +536,11 @@ def estimate_average_genome_size(args, paths, agg_hits):
             weight = weights['_'.join([str(args['read_length']),fam_id])]
             est_ags += estimate * weight
             sum_weights += weight
-    est_ags = est_ags/sum_weights
+    print (est_ags, sum_weights)
+    if sum_weights == 0: #happens if estimate == median_estimate in all cases
+        est_ags = median_estimate
+    else:
+        est_ags = est_ags/sum_weights
     # report results
     if args['verbose']:
         print ("\t%s bp" % str(round(est_ags, 2)))

@@ -98,3 +98,37 @@ Optional parameters are:
 *-s  (name of sample section in project ini file to run analysis of only that sample)
 *--prot (indicate that input sequences are proteins)
 
+## Updating reference datasets
+If you want to add new sequences to Fama reference dataset, update three files:
+
+1. Reference proteins FASTA file (for example, fama_nitrogen_db.faa for nitrogen cycle dataset). You can concatenate the existing file with your new file:
+
+`cat fama_nitrogen_db.faa new.faa > fama_nitrogen_db_updated.faa`
+
+Then, re-create DIAMOND database:
+`diamond makedb --in fama_nitrogen_db_updated.faa --db fama_nitrogen_db`
+
+2. Proteome database FASTA file (fama_background_db.faa). Concatenate the existing file with your new file:
+
+`cat fama_background_db.faa new.faa > fama_background_db_updated.faa`
+
+Then, re-create DIAMOND database:
+
+`diamond makedb --in fama_background_db_updated.faa --db fama_background_db`
+
+3. Protein list file for the reference dataset (for example, fama_nitrogen_db.txt for nitrogen cycle dataset). This is tab-separated file with four fields:
+* Protein name
+* Taxonomy ID
+* Data source
+* Protein function(s)
+Add list of your proteins to the end of the file.
+
+Protein name may include special symbols "_", "|" and ":", but other special symbols are not recommended.
+
+Taxonomy ID must be either 0 (zero symbol) or NCBI taxonomy ID defined in names.dmp (from fama_taxonomy.tar.gz archive). Zero will be treated as unknown taxonomy ID.
+
+Data source can be any alphanumeric string.
+
+Protein functions is a list of functions separated by pipe symbol ("|"). All functions must be defined in functions file (for example, fama_nitrogen_functions.txt for nitrogen cycle dataset). 
+
+Note: if you have proteins, which you want to exclude from search results (for example, known homologs with unrelated function), add them only to the proteome database FASTA file.

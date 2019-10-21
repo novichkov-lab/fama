@@ -12,9 +12,9 @@ class UniprotData:
         return cls.instance
 
     def __init__(self,options):
-        db_file = '/mnt/data2/SEED/cross_mapping_project/db/uniref_proteins.db'
-        self.conn = self.connect_local_database(db_file)
-        self.cursor = self.conn.cursor()
+        db_file = '/mnt/data2/SEED/cross_mapping_project/db/uniref_proteins.db~~'
+        #self.conn = self.connect_local_database(db_file)
+        #self.cursor = self.conn.cursor()
 
     def connect_local_database(self, db_file):
         conn = sqlite3.connect(db_file)

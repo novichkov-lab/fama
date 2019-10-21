@@ -767,9 +767,9 @@ class GeneAssembler:
                 for gene_id in genes[function]:
                     lineage = self.project.taxonomy_data.get_taxonomy_lineage(genes[function][gene_id]['taxonomy'])
                     of.write('>' + gene_id + '|' + 
-                            genes[hit_function][gene_id]['start'] + '|' + 
-                            genes[hit_function][gene_id]['end'] + '|' + 
-                            genes[hit_function][gene_id]['strand'] + '|' + 
+                            genes[function][gene_id]['start'] + '|' + 
+                            genes[function][gene_id]['end'] + '|' + 
+                            genes[function][gene_id]['strand'] + '|' + 
                             lineage + '\n')#'|' 
                     of.write(genes[function][gene_id]['sequence'] + '\n')
             outfile = os.path.join(self.project.options.get_assembly_dir(), 'out', function + '_proteins_Fama.faa')
@@ -777,9 +777,9 @@ class GeneAssembler:
                 for gene_id in genes[function]:
                     lineage = self.project.taxonomy_data.get_taxonomy_lineage(genes[function][gene_id]['taxonomy'])
                     of.write('>' + gene_id + '|' + 
-                            genes[hit_function][gene_id]['start'] + '|' + 
-                            genes[hit_function][gene_id]['end'] + '|' + 
-                            genes[hit_function][gene_id]['strand'] + '|' + 
+                            genes[function][gene_id]['start'] + '|' + 
+                            genes[function][gene_id]['end'] + '|' + 
+                            genes[function][gene_id]['strand'] + '|' + 
                             lineage + '\n')#'|' 
                     of.write(genes[function][gene_id]['protein'] + '\n')
         
