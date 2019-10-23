@@ -5,8 +5,9 @@ import os
 import csv
 import shutil
 from collections import Counter, defaultdict
-from lib.utils.const import STATUS_GOOD, STATUS_BAD
-from lib.utils.utils import autovivify, run_external_program
+
+from lib.utils.const import ENDS, ROOT_TAXONOMY_ID, STATUS_GOOD, STATUS_BAD
+from lib.utils.utils import autovivify, run_external_program, run_external_program_ignoreerror
 from lib.gene_assembler.contig import Contig
 from lib.gene_assembler.gene import Gene
 from lib.gene_assembler.gene_assembly import GeneAssembly
@@ -69,8 +70,8 @@ class GeneAssembler(object):
         # Load reads, export reads in FASTQ format, remove reads from memory
         for sample_id in sorted(self.project.list_samples()):
             self.is_paired_end = self.project.samples[sample_id].is_paired_end
-            self.project.import_reads_json(sample_id, self.project.ENDS)
-            for end in self.project.ENDS:
+            self.project.import_reads_json(sample_id, ENDS)
+            for end in ENDS:
                 # print ('Loading mapped reads: ', sample, end)
                 # self.project.load_annotated_reads(sample, end) # Lazy load
                 for read_id in self.project.samples[sample_id].reads[end]:
@@ -193,7 +194,7 @@ class GeneAssembler(object):
     def filter_contigs_by_length(self):
         """Filters list of contigs by length
 
-        Todo:
+        TODO:
             make contig_length_threshold a parameter in ProgramConfig or constant
         """
         contig_length_threshold = 300
@@ -206,19 +207,21 @@ class GeneAssembler(object):
             with open(outfile, 'w') as outfile:
                 with open(contig_file, 'r') as infile:
                     current_id = None
-                    sequence = ''
+                    sequence = []
                     for line in infile:
                         line = line.rstrip('\n\r')
                         if line.startswith('>'):
-                            if current_id and len(sequence) >= contig_length_threshold:
-                                outfile.write('\n'.join([current_id, sequence]))
+                            contig_sequence = ''.join(sequence)
+                            if current_id and len(contig_sequence) >= contig_length_threshold:
+                                outfile.write('\n'.join([current_id, contig_sequence, '']))
                             line_tokens = line.split(' ')
                             current_id = line_tokens[0]
-                            sequence = ''
+                            sequence = []
                         else:
-                            sequence += line
-                    if len(sequence) >= contig_length_threshold:
-                        outfile.write('\n'.join([current_id, sequence]))
+                            sequence.append(line)
+                    contig_sequence = ''.join(sequence)
+                    if len(contig_sequence) >= contig_length_threshold:
+                        outfile.write('\n'.join([current_id, contig_sequence, '']))
 
     def parse_reference_output(self):
         """Reads and processes DIAMOND tabular output of the preselection
@@ -266,7 +269,7 @@ class GeneAssembler(object):
                         hit_list.annotate_hits(self.project.ref_data)
                         function_id, contig_id, _ = parse_gene_id(current_id)
                         self.assembly.contigs[function_id][contig_id].\
-                            genes[current_id].set_hit_list(hit_list)
+                            genes[current_id].hit_list = hit_list
 
                     current_id = hit.query_id
                     hit_list = DiamondHitList(current_id)
@@ -277,8 +280,8 @@ class GeneAssembler(object):
                 # annotate_hits
                 hit_list.annotate_hits(self.project.ref_data)
                 function_id, contig_id, _ = parse_gene_id(current_id)
-                self.assembly.contigs[function_id][contig_id].genes[current_id].\
-                    set_hit_list(hit_list)
+                self.assembly.contigs[function_id][contig_id].genes[current_id].hit_list = \
+                    hit_list
 
     def export_hit_fasta(self):
         """Exports hit sequences as gzipped FASTA file"""
@@ -573,11 +576,11 @@ class GeneAssembler(object):
 
         taxonomic_profile = TaxonomyProfile()
         taxonomic_profile.make_assembly_taxonomy_profile(taxonomy_data, scores)
-#        taxonomic_profile.print_taxonomy_profile()
+        print(taxonomic_profile)
         outfile = os.path.join(self.assembly_dir, 'assembly_taxonomic_profile.xml')
         make_assembly_taxonomy_chart(
             taxonomic_profile, genes, sorted(functions_list), outfile,
-            self.project.config.krona_path, score='rpkm'
+            self.project.config.krona_path, metric='rpkm'
             )
 
     def generate_function_taxonomy_charts(self, taxonomy_data):
@@ -712,7 +715,7 @@ class GeneAssembler(object):
             output_sample_ids.append('All samples')
             make_assembly_taxonomy_chart(
                 taxonomic_profile, genes, output_sample_ids, outfile,
-                self.project.config.krona_path, score='rpkm'
+                self.project.config.krona_path, metric='rpkm'
                 )
 
     def write_sequences(self):
@@ -721,10 +724,10 @@ class GeneAssembler(object):
 
         for function in self.assembly.contigs:
             for contig in self.assembly.contigs[function]:
-                for gene_id in self.assembly.contigs[function][contig].genes:
-                    gene = self.assembly.contigs[function][contig].genes[gene_id]
+                for gene_id, gene in self.assembly.contigs[function][contig].genes.items():
                     if gene.status == STATUS_GOOD:
-                        for hit in gene.hit_list.hits:
+                        print(gene_id, gene.functions)
+                        for hit in gene.hit_list.data:
                             taxonomy_id = gene.taxonomy
                             for hit_function in hit.functions:
                                 start = gene.start
@@ -779,8 +782,9 @@ class GeneAssembler(object):
         proteins, calls methods for taxonomy chart generation
         """
         self.write_sequences()
+        #TODO: remove
         taxonomy_data = TaxonomyData(self.project.config)
-        taxonomy_data.load_taxdata(self.project.config)
+        taxonomy_data.load_taxdata(self.project.config, self.project.options.get_collection())
 
         make_assembly_xlsx(self)
         self.generate_taxonomy_chart(taxonomy_data)
@@ -852,7 +856,7 @@ def run_spades(functions, output_dir, assembler_command, is_paired_end=True):
             assembler_args.extend(['-s',
                                    os.path.join(output_dir, function + '_pe1.fastq')])
 
-        run_external_program(assembler_args)
+        run_external_program_ignoreerror(assembler_args)
         if os.path.exists(os.path.join(output_dir, function, 'contigs.fasta')):
             shutil.copyfile(os.path.join(output_dir, function, 'contigs.fasta'),
                             os.path.join(output_dir, function, 'final.contigs.fa'))
@@ -917,6 +921,8 @@ def run_prodigal(infile, outfile, prodigal_path):
     """Runs Prodigal gene prediction on filtered contigs"""
     print('Starting Prodigal')
     prodigal_args = [prodigal_path,
+                     '-p',
+                     'meta',
                      '-a',
                      outfile,
                      '-i',
@@ -1067,15 +1073,15 @@ def compare_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cuto
             # Collect taxonomy IDs of all hits for LCA inference
             taxonomy_ids = set()
             # If rank-specific AAI cutoffs are not set
-            if rank_cutoffs:
+            if not rank_cutoffs:
                 taxonomy_ids = set([ref_data.lookup_protein_tax(h.subject_id) for h in new_hits])
 
             # If rank-specific AAI cutoffs were calculated for the reference dataset:
             else:
                 for new_hit in new_hits:
                     subject_taxon_id = ref_data.lookup_protein_tax(new_hit.subject_id)
-                    subject_rank = taxonomy_data.get_taxonomy_rank(subject_taxon_id)
-                    while subject_taxon_id != taxonomy_data.ROOT:
+                    subject_rank = taxonomy_data.get_rank(subject_taxon_id)
+                    while subject_taxon_id != ROOT_TAXONOMY_ID:
                         if subject_rank not in rank_cutoffs:
                             (subject_taxon_id, subject_rank) = \
                                 taxonomy_data.get_upper_level_taxon(subject_taxon_id)
@@ -1085,6 +1091,7 @@ def compare_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                         else:
                             taxonomy_ids.add(subject_taxon_id)
                             break
+            
 
             # Make non-redundant list of functions from hits after filtering
             new_functions = {}
@@ -1125,8 +1132,9 @@ def compare_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                 good_hit.query_id = gene.gene_id
                 good_hit.annotate_hit(ref_data)
                 _hit_list.add_hit(good_hit)
-            gene.set_hit_list(_hit_list)
+            gene.hit_list = _hit_list
             # Set read taxonomy ID
+            print(taxonomy_ids, 'for', gene.gene_id)
             gene.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
 
 

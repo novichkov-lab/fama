@@ -396,7 +396,7 @@ def make_assembly_xlsx(assembler):
     for sample in samples_list:
         total_read_count += assembler.project.options.get_fastq1_readcount(sample)
         total_read_count += assembler.project.options.get_fastq2_readcount(sample)
-
+    print('total_read_count', total_read_count)
     # generate output
 
     # make worksheet for read counts per function
@@ -676,7 +676,7 @@ def make_assembly_xlsx(assembler):
                 col += 1
                 if gene.status == STATUS_GOOD:
                     # Write FAMA predicted functions
-                    gene_functions = [y for x in gene.hit_list.hits for y in x.functions]
+                    gene_functions = set([y for x in gene.hit_list.hits for y in x.functions])
                     genes_worksheet.write(row, col, ','.join(gene_functions))
                     col += 1
                     # Write FAMA identity
@@ -706,12 +706,12 @@ def make_assembly_xlsx(assembler):
                     col += 1
 
                     # Write Fama best hit organism
-                    gene_organism = [assembler.project.taxonomy_data.names[x]['name'] for x
+                    gene_organism = [assembler.project.taxonomy_data.get_name(x) for x
                                      in gene_taxonomy]
                     genes_worksheet.write(row, col, ','.join(gene_organism))
                     col += 1
                     # Write Fama best hit taxonomy
-                    best_hit_taxonomy = [assembler.project.taxonomy_data.get_lineage_string(x)
+                    best_hit_taxonomy = [assembler.project.taxonomy_data.get_taxonomy_lineage(x)
                                          for x in gene_taxonomy]
                     genes_worksheet.write(row, col, '|'.join(best_hit_taxonomy))
                     col += 1
@@ -721,11 +721,11 @@ def make_assembly_xlsx(assembler):
                     genes_worksheet.write(row, col, lca_taxonomy_id)
                     col += 1
                     # Write Fama LCA organism
-                    lca_organism = assembler.project.taxonomy_data.names[lca_taxonomy_id]['name']
+                    lca_organism = assembler.project.taxonomy_data.get_name(lca_taxonomy_id)
                     genes_worksheet.write(row, col, lca_organism)
                     col += 1
                     # Write Fama LCA taxonomy
-                    lca_taxonomy = assembler.project.taxonomy_data.get_lineage_string(
+                    lca_taxonomy = assembler.project.taxonomy_data.get_taxonomy_lineage(
                         lca_taxonomy_id
                         )
                     genes_worksheet.write(row, col, lca_taxonomy)

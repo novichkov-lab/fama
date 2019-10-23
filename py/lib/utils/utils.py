@@ -71,3 +71,18 @@ def run_external_program(cmd):
         # Suppress false positive no-member error (see https://github.com/PyCQA/pylint/issues/1860)
         # pylint: disable=no-member
         raise CalledProcessError(proc.returncode, proc.args)
+
+
+def run_external_program_ignoreerror(cmd):
+    """Starts new process with given arguments. Use with caution: does not exits on error!
+
+    Args:
+        cmd (list of str): external command with parameters and options
+    """
+    with Popen(cmd, stdout=PIPE, bufsize=1, universal_newlines=True) as proc:
+        for line in proc.stdout:
+            print(line, end='')
+    if proc.returncode != 0:
+        # Suppress false positive no-member error (see https://github.com/PyCQA/pylint/issues/1860)
+        # pylint: disable=no-member
+        print ('Called process returned error', proc.returncode, proc.args)

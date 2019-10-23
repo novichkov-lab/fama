@@ -1,6 +1,7 @@
 """Fama assembly pipeline"""
 import os
 from lib.project.project import Project
+from lib.project.sample import Sample
 from lib.gene_assembler.gene_assembler import GeneAssembler
 from lib.output.json_util import export_gene_assembly
 
@@ -14,6 +15,11 @@ def assembly_pipeline(args):
             options ini file)
     """
     project = Project(config_file=args.config, project_file=args.project)
+    # Load project properties
+    for sample_id in project.list_samples():
+        sample = Sample(sample_id)
+        sample.load_sample(project.options)
+        project.samples[sample_id] = sample
     assembler = GeneAssembler(project, assembler=args.assembler)
     assembler.export_reads(do_coassembly=args.coassembly)
     assembler.assemble_contigs()

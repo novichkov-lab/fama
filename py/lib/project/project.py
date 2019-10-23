@@ -129,10 +129,19 @@ class Project(object):
         generate_project_report(self, metrics)
 
     def is_paired_end(self):
-        ret_val = True
+        ret_val = None
         for sample in self.options.list_samples():
-            if self.options.get_fastq_path(sample, ENDS[1]) is None:
-               ret_val = False
+            paired_end_sample = True
+            if not os.path.exists(self.options.get_fastq_path(sample, ENDS[1])):
+                paired_end_sample = False
+            if ret_val is None:
+                ret_val = paired_end_sample
+            elif ret_val and not paired_end_sample:
+                raise RuntimeError('Project contains both single-end and paired-end input files. Process them separately.')
+            elif not ret_val and paired_end_sample:
+                raise RuntimeError('Project contains both single-end and paired-end input files. Process them separately.')
+        if ret_val is None:
+            raise RuntimeError('Project does not contain any samples.')
         return ret_val
 
     def check_project(self):

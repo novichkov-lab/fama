@@ -104,7 +104,7 @@ class TaxonomyProfile(object):
                 # If taxonomical rank ot taxid is not in RANKS, find parent
                 # taxon with acceptable rank
                 current_id = taxid
-                rank = taxonomy_data.nodes[current_id]['rank']
+                rank = taxonomy_data.get_rank(current_id)
                 while True:
                     if rank in RANKS:
                         break

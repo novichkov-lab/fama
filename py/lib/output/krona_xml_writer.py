@@ -739,11 +739,12 @@ def get_assembly_tax_xml(tax_profile, genes, dataseries, taxid, offset, metric='
                 ret_val += '<val>0.0</val>'
         ret_val += '</' + metric + '>\n' + '\t'*offset + '<identity>'
         for datapoint in dataseries:
-            if datapoint in tax_profile.tree.data[taxid].attributes:
-                ret_val += '<val>' + format((
-                    tax_profile.tree.data[taxid].attributes[datapoint]['identity']
-                    / tax_profile.tree.data[taxid].attributes[datapoint]['hit_count']
-                ), "0.1f") + '</val>'
+            if datapoint in tax_profile.tree.data[taxid].attributes and \
+                tax_profile.tree.data[taxid].attributes[datapoint]['hit_count'] > 0:
+                    ret_val += '<val>' + format((
+                        tax_profile.tree.data[taxid].attributes[datapoint]['identity']
+                        / tax_profile.tree.data[taxid].attributes[datapoint]['hit_count']
+                    ), "0.1f") + '</val>'
             else:
                 ret_val += '<val>0.0%</val>'
         ret_val += '</identity>\n'

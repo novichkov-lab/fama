@@ -16,9 +16,8 @@ class Gene:
         functions (defaultdict[str:float]): key is function identifier,
             value is a score (currently, RPKM)
         hit_list (:obj:DiamondHitList): list of DIAMOND hits
-        status = STATUS_CAND
         status (str): can have one of three possible values defined
-            in STATUS_CAND, STATUS_GOOD, STATUS_BAD constants
+            in STATUS_CAND(default), STATUS_GOOD, STATUS_BAD constants
         taxonomy (str): NCBI Taxonomy ID of Lowest Common Ancestor
     """
     def __init__(self, contig_id='', gene_id='', sequence=None, start=None, end=None, strand=None):

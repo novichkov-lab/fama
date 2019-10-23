@@ -13,7 +13,7 @@ class DiamondHitList(object):
 
         """
         self._query_id = query_id
-        self._data = []
+        self.data = []
 
     def add_hit(self, hit):
         """Adds a DiamondHit to the DiamondHitList.
@@ -47,11 +47,11 @@ class DiamondHitList(object):
     @property
     def hits(self):
         """:obj:'list' of :obj:'DiamondHit': list of DIAMOND hits"""
-        return self._data
+        return self.data
 
     @hits.setter
     def hits(self, var):
-        self._data = var
+        self.data = var
 
     @property
     def query_id(self):
