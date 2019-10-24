@@ -123,7 +123,7 @@ Then, re-create DIAMOND database:
 * Protein function(s)
 Add list of your proteins to the end of the file.
 
-Protein name may include special symbols "_", "|" and ":", but other special symbols are not recommended.
+Protein name may include special symbols "_", "|" and ":", but other special symbols are not recommended. Hyphen (-) symbol is strongly discouraged.
 
 Taxonomy ID must be either 0 (zero symbol) or NCBI taxonomy ID defined in names.dmp (from fama_taxonomy.tar.gz archive). Zero will be treated as unknown taxonomy ID.
 
