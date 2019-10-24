@@ -396,7 +396,6 @@ def make_assembly_xlsx(assembler):
     for sample in samples_list:
         total_read_count += assembler.project.options.get_fastq1_readcount(sample)
         total_read_count += assembler.project.options.get_fastq2_readcount(sample)
-    print('total_read_count', total_read_count)
     # generate output
 
     # make worksheet for read counts per function
@@ -731,25 +730,9 @@ def make_assembly_xlsx(assembler):
                     genes_worksheet.write(row, col, lca_taxonomy)
 
                 else:
-                    genes_worksheet.write(row, col, 'N/A')
-                    col += 1
-                    genes_worksheet.write(row, col, 'N/A')
-                    col += 1
-                    genes_worksheet.write(row, col, 'N/A')
-                    col += 1
-                    genes_worksheet.write(row, col, 'N/A')
-                    col += 1
-                    genes_worksheet.write(row, col, 'N/A')
-                    col += 1
-                    genes_worksheet.write(row, col, 'N/A')
-                    col += 1
-                    genes_worksheet.write(row, col, 'N/A')
-                    col += 1
-                    genes_worksheet.write(row, col, 'N/A')
-                    col += 1
-                    genes_worksheet.write(row, col, 'N/A')
-                    col += 1
-                    genes_worksheet.write(row, col, 'N/A')
+                    for _ in range(0, 10):
+                        genes_worksheet.write(row, col, 'N/A')
+                        col += 1
 
                 for sample in samples_list:
                     col += 1

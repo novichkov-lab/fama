@@ -60,10 +60,14 @@ class Contig:
     def get_rpkm(self, sample_readcount, sample=None):
         """Returns RPKM score for a given sample or all samples"""
         result = 0.0
-        if sample in self.read_count:
-            result = self.read_count[sample] * 1000000000 / len(self.sequence) / sample_readcount
-        elif sample is None:
-            result = len(self.reads) * 1000000000 / len(self.sequence) / sample_readcount
+        try:
+            if sample in self.read_count:
+                result = self.read_count[sample] * 1000000000 / len(self.sequence) / sample_readcount
+            elif sample is None:
+                result = len(self.reads) * 1000000000 / len(self.sequence) / sample_readcount
+        except ZeroDivisionError:
+            print('ZeroDivisionError for contig', self.contig_id, str(len(self.sequence)), 'bp', sample_readcount, 'reads', 'sample', sample)
+            raise
         return result
 
     def get_rpm(self, sample_readcount, sample=None):

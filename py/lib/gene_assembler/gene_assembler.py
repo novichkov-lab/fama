@@ -49,6 +49,8 @@ class GeneAssembler(object):
         self.assembly = GeneAssembly()
         self.is_paired_end = None
         self.assembly_dir = self.project.options.assembly_dir
+        #~ if os.path.exists(self.assembly_dir):
+            #~ raise FileExistsError ('Assembly subdirectory already exists. Delete existing directory or change subdirectory name.')
         if not os.path.isdir(self.assembly_dir):
             os.mkdir(self.assembly_dir)
         if not os.path.isdir(os.path.join(self.assembly_dir, 'out')):
@@ -420,8 +422,7 @@ class GeneAssembler(object):
 
         # Run Prodigal
         prodigal_outfile = os.path.join(self.assembly_dir, 'all_contigs.prodigal.out.faa')
-        if not os.path.exists(prodigal_outfile):
-            run_prodigal(prodigal_infile, prodigal_outfile, self.project.config.prodigal_path)
+        run_prodigal(prodigal_infile, prodigal_outfile, self.project.config.prodigal_path)
 
         with open(prodigal_outfile, 'r') as infile:
             current_id = None
@@ -462,12 +463,7 @@ class GeneAssembler(object):
             make contig_coverage_cutoff a parameter or a constant
         """
         # Search in reference database
-        if not os.path.exists(
-                os.path.join(
-                    self.assembly_dir, 'all_contigs_' + self.project.options.ref_output_name
-                )
-        ):
-            run_ref_search(self.project)
+        run_ref_search(self.project)
 
         # Process output of reference DB search
         self.parse_reference_output()
@@ -479,12 +475,7 @@ class GeneAssembler(object):
         self.export_hit_fasta()
 
         # Search in background database
-        if not os.path.exists(
-                os.path.join(
-                    self.assembly_dir, 'all_contigs_' + self.project.options.background_output_name
-                )
-        ):
-            run_bgr_search(self.project)
+        run_bgr_search(self.project)
 
         # Process output of reference DB search
         self.parse_background_output()
@@ -576,7 +567,7 @@ class GeneAssembler(object):
 
         taxonomic_profile = TaxonomyProfile()
         taxonomic_profile.make_assembly_taxonomy_profile(taxonomy_data, scores)
-        print(taxonomic_profile)
+
         outfile = os.path.join(self.assembly_dir, 'assembly_taxonomic_profile.xml')
         make_assembly_taxonomy_chart(
             taxonomic_profile, genes, sorted(functions_list), outfile,
@@ -710,7 +701,7 @@ class GeneAssembler(object):
                                 function_counted = True
             taxonomic_profile = TaxonomyProfile()
             taxonomic_profile.make_assembly_taxonomy_profile(taxonomy_data, scores)
-    #        taxonomic_profile.print_taxonomy_profile()
+
             output_sample_ids = sorted(self.project.list_samples())
             output_sample_ids.append('All samples')
             make_assembly_taxonomy_chart(
@@ -726,7 +717,6 @@ class GeneAssembler(object):
             for contig in self.assembly.contigs[function]:
                 for gene_id, gene in self.assembly.contigs[function][contig].genes.items():
                     if gene.status == STATUS_GOOD:
-                        print(gene_id, gene.functions)
                         for hit in gene.hit_list.data:
                             taxonomy_id = gene.taxonomy
                             for hit_function in hit.functions:
@@ -782,13 +772,9 @@ class GeneAssembler(object):
         proteins, calls methods for taxonomy chart generation
         """
         self.write_sequences()
-        #TODO: remove
-        taxonomy_data = TaxonomyData(self.project.config)
-        taxonomy_data.load_taxdata(self.project.config, self.project.options.get_collection())
-
         make_assembly_xlsx(self)
-        self.generate_taxonomy_chart(taxonomy_data)
-        self.generate_function_taxonomy_charts(taxonomy_data)
+        self.generate_taxonomy_chart(self.project.taxonomy_data)
+        self.generate_function_taxonomy_charts(self.project.taxonomy_data)
         generate_assembly_report(self)
 
 
@@ -1134,7 +1120,6 @@ def compare_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cuto
                 _hit_list.add_hit(good_hit)
             gene.hit_list = _hit_list
             # Set read taxonomy ID
-            print(taxonomy_ids, 'for', gene.gene_id)
             gene.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
 
 

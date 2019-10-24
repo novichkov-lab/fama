@@ -18,7 +18,7 @@ class GeneAssembly(object):
     """
     def __init__(self):
         self.reads = autovivify(2)
-        self.contigs = autovivify(2, Contig)
+        self.contigs = autovivify(1, dict)
 
     def calculate_average_coverage(self, sample=None):
         """Returns average read coverage of the assembly for a given sample

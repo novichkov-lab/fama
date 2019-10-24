@@ -1788,15 +1788,16 @@ def generate_assembly_report(assembler):
                                 '\t' + sample + ':read count ' + str(
                                     assembler.assembly.contigs[function][contig].read_count[sample]
                                     )
-                                + ';coverage ' + str(
+                                + ';coverage ' + format(
                                     assembler.assembly.contigs[function][contig].get_coverage(
                                         sample
-                                        )
+                                        ), "0.2f"
                                     )
-                                + ';rpkm ' + str(
+                                + ';rpkm ' + format(
                                     assembler.assembly.contigs[function][contig].get_rpkm(
                                         sample,
-                                        assembler.project.options.get_fastq1_readcount(sample))
+                                        assembler.project.options.get_fastq1_readcount(sample)),
+                                    "0.2f"
                                     )
                                 )
                         out_f.write('\n')
