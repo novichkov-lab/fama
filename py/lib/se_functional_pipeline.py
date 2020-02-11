@@ -13,7 +13,7 @@ from lib.output.json_util import export_annotated_reads, export_sample
 from lib.third_party.microbe_census import run_pipeline, report_results
 
 
-def run_ref_search(parser, command):
+def run_ref_search(parser, command, options = None):
     """Runs pre-selection DIAMOND search
 
     Args:
@@ -22,8 +22,11 @@ def run_ref_search(parser, command):
     """
     print('Starting DIAMOND')
     diamond_args = [parser.config.diamond_path,
-                    command,
-                    '--db',
+                    command]
+    if options is not None:
+        diamond_args = diamond_args + options
+    diamond_args = diamond_args +
+                    ['--db',
                     parser.config.get_reference_diamond_db(
                         parser.options.get_collection(parser.sample.sample_id)
                     ),
@@ -50,7 +53,7 @@ def run_ref_search(parser, command):
     print('DIAMOND finished')
 
 
-def run_bgr_search(parser, command):
+def run_bgr_search(parser, command, options = None):
     """Runs classification DIAMOND search
 
     Args:
@@ -59,8 +62,11 @@ def run_bgr_search(parser, command):
     """
     print('Starting DIAMOND')
     diamond_args = [parser.config.diamond_path,
-                    command,
-                    '--db',
+                    command]
+    if options is not None:
+        diamond_args = diamond_args + options
+    diamond_args = diamond_args +
+                    ['--db',
                     parser.config.get_background_diamond_db(
                         parser.options.get_collection(parser.sample.sample_id)
                     ),

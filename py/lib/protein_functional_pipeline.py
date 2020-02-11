@@ -421,7 +421,7 @@ def functional_profiling_pipeline(project, sample):
                 + parser.options.background_output_name
                 )
     ):
-        run_bgr_search(parser, 'blastp')
+        run_bgr_search(parser, 'blastp', ['--sensitive'])
 
     # Process output of background DB search
     parse_background_output(parser)

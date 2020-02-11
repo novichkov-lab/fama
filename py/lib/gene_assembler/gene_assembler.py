@@ -81,10 +81,10 @@ class GeneAssembler(object):
                     if read.status != STATUS_GOOD:
                         continue
                     for function in read.functions:
-                        if read_id in self.assembly.reads[function]:
-                            continue
                         if do_coassembly:
                             function = 'Coassembly'
+                        if read_id in self.assembly.reads[function]:
+                            continue
                         self.assembly.reads[function][read_id] = sample_id
                         fwd_outfile = os.path.join(self.assembly_dir, function + '_pe1.fastq')
                         rev_outfile = os.path.join(self.assembly_dir, function + '_pe2.fastq')

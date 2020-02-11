@@ -184,7 +184,7 @@ def check_diamond(diamond_path):
         )
     retcode = process.wait()
     output, error = process.communicate()
-    if not output.decode().startswith('diamond version') or retcode != '0':
+    if not output.decode().startswith('diamond version') or retcode != 0:
         print(output)
         print(error)
         sys.exit("Problem executing diamond")
@@ -665,7 +665,7 @@ def report_results(args, est_ags, base_count):
         outfile.write('%s:\t%s\n' % ('max_unknown', args['max_unknown']))
         outfile.write('\nResults\n')
         outfile.write('%s:\t%s\n' % ('average_genome_size', est_ags))
-        if count_bases:
+        if base_count:
             outfile.write('%s:\t%s\n' % ('total_bases', base_count))
             outfile.write('%s:\t%s\n' % ('genome_equivalents', base_count/est_ags))
 
