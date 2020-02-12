@@ -103,6 +103,7 @@ class TaxonomyData(object):
                 result = True
         except KeyError:
             print('Taxonomy identifier %s not found' % taxonomy_id)
+            raise
         return result
 
     def get_name(self, taxonomy_id):
@@ -118,7 +119,8 @@ class TaxonomyData(object):
         try:
             result = self.data[taxonomy_id]['name']
         except KeyError:
-            print('Taxonomy identifier %s not found' % taxonomy_id)
+            print('Taxonomy identifier \"%s\" not found' % taxonomy_id)
+            raise
         return result
 
     def get_rank(self, taxonomy_id):
@@ -134,7 +136,8 @@ class TaxonomyData(object):
         try:
             result = self.data[taxonomy_id]['rank']
         except KeyError:
-            print('Taxonomy identifier %s not found' % taxonomy_id)
+            print('Taxonomy identifier \"%s\" not found' % taxonomy_id)
+            raise
         return result
 
     def get_parent(self, taxonomy_id):
@@ -152,7 +155,8 @@ class TaxonomyData(object):
         try:
             result = self.data[taxonomy_id]['parent']
         except KeyError:
-            print('Taxonomy identifier %s not found' % taxonomy_id)
+            print('Taxonomy identifier \"%s\" not found' % taxonomy_id)
+            raise
         return result
 
     def get_lca(self, taxonomy_id_list):

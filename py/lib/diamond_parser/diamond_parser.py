@@ -88,7 +88,7 @@ class DiamondParser(object):
         self.options = options
         if not self.options:
             self.options = ProjectOptions(project_file)
-        collection = self.options.get_collection(self.sample.sample_id)
+        collection = self.options.get_collection(self.sample)
         if collection not in self.config.collections:
             raise Exception('Collection ' + collection
                             + ' not found. Available collections are: '
@@ -124,9 +124,9 @@ class DiamondParser(object):
         )
         current_sequence_read_id = ''
         hit_list = DiamondHitList(current_sequence_read_id)
-        identity_cutoff = self.config.get_identity_cutoff(self.collection)
+        # TODO: cleanup identity_cutoff = self.config.get_identity_cutoff(self.collection)
         length_cutoff = self.config.get_length_cutoff(self.collection)
-        print('Identity cutoff: ', identity_cutoff, ', Length cutoff: ', length_cutoff)
+        print('Length cutoff:', length_cutoff)
         with open(tsvfile, 'r', newline='') as infile:
             tsvin = csv.reader(infile, delimiter='\t')
             for row in tsvin:
@@ -134,8 +134,8 @@ class DiamondParser(object):
                 (row[0], _) = parse_fastq_seqid(row[0])
                 hit.create_hit(row)
                 # filtering by identity and length
-                if hit.identity < identity_cutoff:
-                    continue  # go to next hit
+                #~ if hit.identity < identity_cutoff:
+                    #~ continue  # go to next hit
                 if hit.length < length_cutoff:
                     continue  # go to next hit
 
@@ -145,8 +145,9 @@ class DiamondParser(object):
                     # filtering: remove overlapping hits
                     hit_list.filter_list(self.config.get_overlap_cutoff(self.collection))
                     # if any hits left, assign function to hits and populate reads dictionary
+                    hit_list.annotate_hits(self.ref_data)
+                    hit_list.filter_list_by_identity(self.ref_data)
                     if hit_list.hits_number != 0:
-                        hit_list.annotate_hits(self.ref_data)
                         read = AnnotatedRead(current_sequence_read_id)
                         read.hit_list = hit_list
                         self.reads[current_sequence_read_id] = read
@@ -155,9 +156,10 @@ class DiamondParser(object):
                     hit_list = DiamondHitList(current_sequence_read_id)
                 hit_list.add_hit(hit)
             # when EOF reached, process collected hits
+            hit_list.filter_list(self.config.get_overlap_cutoff(self.collection))
+            hit_list.annotate_hits(self.ref_data)
+            hit_list.filter_list_by_identity(self.ref_data)
             if hit_list.hits_number != 0:
-                hit_list.filter_list(self.config.get_overlap_cutoff(self.collection))
-                hit_list.annotate_hits(self.ref_data)
                 read = AnnotatedRead(current_sequence_read_id)
                 read.hit_list = hit_list
                 self.reads[current_sequence_read_id] = read
@@ -189,10 +191,10 @@ class DiamondParser(object):
 
         current_query_id = None
         hit_list = None
-        identity_cutoff = self.config.get_identity_cutoff(self.collection)
+        #TODO:clean up identity_cutoff = self.ref_data.lookup_identity_threshold()
         length_cutoff = self.config.get_length_cutoff(self.collection)
         bitscore_range_cutoff = self.config.get_biscore_range_cutoff(self.collection)
-        print('Identity cutoff: ', identity_cutoff, ', Length cutoff: ', length_cutoff)
+        print('Relative bit-score cutoff:', bitscore_range_cutoff, ', Length cutoff:', length_cutoff)
 
         with open(tsvfile, 'r', newline='') as infile:
             tsvin = csv.reader(infile, delimiter='\t')
@@ -203,8 +205,8 @@ class DiamondParser(object):
                 hit = DiamondHit()
                 hit.create_hit(row)
                 # filtering by identity and length
-                if hit.identity < identity_cutoff:
-                    continue  # skip this line
+                #~ TODO:clean up if hit.identity < identity_cutoff:
+                    #~ continue  # skip this line
                 if hit.length < length_cutoff:
                     continue  # skip this line
 
@@ -213,6 +215,7 @@ class DiamondParser(object):
                 if hit.query_id != current_query_id:
                     # assign functions to selected hits
                     hit_list.annotate_hits(self.ref_data)
+                    hit_list.filter_list_by_identity(self.ref_data)
                     # extract initial read identifier from identifier of the hit
                     current_query_id_tokens = current_query_id.split('|')
                     read_id = '|'.join(current_query_id_tokens[:-2])
@@ -224,10 +227,7 @@ class DiamondParser(object):
                             int(current_query_id_tokens[-2]),  # hit_start
                             int(current_query_id_tokens[-1]),  # hit_end
                             hit_list, bitscore_range_cutoff, length_cutoff,
-                            average_read_length, self.taxonomy_data, self.ref_data,
-                            rank_cutoffs=self.config.get_ranks_cutoffs(
-                                self.options.get_collection()
-                                )
+                            average_read_length, self.taxonomy_data, self.ref_data
                             )
                     except KeyError:
                         print('Read not found: ', read_id)
@@ -238,6 +238,7 @@ class DiamondParser(object):
             # when EOF reached, process collected hits
             # assign functions to selected hits
             hit_list.annotate_hits(self.ref_data)
+            hit_list.filter_list_by_identity(self.ref_data)
             # extract initial read identifier from identifier of the hit
             current_query_id_tokens = current_query_id.split('|')
             read_id = '|'.join(current_query_id_tokens[:-2])
@@ -249,10 +250,7 @@ class DiamondParser(object):
                     int(current_query_id_tokens[-2]),  # hit_start
                     int(current_query_id_tokens[-1]),  # hit_end
                     hit_list, bitscore_range_cutoff, length_cutoff,
-                    average_read_length, self.taxonomy_data, self.ref_data,
-                    rank_cutoffs=self.config.get_ranks_cutoffs(
-                        self.options.get_collection()
-                        )
+                    average_read_length, self.taxonomy_data, self.ref_data
                     )
             except KeyError:
                 print('Read not found: ', read_id)

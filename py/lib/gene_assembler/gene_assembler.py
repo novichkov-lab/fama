@@ -13,6 +13,7 @@ from lib.gene_assembler.gene import Gene
 from lib.gene_assembler.gene_assembly import GeneAssembly
 from lib.diamond_parser.diamond_hit_list import DiamondHitList
 from lib.diamond_parser.diamond_hit import DiamondHit
+from lib.diamond_parser.hit_utils import compare_protein_hits_lca
 from lib.output.json_util import export_gene_assembly
 from lib.taxonomy.taxonomy_profile import TaxonomyProfile
 from lib.output.krona_xml_writer import make_assembly_taxonomy_chart
@@ -321,13 +322,11 @@ class GeneAssembler(object):
                                'all_contigs_' + self.project.options.background_output_name)
         current_query_id = None
         hit_list = None
-        identity_cutoff = self.project.config.get_identity_cutoff(
-            self.project.options.get_collection())
         length_cutoff = self.project.config.get_length_cutoff(
             self.project.options.get_collection())
         biscore_range_cutoff = self.project.config.get_biscore_range_cutoff(
             self.project.options.get_collection())
-        print('Identity cutoff: ', identity_cutoff, ', Length cutoff: ', length_cutoff)
+        print('Relative bit-score cutoff: ', biscore_range_cutoff, ', Length cutoff: ', length_cutoff)
 
         average_coverage = self.assembly.calculate_average_coverage()
 
@@ -345,11 +344,12 @@ class GeneAssembler(object):
                 hit = DiamondHit()
                 hit.create_hit(row)
                 # filtering by identity and length
-                if hit.identity < identity_cutoff or hit.length < length_cutoff:
-                    continue  # skip this line
+                if hit.length < length_cutoff:
+                    continue  # skip this hit
 
                 if hit.query_id != current_query_id:
                     hit_list.annotate_hits(self.project.ref_data)
+                    hit_list.filter_list_by_identity(self.project.ref_data)
                     # compare list of hits from search in background DB with existing
                     # hit from search in reference DB
                     current_query_id_tokens = current_query_id.split('|')
@@ -358,19 +358,16 @@ class GeneAssembler(object):
                     gene_id = '|'.join(current_query_id_tokens[:-2])
                     coverage = self.assembly.contigs[function_id][contig_id].get_coverage()
                     try:
-                        compare_hits_lca(
+                        compare_protein_hits_lca(
                             self.assembly.contigs[function_id][contig_id].genes[gene_id],
                             int(current_query_id_tokens[-2]),  # hit_start
                             int(current_query_id_tokens[-1]),  # hit_end
                             hit_list,
                             biscore_range_cutoff,
-                            average_coverage,
                             coverage,
+                            average_coverage,
                             self.project.taxonomy_data,
-                            self.project.ref_data,
-                            rank_cutoffs=self.project.config.get_ranks_cutoffs(
-                                self.project.options.get_collection()
-                                )
+                            self.project.ref_data
                             )
                     except KeyError:
                         print(' '.join(['Gene not found:', gene_id, 'in', function_id, contig_id]))
@@ -378,25 +375,23 @@ class GeneAssembler(object):
                     hit_list = DiamondHitList(current_query_id)
                 hit_list.add_hit(hit)
             hit_list.annotate_hits(self.project.ref_data)
+            hit_list.filter_list_by_identity(self.project.ref_data)
             current_query_id_tokens = current_query_id.split('|')
             function_id = current_query_id_tokens[0]
             contig_id = '_'.join(current_query_id_tokens[1].split('_')[:-1])
             gene_id = '|'.join(current_query_id_tokens[:-2])
             coverage = self.assembly.contigs[function_id][contig_id].get_coverage()
             try:
-                compare_hits_lca(
+                compare_protein_hits_lca(
                     self.assembly.contigs[function_id][contig_id].genes[gene_id],
                     int(current_query_id_tokens[-2]),  # hit_start
                     int(current_query_id_tokens[-1]),  # hit_end
                     hit_list,
                     biscore_range_cutoff,
-                    average_coverage,
                     coverage,
+                    average_coverage,
                     self.project.taxonomy_data,
-                    self.project.ref_data,
-                    rank_cutoffs=self.project.config.get_ranks_cutoffs(
-                        self.project.options.get_collection()
-                    )
+                    self.project.ref_data
                 )
             except KeyError:
                 print(' '.join(['Gene not found:', gene_id, 'in', function_id, contig_id]))
@@ -986,148 +981,148 @@ def parse_gene_id(gene_id):
     return function_id, contig_id, gene_id
 
 
-def get_abundance(function_fraction, average_coverage, coverage):
-    """Calculates  relative abundance from contig coverage"""
-    if function_fraction > 1.0:
-        print('FUNCTION FRACTION TOO BIG!', function_fraction)
-    ret_val = coverage * function_fraction/average_coverage
-    return ret_val
+#~ def get_abundance(average_coverage, coverage, function_fraction = 1.0):
+    #~ """Calculates  relative abundance from contig coverage"""
+    #~ if function_fraction > 1.0:
+        #~ print('FUNCTION FRACTION TOO BIG!', function_fraction)
+    #~ ret_val = coverage * function_fraction/average_coverage
+    #~ return ret_val
 
 
-def compare_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff,
-                     average_coverage, coverage, taxonomy_data, ref_data, rank_cutoffs=None):
-    """Compares DiamondHit object assigned to a Gene object with list of new
-    DiamondHit objects, assigns abundance to functions and taxonomy
+#~ def compare_protein_hits_lca(gene, hit_start, hit_end, new_hit_list, bitscore_range_cutoff,
+                     #~ average_coverage, coverage, taxonomy_data, ref_data, rank_cutoffs=None):
+    #~ """Compares DiamondHit object assigned to a Gene object with list of new
+    #~ DiamondHit objects, assigns abundance to functions and taxonomy
 
-    Args:
-        gene (:obj:Gene): gene being under analysis
-        hit_start (int): start position of known hit
-        hit_end (int): end position of known hit
-        new_hit_list (:obj:'DiamondHitList'): list of hit from new search
-        bitscore_range_cutoff (float): lowest acceptaple bitscore
-            (relative to top bit-score, default 0.97)
-        average_coverage (float): average read coverage across all contigs
-        coverage (float): read coverage of the contig
-        taxonomy_data (:obj:TaxonomyData): taxonomic data
-        ref_data (:obj:ReferenceData): functional reference data
-        rank_cutoffs (:obj:dict[str, float]): key is taxonomy rank, value
-            is of amino acid identity % threshold for this rank
+    #~ Args:
+        #~ gene (:obj:Gene): gene being under analysis
+        #~ hit_start (int): start position of known hit
+        #~ hit_end (int): end position of known hit
+        #~ new_hit_list (:obj:'DiamondHitList'): list of hit from new search
+        #~ bitscore_range_cutoff (float): lowest acceptaple bitscore
+            #~ (relative to top bit-score, default 0.97)
+        #~ average_coverage (float): average read coverage across all contigs
+        #~ coverage (float): read coverage of the contig
+        #~ taxonomy_data (:obj:TaxonomyData): taxonomic data
+        #~ ref_data (:obj:ReferenceData): functional reference data
+        #~ rank_cutoffs (:obj:dict[str, float]): key is taxonomy rank, value
+            #~ is of amino acid identity % threshold for this rank
 
-    This function compares one hit assigned to an annotated read with a list
-    of new hits. It looks through the hit list, finds hits with bitscore
-    above cutoff and assigns their functions to the read. If any hits to
-    functional protein of interest are found, the read gets status 'function'.
-    Otherwise, it gets status 'nofunction'.
+    #~ This function compares one hit assigned to an annotated read with a list
+    #~ of new hits. It looks through the hit list, finds hits with bitscore
+    #~ above cutoff and assigns their functions to the read. If any hits to
+    #~ functional protein of interest are found, the read gets status 'function'.
+    #~ Otherwise, it gets status 'nofunction'.
 
-    This function does not return anything. It sets status of gene and
-    assigns abundance to each function associated with the gene.
+    #~ This function does not return anything. It sets status of gene and
+    #~ assigns abundance to each function associated with the gene.
 
-    """
-    if rank_cutoffs is None:
-        rank_cutoffs = {}
-    # Find best hit
-    for hit in gene.hit_list.hits:
-        if hit.q_start == hit_start and hit.q_end == hit_end:
-            best_bitscore = 0.0
-            best_hit = None
-            for new_hit in new_hit_list.hits:
-                if new_hit.bitscore > best_bitscore:
-                    best_hit = new_hit
-                    best_bitscore = new_hit.bitscore
-            # Set status of read
-            if best_hit is not None:
-                if '' in best_hit.functions:
-                    gene.set_status(STATUS_BAD)
-                    return
-                else:
-                    gene.set_status(STATUS_GOOD)
-            else:
-                gene.set_status(STATUS_BAD)
-                return
+    #~ """
+    #~ if rank_cutoffs is None:
+        #~ rank_cutoffs = {}
+    #~ # Find best hit
+    #~ for hit in gene.hit_list.hits:
+        #~ if hit.q_start == hit_start and hit.q_end == hit_end:
+            #~ best_bitscore = 0.0
+            #~ best_hit = None
+            #~ for new_hit in new_hit_list.hits:
+                #~ if new_hit.bitscore > best_bitscore:
+                    #~ best_hit = new_hit
+                    #~ best_bitscore = new_hit.bitscore
+            #~ # Set status of read
+            #~ if best_hit is not None:
+                #~ if '' in best_hit.functions:
+                    #~ gene.set_status(STATUS_BAD)
+                    #~ return
+                #~ else:
+                    #~ gene.set_status(STATUS_GOOD)
+            #~ else:
+                #~ gene.set_status(STATUS_BAD)
+                #~ return
 
-            # Filter list of hits by bitscore
-            bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
-            new_hits = [
-                new_hit for new_hit in new_hit_list.hits if new_hit.bitscore > bitscore_lower_cutoff
-                ]
+            #~ # Filter list of hits by bitscore
+            #~ bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
+            #~ new_hits = [
+                #~ new_hit for new_hit in new_hit_list.hits if new_hit.bitscore > bitscore_lower_cutoff
+                #~ ]
 
-            if hit.subject_id not in [
-                    new_hit.subject_id for new_hit in new_hits
-            ] and hit.bitscore >= best_bitscore:
-                new_hits.append(hit)
+            #~ if hit.subject_id not in [
+                    #~ new_hit.subject_id for new_hit in new_hits
+            #~ ] and hit.bitscore >= best_bitscore:
+                #~ new_hits.append(hit)
 
-            # Collect taxonomy IDs of all hits for LCA inference
-            taxonomy_ids = set()
-            # If rank-specific AAI cutoffs are not set
-            if not rank_cutoffs:
-                taxonomy_ids = set([ref_data.lookup_protein_tax(h.subject_id) for h in new_hits])
+            #~ # Collect taxonomy IDs of all hits for LCA inference
+            #~ taxonomy_ids = set()
+            #~ # If rank-specific AAI cutoffs are not set
+            #~ if not rank_cutoffs:
+                #~ taxonomy_ids = set([ref_data.lookup_protein_tax(h.subject_id) for h in new_hits])
 
-            # If rank-specific AAI cutoffs were calculated for the reference dataset:
-            else:
-                for new_hit in new_hits:
-                    subject_taxon_id = ref_data.lookup_protein_tax(new_hit.subject_id)
-                    subject_rank = taxonomy_data.get_rank(subject_taxon_id)
-                    while subject_taxon_id != ROOT_TAXONOMY_ID:
-                        if subject_rank not in rank_cutoffs:
-                            (subject_taxon_id, subject_rank) = \
-                                taxonomy_data.get_upper_level_taxon(subject_taxon_id)
-                        elif new_hit.identity < rank_cutoffs[subject_rank]:
-                            (subject_taxon_id, subject_rank) = \
-                                taxonomy_data.get_upper_level_taxon(subject_taxon_id)
-                        else:
-                            taxonomy_ids.add(subject_taxon_id)
-                            break
+            #~ # If rank-specific AAI cutoffs were calculated for the reference dataset:
+            #~ else:
+                #~ for new_hit in new_hits:
+                    #~ subject_taxon_id = ref_data.lookup_protein_tax(new_hit.subject_id)
+                    #~ subject_rank = taxonomy_data.get_rank(subject_taxon_id)
+                    #~ while subject_taxon_id != ROOT_TAXONOMY_ID:
+                        #~ if subject_rank not in rank_cutoffs:
+                            #~ (subject_taxon_id, subject_rank) = \
+                                #~ taxonomy_data.get_upper_level_taxon(subject_taxon_id)
+                        #~ elif new_hit.identity < rank_cutoffs[subject_rank]:
+                            #~ (subject_taxon_id, subject_rank) = \
+                                #~ taxonomy_data.get_upper_level_taxon(subject_taxon_id)
+                        #~ else:
+                            #~ taxonomy_ids.add(subject_taxon_id)
+                            #~ break
             
 
-            # Make non-redundant list of functions from hits after filtering
-            new_functions = {}
-            new_functions_counter = Counter()
-            new_functions_dict = defaultdict(dict)
-            # Find best hit for each function: only one hit with highest
-            # bitscore to be reported for each function
-            for new_hit in new_hits:
-                for hit_func in new_hit.functions:
-                    new_functions_counter[hit_func] += 1
-                    if hit_func in new_functions_dict:
-                        if new_hit.bitscore > new_functions_dict[hit_func]['bit_score']:
-                            new_functions_dict[hit_func]['bit_score'] = new_hit.bitscore
-                            new_functions_dict[hit_func]['hit'] = new_hit
-                    else:
-                        new_functions_dict[hit_func]['bit_score'] = new_hit.bitscore
-                        new_functions_dict[hit_func]['hit'] = new_hit
+            #~ # Make non-redundant list of functions from hits after filtering
+            #~ new_functions = {}
+            #~ new_functions_counter = Counter()
+            #~ new_functions_dict = defaultdict(dict)
+            #~ # Find best hit for each function: only one hit with highest
+            #~ # bitscore to be reported for each function
+            #~ for new_hit in new_hits:
+                #~ for hit_func in new_hit.functions:
+                    #~ new_functions_counter[hit_func] += 1
+                    #~ if hit_func in new_functions_dict:
+                        #~ if new_hit.bitscore > new_functions_dict[hit_func]['bit_score']:
+                            #~ new_functions_dict[hit_func]['bit_score'] = new_hit.bitscore
+                            #~ new_functions_dict[hit_func]['hit'] = new_hit
+                    #~ else:
+                        #~ new_functions_dict[hit_func]['bit_score'] = new_hit.bitscore
+                        #~ new_functions_dict[hit_func]['hit'] = new_hit
 
-            # If the most common function in new hits is unknown, set status STATUS_BAD and return
-            if new_functions_counter.most_common(1)[0][0] == '':
-                gene.set_status(STATUS_BAD)
-                return
+            #~ # If the most common function in new hits is unknown, set status STATUS_BAD and return
+            #~ if new_functions_counter.most_common(1)[0][0] == '':
+                #~ gene.set_status(STATUS_BAD)
+                #~ return
 
-            # Calculate RPK scores for functions
-            for function in new_functions_dict:
-                if function == '':
-                    continue
-                new_functions[function] = get_abundance(1.0, average_coverage, coverage)
+            #~ # Calculate RPK scores for functions
+            #~ for function in new_functions_dict:
+                #~ if function == '':
+                    #~ continue
+                #~ new_functions[function] = get_abundance(average_coverage, coverage, 1.0)
 
-            gene.set_functions(new_functions)
+            #~ gene.set_functions(new_functions)
 
-            # Set new list of hits
-            _hit_list = DiamondHitList(gene.gene_id)
-            for new_function in new_functions_dict:
-                if new_function == '':
-                    continue
-                good_hit = new_functions_dict[new_function]['hit']
-                good_hit.query_id = gene.gene_id
-                good_hit.annotate_hit(ref_data)
-                _hit_list.add_hit(good_hit)
-            gene.hit_list = _hit_list
-            # Set read taxonomy ID
-            gene.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
+            #~ # Set new list of hits
+            #~ _hit_list = DiamondHitList(gene.gene_id)
+            #~ for new_function in new_functions_dict:
+                #~ if new_function == '':
+                    #~ continue
+                #~ good_hit = new_functions_dict[new_function]['hit']
+                #~ good_hit.query_id = gene.gene_id
+                #~ good_hit.annotate_hit(ref_data)
+                #~ _hit_list.add_hit(good_hit)
+            #~ gene.hit_list = _hit_list
+            #~ # Set read taxonomy ID
+            #~ gene.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
 
 
-def cleanup_read_id(read_id):
-    """Removes end identifier from the end of read identifier"""
-    result = read_id
-    if read_id.endswith('.1'):
-        result = read_id[:-2]
-    elif read_id.endswith('.2'):
-        result = read_id[:-2]
-    return result
+#~ def cleanup_read_id(read_id):
+    #~ """Removes end identifier from the end of read identifier"""
+    #~ result = read_id
+    #~ if read_id.endswith('.1'):
+        #~ result = read_id[:-2]
+    #~ elif read_id.endswith('.2'):
+        #~ result = read_id[:-2]
+    #~ return result

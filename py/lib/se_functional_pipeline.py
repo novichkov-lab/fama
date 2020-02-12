@@ -25,7 +25,7 @@ def run_ref_search(parser, command, options = None):
                     command]
     if options is not None:
         diamond_args = diamond_args + options
-    diamond_args = diamond_args +
+    diamond_args = diamond_args + \
                     ['--db',
                     parser.config.get_reference_diamond_db(
                         parser.options.get_collection(parser.sample.sample_id)
@@ -65,7 +65,7 @@ def run_bgr_search(parser, command, options = None):
                     command]
     if options is not None:
         diamond_args = diamond_args + options
-    diamond_args = diamond_args +
+    diamond_args = diamond_args + \
                     ['--db',
                     parser.config.get_background_diamond_db(
                         parser.options.get_collection(parser.sample.sample_id)

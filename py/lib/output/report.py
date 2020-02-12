@@ -133,7 +133,7 @@ def generate_fastq_report(parser):
                 taxonomy = parser.reads[read].taxonomy
                 if taxonomy is None:
                     print('No taxonomy ID assigned to ', read)
-                    continue
+                    taxonomy = UNKNOWN_TAXONOMY_ID
                 tax_stats[taxonomy] += 1
                 read_functions = parser.reads[read].functions
                 for funcion_id in read_functions:
@@ -297,7 +297,7 @@ def generate_fasta_report(parser):
                 taxonomy = parser.reads[read].taxonomy
                 if taxonomy is None:
                     print('No taxonomy ID assigned to ', read)
-                    continue
+                    taxonomy = UNKNOWN_TAXONOMY_ID
                 tax_stats[taxonomy] += 1
                 read_functions = parser.reads[read].functions
                 for function_id in read_functions:

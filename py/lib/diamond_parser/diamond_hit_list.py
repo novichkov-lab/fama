@@ -91,6 +91,32 @@ class DiamondHitList(object):
                 temp_list = hit_utils.replace_hit(hit, temp_list, overlap_cutoff)
         self.hits = temp_list
 
+
+    def filter_list_by_identity(self, reference_data):
+        """Filters list of DiamondHit objects in the DiamondHitList.
+        Removes hits, which have amino acid identity below threshold defined
+        in reference data or config file.
+        WARNING: before filtering, functions must be assigned to assigned 
+        to all hits (i.e. call annotate_hits function first)
+
+        Args:
+            reference_data (:obj:ReferenceData): functional reference data
+        """
+        temp_list = []
+
+        for hit in self.hits:
+            max_threshold = 0.0
+            for function in hit.functions:
+                function_threshold = reference_data.lookup_identity_threshold(function=function)
+                if max_threshold < function_threshold:
+                    max_threshold = function_threshold
+            if max_threshold == 0.0:
+                max_threshold = reference_data.lookup_identity_threshold()
+            if hit.identity >= max_threshold:
+                temp_list.append(hit)
+        self.hits = temp_list
+
+
     def remove_hit(self, hit_to_remove):
         """Removes a DiamondHit from the DiamondHitList.
 
@@ -107,6 +133,24 @@ class DiamondHitList(object):
                 break
         if index_remove is not None:
             del self.hits[index_remove]
+
+    def remove_hit_by_index(self, index_remove):
+        """Removes a DiamondHit from the DiamondHitList by its index.
+
+        Finds DiamondHit object in the DiamondHitList and deletes it.
+
+        Args:
+            index_remove(int): index of the hit to be removed
+
+        """
+        try:
+            del self.hits[index_remove]
+        except IndexError:
+            print('Unable to remove hit with index', index_remove)
+
+    def remove_all_hits(self):
+        """Assigns function to each DiamondHit in the DiamondHitList"""
+        self.hits = []
 
     def annotate_hits(self, reference_data):
         """Assigns function to each DiamondHit in the DiamondHitList"""

@@ -1,6 +1,6 @@
 """Various functions working with DIAMOND hits"""
 from collections import defaultdict, Counter
-from lib.utils.const import ENDS, STATUS_GOOD, STATUS_BAD, ROOT_TAXONOMY_ID
+from lib.utils.const import ENDS, RANKS, STATUS_GOOD, STATUS_BAD, ROOT_TAXONOMY_ID, UNKNOWN_TAXONOMY_ID
 
 
 def get_rpkm_score(hit, function_fraction, total_readcount, length_cutoff):
@@ -53,9 +53,9 @@ def get_erpk_score(protein_length, average_read_length, length_cutoff):
         ret_val (float): ERPK score of the hit
 
     """
-    effective_gene_length = 3*protein_length - 6*length_cutoff + average_read_length + 1
+    effective_gene_length = 3 * protein_length - 6 * length_cutoff + average_read_length + 1
     result = 1000
-    if effective_gene_length > 0:
+    if effective_gene_length > 1:
         result = 1000/effective_gene_length
     return result
 
@@ -107,6 +107,17 @@ def get_efpk_score(protein_length, average_read_length, length_cutoff, insert_si
     return result
 
 
+def get_abundance(coverage, average_coverage, function_fraction = 1.0):
+    """Calculates  relative abundance from contig coverage"""
+    if function_fraction > 1.0:
+        print('FUNCTION FRACTION TOO BIG!', function_fraction)
+    try:
+        result = coverage * function_fraction/average_coverage
+    except ZeroDivisionError:
+        result = coverage * function_fraction
+    return result
+
+
 def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff,
                           length_cutoff, average_read_length, taxonomy_data,
                           ref_data, rank_cutoffs=None):
@@ -125,7 +136,7 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
         average_read_length (float): average length of sequence reads in the sample
         taxonomy_data (:obj:TaxonomyData): taxonomic data
         ref_data (:obj:ReferenceData): functional reference data
-        rank_cutoffs (:obj:dict[str, float]): key is taxonomy rank, value
+        TODO remove: rank_cutoffs (:obj:dict[str, float]): key is taxonomy rank, value
             is of amino acid identity % threshold for this rank
 
     This function compares one hit assigned to an annotated read with a list
@@ -138,111 +149,289 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
     assigns RPKM score to each function of the read.
 
     """
-    # Find best hit
 
-    for hit in read.hit_list.hits:
-        if hit.q_start != hit_start or hit.q_end != hit_end:
-            continue
-        best_bitscore = 0.0
-        best_hit = None
-        # Find top hit and highest bitscore
-        for new_hit in new_hit_list.hits:
-            if new_hit.bitscore > best_bitscore:
-                best_hit = new_hit
-                best_bitscore = new_hit.bitscore
+    #TODO remove: 
+    #print('Hit list', read.hit_list)
+    hit = None
+    hit_i = None
+    for hit_index, existing_hit in enumerate(read.hit_list.hits):
+        if existing_hit.q_start == hit_start and existing_hit.q_end == hit_end:
+            hit = existing_hit
+            hit_i = hit_index
+    if hit is None:
+        return
 
-        # Set status of read
-        if best_hit is None or '' in best_hit.functions:
-            read.set_status(STATUS_BAD)
-            return
-        else:
-            read.set_status(STATUS_GOOD)
+    best_bitscore = 0.0
+    best_hit = None
+    # Find top hit and highest bitscore
+    for new_hit in new_hit_list.hits:
+        if new_hit.bitscore > best_bitscore:
+            best_hit = new_hit
+            best_bitscore = new_hit.bitscore
 
-        # Filter list of hits by bitscore
-        bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
-        selected_hits = [new_hit for new_hit in new_hit_list.hits if
-                         new_hit.bitscore > bitscore_lower_cutoff]
-        # Add existing hit if it has acceptable bitscore
-        if hit.subject_id not in [selected_hit.subject_id for selected_hit in selected_hits] and (
-                hit.bitscore >= best_bitscore
-        ):
-            selected_hits.append(hit)
+    # Set status of read
+    if best_hit is None: # or '' in best_hit.functions:
+        read.set_status(STATUS_BAD)
+        return
 
-        # Collect taxonomy IDs of all hits for LCA inference
-        taxonomy_ids = set()
-        # If rank-specific AAI cutoffs are not set
-        if not rank_cutoffs:
-            taxonomy_ids = set([ref_data.lookup_protein_tax(selected_hit.subject_id)
-                                for selected_hit in selected_hits])
-        # If rank-specific AAI cutoffs were calculated for the reference dataset:
-        else:
-            for selected_hit in selected_hits:
-                subject_taxon_id = ref_data.lookup_protein_tax(selected_hit.subject_id)
-                subject_rank = taxonomy_data.get_rank(subject_taxon_id)
-                while subject_taxon_id != ROOT_TAXONOMY_ID:
-                    if subject_rank not in rank_cutoffs:
-                        (subject_taxon_id, subject_rank) = \
-                            taxonomy_data.get_upper_level_taxon(subject_taxon_id)
-                    elif selected_hit.identity < rank_cutoffs[subject_rank]:
-                        (subject_taxon_id, subject_rank) = \
-                            taxonomy_data.get_upper_level_taxon(subject_taxon_id)
-                    else:
-                        taxonomy_ids.add(subject_taxon_id)
-                        break
+    # Filter list of hits by bitscore
+    bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
+    selected_hits = [new_hit for new_hit in new_hit_list.hits if
+                     new_hit.bitscore > bitscore_lower_cutoff]
+    # Add existing hit if it has acceptable bitscore
+    if hit.subject_id not in [selected_hit.subject_id for selected_hit in selected_hits] and (
+            hit.bitscore >= best_bitscore
+    ):
+        selected_hits.append(hit)
 
-        # Make non-redundant list of functions from hits after filtering
-        selected_functions = {}
-        selected_functions_counts = Counter()
-        selected_functions_data = defaultdict(dict)
-        # Find best hit for each function: only one hit with
-        # highest bitscore to be reported for each function
-        for selected_hit in selected_hits:
-            for selected_hit_function in selected_hit.functions:
-                selected_functions_counts[selected_hit_function] += 1
-                if selected_hit_function in selected_functions_data:
-                    if (
-                            selected_hit.bitscore >
-                            selected_functions_data[selected_hit_function]['bit_score']
-                    ):
-                        selected_functions_data[selected_hit_function]['bit_score'] = \
-                            selected_hit.bitscore
-                        selected_functions_data[selected_hit_function]['hit'] = \
-                            selected_hit
-                else:
-                    selected_functions_data[selected_hit_function]['bit_score'] = \
+    # Make non-redundant list of functions from hits after filtering
+    candidate_functions = {}
+    candidate_functions_count = Counter()
+    candidate_functions_data = defaultdict(dict)
+    # Find best hit for each function: only one hit with
+    # highest bitscore to be reported for each function
+    for selected_hit in selected_hits:
+        for selected_hit_function in selected_hit.functions:
+            candidate_functions_count[selected_hit_function] += 1
+            try:
+                if (
+                        selected_hit.bitscore >
+                        candidate_functions_data[selected_hit_function]['bit_score']
+                ):
+                    candidate_functions_data[selected_hit_function]['bit_score'] = \
                         selected_hit.bitscore
-                    selected_functions_data[selected_hit_function]['hit'] = \
+                    candidate_functions_data[selected_hit_function]['hit'] = \
                         selected_hit
-
-        # If the most common function in new hits is unknown, set
-        # status STATUS_BAD and return
-        if selected_functions_counts.most_common(1)[0][0] == '':
-            read.set_status(STATUS_BAD)
-            return
-
-        # Calculate RPK scores for functions
-        for function in selected_functions_data:
-            if function == '':
-                continue
+            except KeyError:
+                candidate_functions_data[selected_hit_function]['bit_score'] = \
+                    selected_hit.bitscore
+                candidate_functions_data[selected_hit_function]['hit'] = \
+                    selected_hit
+    #TODO remove: 
+    #print('Candidate functions',candidate_functions_count)
+    selected_functions = {}
+    function_weight_threshold = 0.5
+    # Calculate RPK scores for functions
+    for function in candidate_functions_data:
+        function_weight = candidate_functions_count[function] / len(selected_hits)
+        if function_weight > function_weight_threshold:
+            #TODO remove: 
+            # print('Call get_erpk_score', function, candidate_functions_data[function]['hit'].s_len, average_read_length, length_cutoff)
             selected_functions[function] = \
-                get_erpk_score(selected_functions_data[function]['hit'].s_len,
+                get_erpk_score(candidate_functions_data[function]['hit'].s_len,
                                average_read_length, length_cutoff)
+    #TODO remove: 
+    # print('Selected functions', selected_functions)
+    # print(read.functions)
 
-        read.append_functions(selected_functions)
+    # If the most common function in new hits is unknown, set
+    # status STATUS_BAD and return
+    if not selected_functions or '' in selected_functions:
+        read.set_status(STATUS_BAD)
+        return
+    else:
+        read.set_status(STATUS_GOOD)
 
-        # Set new list of hits
-        for func in selected_functions_data:
-            if func == '':
-                continue
-            good_hit = selected_functions_data[func]['hit']
-            good_hit.query_id = read.read_id
-            good_hit.q_start = hit_start
-            good_hit.q_end = hit_end
-            good_hit.annotate_hit(ref_data)
-            read.hit_list.add_hit(good_hit)
-        # Set read taxonomy ID
+    read.append_functions(selected_functions)
+    #TODO remove: 
+    #print(candidate_functions_data)
+    # Set new list of hits
+    read.hit_list.remove_hit_by_index(hit_i)
+    for func in selected_functions:
+        good_hit = candidate_functions_data[func]['hit']
+        good_hit.query_id = read.read_id
+        good_hit.q_start = hit_start
+        good_hit.q_end = hit_end
+        #good_hit.annotate_hit(ref_data)
+        read.hit_list.add_hit(good_hit)
+
+    taxonomy_ids = set()
+    # Collect taxonomy IDs of all hits for LCA inference
+    for selected_hit in selected_hits:
+        subject_taxon_id = ref_data.lookup_protein_tax(selected_hit.subject_id)
+        subject_rank = taxonomy_data.get_rank(subject_taxon_id)
+        # Consider only hits with functions mapped to the read
+        skip_hit = True
+        for hit_function in selected_hit.functions:
+            if hit_function in selected_functions:
+                skip_hit = False
+        if skip_hit:
+            continue
+
+        while subject_taxon_id != ROOT_TAXONOMY_ID:
+            if subject_rank not in RANKS:
+                (subject_taxon_id, subject_rank) = \
+                    taxonomy_data.get_upper_level_taxon(subject_taxon_id)
+            else:
+                min_rank_threshold = 100.0
+                for hit_function in selected_hit.functions:
+                    rank_threshold = \
+                        ref_data.lookup_identity_threshold(
+                            function=hit_function, rank=subject_rank
+                            )
+                    if min_rank_threshold > rank_threshold:
+                        min_rank_threshold = rank_threshold
+                if selected_hit.identity < min_rank_threshold:
+                    (subject_taxon_id, subject_rank) = \
+                        taxonomy_data.get_upper_level_taxon(subject_taxon_id)
+                else:
+                    taxonomy_ids.add(subject_taxon_id)
+                    break
+    # Set read taxonomy ID
+    if taxonomy_ids:
         read.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
-        break
+    else:
+        read.taxonomy = UNKNOWN_TAXONOMY_ID
+
+
+def compare_protein_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff,
+                            coverage, average_coverage, taxonomy_data, ref_data):
+    """Compares DiamondHit object assigned to AnnotatedRead object for a protein 
+    with a list of new DiamondHit objects, assigns scores to functions and taxonomy
+
+    Args:
+        read (:obj:AnnotatedRead): protein under analysis
+        hit_start (int): start position of known hit
+        hit_end (int): end position of known hit
+        new_hit_list (:obj:'DiamondHitList'): list of hit from new search
+        bitscore_range_cutoff (float): lowest acceptaple bitscore
+            (relative to top bit-score, default 0.97)
+        coverage (float): read coverage of a contig encoding the protein
+        average_coverage (float): average coverage of sequence reads in the sample
+        taxonomy_data (:obj:TaxonomyData): taxonomic data
+        ref_data (:obj:ReferenceData): functional reference data
+
+    This function compares one hit assigned to a protein with a list
+    of new hits. It looks through the hit list, finds hits with bitscore
+    above cutoff and assigns their functions to the protein. If any hits to
+    reference proteins are found, the analyzed protein gets status 'function'.
+    Otherwise, it gets status 'nofunction'.
+
+    This function does not return anything. It sets status of protein and
+    assigns RPKM score to each function of the protein.
+
+    """
+    hit = None
+    hit_i = None
+    for hit_index, existing_hit in enumerate(read.hit_list.hits):
+        if existing_hit.q_start == hit_start and existing_hit.q_end == hit_end:
+            hit = existing_hit
+            hit_i = hit_index
+    if hit is None:
+        return
+
+    best_bitscore = 0.0
+    best_hit = None
+    for new_hit in new_hit_list.hits:
+        bitscore = new_hit.bitscore
+        if bitscore > best_bitscore:
+            best_hit = new_hit
+            best_bitscore = bitscore
+    # Set status of read
+    if best_hit is None:
+        read.set_status(STATUS_BAD)
+        return
+
+    # Filter list of hits by bitscore
+    bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
+    selected_hits = [new_hit for new_hit in new_hit_list.hits if
+                     new_hit.bitscore > bitscore_lower_cutoff]
+    if hit.subject_id not in [
+            selected_hit.subject_id for selected_hit in selected_hits
+    ] and hit.bitscore >= best_bitscore:
+        selected_hits.append(hit)
+
+
+    # Make non-redundant list of functions from hits after filtering
+    candidate_functions = {}
+    candidate_functions_count = Counter()
+    candidate_functions_data = defaultdict(dict)
+    # Find best hit for each function: only one hit with highest bitscore will be
+    # reported for each function
+    for selected_hit in selected_hits:
+        for selected_hit_function in selected_hit.functions:
+            candidate_functions_count[selected_hit_function] += 1
+            try:
+                if (
+                        selected_hit.bitscore >
+                        candidate_functions_data[selected_hit_function]['bit_score']
+                ):
+                    candidate_functions_data[selected_hit_function]['bit_score'] = \
+                        selected_hit.bitscore
+                    candidate_functions_data[selected_hit_function]['hit'] = \
+                        selected_hit
+            except KeyError:
+                candidate_functions_data[selected_hit_function]['bit_score'] = \
+                    selected_hit.bitscore
+                candidate_functions_data[selected_hit_function]['hit'] = \
+                    selected_hit
+
+    # If the most common function in new hits is unknown, set status "nofunction" and return
+    selected_functions = {}
+    function_weight_threshold = 0.5
+    # Calculate protein scores for selected functions
+    for function in candidate_functions_data:
+        function_weight = candidate_functions_count[function] / len(selected_hits)
+        if function_weight > function_weight_threshold:
+            selected_functions[function] = get_abundance(
+                coverage, average_coverage
+            )
+
+    if not selected_functions or '' in selected_functions:
+        read.set_status(STATUS_BAD)
+        return
+    else:
+        read.set_status(STATUS_GOOD)
+
+    read.append_functions(selected_functions)
+
+    # Set new list of hits
+    read.hit_list.remove_hit_by_index(hit_i)
+    for func in selected_functions:
+        good_hit = candidate_functions_data[func]['hit']
+        try:
+            good_hit.query_id = read.read_id
+        except AttributeError:
+            good_hit.query_id = read.gene_id
+        #good_hit.annotate_hit(ref_data)
+        read.hit_list.add_hit(good_hit)
+
+    taxonomy_ids = set()
+    # Collect taxonomy IDs of all hits for LCA inference
+    for selected_hit in selected_hits:
+        subject_taxon_id = ref_data.lookup_protein_tax(selected_hit.subject_id)
+        subject_rank = taxonomy_data.get_rank(subject_taxon_id)
+        # Consider only hits with functions mapped to the read
+        skip_hit = True
+        for hit_function in selected_hit.functions:
+            if hit_function in selected_functions:
+                skip_hit = False
+        if skip_hit:
+            continue
+        while subject_taxon_id != ROOT_TAXONOMY_ID:
+            if subject_rank not in RANKS:
+                (subject_taxon_id, subject_rank) = \
+                    taxonomy_data.get_upper_level_taxon(subject_taxon_id)
+            else:
+                min_rank_threshold = 100.0
+                for hit_function in selected_hit.functions:
+                    rank_threshold = \
+                        ref_data.lookup_identity_threshold(
+                            function=hit_function, rank=subject_rank
+                            )
+                    if min_rank_threshold > rank_threshold:
+                        min_rank_threshold = rank_threshold
+                if selected_hit.identity < min_rank_threshold:
+                    (subject_taxon_id, subject_rank) = \
+                        taxonomy_data.get_upper_level_taxon(subject_taxon_id)
+                else:
+                    taxonomy_ids.add(subject_taxon_id)
+                    break
+    # Set read taxonomy ID
+    if taxonomy_ids:
+        read.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
+    else:
+        read.taxonomy = UNKNOWN_TAXONOMY_ID
 
 
 def get_paired_end(end):

@@ -4,11 +4,13 @@ import gzip
 import csv
 from collections import defaultdict, Counter
 
+from lib.utils.const import STATUS_GOOD, STATUS_BAD
 from lib.project.project import Project
 from lib.project.sample import Sample
 from lib.diamond_parser.diamond_parser import DiamondParser
 from lib.diamond_parser.diamond_hit import DiamondHit
 from lib.diamond_parser.diamond_hit_list import DiamondHitList
+from lib.diamond_parser.hit_utils import compare_protein_hits_lca
 from lib.output.json_util import export_annotated_reads, export_sample
 from lib.se_functional_pipeline import run_ref_search, run_bgr_search
 from lib.output.report import generate_fasta_report, generate_protein_sample_report, \
@@ -105,128 +107,162 @@ def get_protein_score(average_coverage, coverage):
         coverage (float): read coverage of contig
 
     """
-    result = coverage
-    if average_coverage > 0:
+    try:
         result = coverage / average_coverage
+    except ZeroDivisionError:
+        result = coverage
     return result
 
 
-def compare_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff,
-                     average_coverage, taxonomy_data, ref_data, coverage_data=None):
-    """Compares DiamondHit object assigned to AnnotatedRead object with list of new
-    DiamondHit objects, assigns scores to functions and taxonomy
+#~ def compare_protein_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff,
+                     #~ coverage, average_coverage, taxonomy_data, ref_data):
+    #~ """Compares DiamondHit object assigned to AnnotatedRead object with list of new
+    #~ DiamondHit objects, assigns scores to functions and taxonomy
 
-    Args:
-        read (:obj:AnnotatedRead): protein under analysis
-        hit_start (int): start position of known hit
-        hit_end (int): end position of known hit
-        new_hit_list (:obj:'DiamondHitList'): list of hit from new search
-        bitscore_range_cutoff (float): lowest acceptaple bitscore
-            (relative to top bit-score, default 0.97)
-        average_coverage (float): average coverage of sequence reads in the sample
-        taxonomy_data (:obj:TaxonomyData): taxonomic data
-        ref_data (:obj:ReferenceData): functional reference data
-        coverage_data (:obj:dict[str, float]): key is contig identifier, value
-            is read coverage for this contig
+    #~ Args:
+        #~ read (:obj:AnnotatedRead): protein under analysis
+        #~ hit_start (int): start position of known hit
+        #~ hit_end (int): end position of known hit
+        #~ new_hit_list (:obj:'DiamondHitList'): list of hit from new search
+        #~ bitscore_range_cutoff (float): lowest acceptaple bitscore
+            #~ (relative to top bit-score, default 0.97)
+        #~ average_coverage (float): average coverage of sequence reads in the sample
+        #~ taxonomy_data (:obj:TaxonomyData): taxonomic data
+        #~ ref_data (:obj:ReferenceData): functional reference data
+        #~ coverage_data (:obj:dict[str, float]): key is contig identifier, value
+            #~ is read coverage for this contig
 
-    This function compares one hit assigned to a protein with a list
-    of new hits. It looks through the hit list, finds hits with bitscore
-    above cutoff and assigns their functions to the protein. If any hits to
-    reference proteins are found, the analyzed protein gets status 'function'.
-    Otherwise, it gets status 'nofunction'.
+    #~ This function compares one hit assigned to a protein with a list
+    #~ of new hits. It looks through the hit list, finds hits with bitscore
+    #~ above cutoff and assigns their functions to the protein. If any hits to
+    #~ reference proteins are found, the analyzed protein gets status 'function'.
+    #~ Otherwise, it gets status 'nofunction'.
 
-    This function does not return anything. It sets status of protein and
-    assigns RPKM score to each function of the protein.
+    #~ This function does not return anything. It sets status of protein and
+    #~ assigns RPKM score to each function of the protein.
 
-    """
-    # Find coverage value for protein 'read'
-    protein_id = read.read_id_line
-    protein_id_tokens = protein_id.split(' # ')
-    contig_id = '_'.join(protein_id_tokens[0].split('_')[:-1])[1:]
-    coverage = 1.0
-    if coverage_data is not None and contig_id in coverage_data:
-        coverage = coverage_data[contig_id]
+    #~ """
+    #~ # Find coverage value for protein 'read'
+    #~ protein_id = read.read_id_line
+    #~ protein_id_tokens = protein_id.split(' # ')
+    #~ contig_id = '_'.join(protein_id_tokens[0].split('_')[:-1])[1:]
+    #~ coverage = 1.0
+    #~ if coverage_data is not None and contig_id in coverage_data:
+        #~ coverage = coverage_data[contig_id]
 
-    #
-    # Find best hit
-    for hit in read.hit_list.hits:
-        if hit.q_start == hit_start and hit.q_end == hit_end:
-            best_bitscore = 0.0
-            best_hit = None
-            for new_hit in new_hit_list.hits:
-                bitscore = new_hit.bitscore
-                if bitscore > best_bitscore:
-                    best_hit = new_hit
-                    best_bitscore = bitscore
-            # Set status of read
-            if best_hit is not None:
-                if '' in best_hit.functions:
-                    read.set_status('nofunction')
-                    return
-                else:
-                    read.set_status('function')
-            else:
-                read.set_status('nofunction')
-                return
+    #~ for hit in read.hit_list.hits:
+        #~ if hit.q_start != hit_start or hit.q_end != hit_end:
+            #~ continue
+        #~ best_bitscore = 0.0
+        #~ best_hit = None
+        #~ for new_hit in new_hit_list.hits:
+            #~ bitscore = new_hit.bitscore
+            #~ if bitscore > best_bitscore:
+                #~ best_hit = new_hit
+                #~ best_bitscore = bitscore
+        #~ # Set status of read
+        #~ if best_hit is None:
+            #~ read.set_status(STATUS_BAD)
+            #~ break
+        #~ else:
+            #~ read.set_status(STATUS_GOOD)
 
-            # Filter list of hits by bitscore
-            bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
-            new_hits = [
-                new_hit for new_hit in new_hit_list.hits
-                if new_hit.bitscore > bitscore_lower_cutoff
-                ]
-            if hit.subject_id not in [
-                    new_hit.subject_id for new_hit in new_hits
-            ] and hit.bitscore >= best_bitscore:
-                new_hits.append(hit)
+        #~ # Filter list of hits by bitscore
+        #~ bitscore_lower_cutoff = best_bitscore * (1.0 - bitscore_range_cutoff)
+        #~ selected_hits = [new_hit for new_hit in new_hit_list.hits if
+                         #~ new_hit.bitscore > bitscore_lower_cutoff]
+        #~ if hit.subject_id not in [
+                #~ selected_hit.subject_id for selected_hit in selected_hits
+        #~ ] and hit.bitscore >= best_bitscore:
+            #~ new_hits.append(hit)
 
-            # Collect taxonomy IDs of all hits for LCA inference
-            taxonomy_ids = set([ref_data.lookup_protein_tax(h.subject_id) for h in new_hits])
 
-            # Make non-redundant list of functions from hits after filtering
-            new_functions = {}
-            new_functions_counter = Counter()
-            new_functions_dict = defaultdict(dict)
-            # Find best hit for each function: only one hit with highest bitscore will be
-            # reported for each function
-            for new_hit in new_hits:
-                for new_func in new_hit.functions:
-                    new_functions_counter[new_func] += 1
-                    if new_func in new_functions_dict:
-                        if new_hit.bitscore > new_functions_dict[new_func]['bit_score']:
-                            new_functions_dict[new_func]['bit_score'] = new_hit.bitscore
-                            new_functions_dict[new_func]['hit'] = new_hit
-                    else:
-                        new_functions_dict[new_func]['bit_score'] = new_hit.bitscore
-                        new_functions_dict[new_func]['hit'] = new_hit
+        #~ # Make non-redundant list of functions from hits after filtering
+        #~ candidate_functions = {}
+        #~ candidate_functions_count = Counter()
+        #~ candidate_functions_data = defaultdict(dict)
+        #~ # Find best hit for each function: only one hit with highest bitscore will be
+        #~ # reported for each function
+        #~ for selected_hit in selected_hits:
+            #~ for selected_hit_function in selected_hit.functions:
+                #~ candidate_functions_count[selected_hit_function] += 1
+                #~ try:
+                    #~ if (
+                            #~ selected_hit.bitscore >
+                            #~ candidate_functions_data[selected_hit_function]['bit_score']
+                    #~ ):
+                        #~ candidate_functions_data[selected_hit_function]['bit_score'] = \
+                            #~ selected_hit.bitscore
+                        #~ candidate_functions_data[selected_hit_function]['hit'] = \
+                            #~ selected_hit
+                #~ except KeyError:
+                    #~ candidate_functions_data[selected_hit_function]['bit_score'] = \
+                        #~ selected_hit.bitscore
+                    #~ candidate_functions_data[selected_hit_function]['hit'] = \
+                        #~ selected_hit
 
-            # If the most common function in new hits is unknown, set status "nofunction" and return
-            if new_functions_counter.most_common(1)[0][0] == '':
-                read.set_status('nofunction')
-                return
+        #~ # If the most common function in new hits is unknown, set status "nofunction" and return
+        #~ selected_functions = {}
+        #~ function_weight_threshold = 0.5
+        #~ # Calculate protein scores for selected functions
+        #~ for function in candidate_functions_data:
+            #~ function_weight = candidate_functions_count[function] / len(selected_hits)
+            #~ if function_weight > function_weight_threshold:
+                #~ selected_functions[function] = get_protein_score(
+                    #~ average_coverage, coverage
+                #~ )
 
-            # Calculate RPK scores for functions
-            for function in new_functions_dict:
-                if function == '':
-                    continue
-                # normalize by sample size and contig coverage
-                new_functions[function] = get_protein_score(average_coverage, coverage)
+        #~ if not selected_functions or '' in selected_functions:
+            #~ read.set_status(STATUS_BAD)
+            #~ continue
 
-            read.append_functions(new_functions)
+        #~ read.append_functions(new_functions)
 
-            # Set new list of hits
-            _hit_list = DiamondHitList(read.read_id)
-            for new_func in new_functions_dict:
-                if new_func == '':
-                    continue
-                good_hit = new_functions_dict[new_func]['hit']
-                good_hit.query_id = read.read_id
-                good_hit.annotate_hit(ref_data)
-                _hit_list.add_hit(good_hit)
+        #~ # Set new list of hits
+        #~ _hit_list = DiamondHitList(read.read_id)
+        #~ for func in selected_functions:
+            #~ good_hit = candidate_functions_data[func]['hit']
+            #~ good_hit.query_id = read.read_id
+            #~ #good_hit.annotate_hit(ref_data)
+            #~ _hit_list.add_hit(good_hit)
 
-            read.hit_list = _hit_list
-            # Set read taxonomy ID
-            read.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
+        #~ read.hit_list = _hit_list
+
+        #~ taxonomy_ids = set()
+        #~ # Collect taxonomy IDs of all hits for LCA inference
+        #~ for selected_hit in selected_hits:
+            #~ subject_taxon_id = ref_data.lookup_protein_tax(selected_hit.subject_id)
+            #~ subject_rank = taxonomy_data.get_rank(subject_taxon_id)
+            #~ # Consider only hits with functions mapped to the read
+            #~ skip_hit = True
+            #~ for hit_function in selected_hit.functions:
+                #~ if hit_function in selected_functions:
+                    #~ skip_hit = False
+            #~ if skip_hit:
+                #~ continue
+            #~ while subject_taxon_id != ROOT_TAXONOMY_ID:
+                #~ if subject_rank not in RANKS:
+                    #~ (subject_taxon_id, subject_rank) = \
+                        #~ taxonomy_data.get_upper_level_taxon(subject_taxon_id)
+                #~ else:
+                    #~ min_rank_threshold = 100.0
+                    #~ for hit_function in selected_hit.functions:
+                        #~ rank_threshold = \
+                            #~ ref_data.lookup_identity_threshold(
+                                #~ function=hit_function, rank=subject_rank
+                                #~ )
+                        #~ if min_rank_threshold > rank_threshold:
+                            #~ min_rank_threshold = rank_threshold
+                    #~ if selected_hit.identity < min_rank_threshold:
+                        #~ (subject_taxon_id, subject_rank) = \
+                            #~ taxonomy_data.get_upper_level_taxon(subject_taxon_id)
+                    #~ else:
+                        #~ taxonomy_ids.add(subject_taxon_id)
+                        #~ break
+        #~ # Set read taxonomy ID
+        #~ if taxonomy_ids:
+            #~ read.taxonomy = taxonomy_data.get_lca(taxonomy_ids)
+        #~ break
 
 
 def parse_background_output(parser):
@@ -257,14 +293,13 @@ def parse_background_output(parser):
             total_coverage += coverage_data[contig_id]
         average_coverage = total_coverage/len(coverage_data)
     else:
-        average_coverage = 0.0
+        average_coverage = 1.0
 
     current_query_id = None
     _hit_list = None
-    identity_cutoff = parser.config.get_identity_cutoff(parser.collection)
     length_cutoff = parser.config.get_length_cutoff(parser.collection)
     biscore_range_cutoff = parser.config.get_biscore_range_cutoff(parser.collection)
-    print('Identity cutoff: ', identity_cutoff, ', Length cutoff: ', length_cutoff)
+    print('Relative bitscore cutoff: ', biscore_range_cutoff, ', Length cutoff: ', length_cutoff)
 
     with open(tsvfile, 'r', newline='') as infile:
         tsvin = csv.reader(infile, delimiter='\t')
@@ -275,44 +310,52 @@ def parse_background_output(parser):
 
             hit = DiamondHit()
             hit.create_hit(row)
-            # filtering by identity and length
-            if hit.identity < identity_cutoff:
-                continue
+            # filtering by length
             if hit.length < length_cutoff:
                 continue
 
             if hit.query_id != current_query_id:
                 _hit_list.annotate_hits(parser.ref_data)
-                # compare list of hits from search in background DB with existing hit
-                # from search in reference DB
+                _hit_list.filter_list_by_identity(parser.ref_data)
+
                 current_query_id_tokens = current_query_id.split('|')
                 protein_id = '|'.join(current_query_id_tokens[:-2])
                 hit_start = int(current_query_id_tokens[-2])
                 hit_end = int(current_query_id_tokens[-1])
-                # print (read_id, hit_start, hit_end, biscore_range_cutoff)
-                if protein_id in parser.reads.keys():
-                    compare_hits_lca(
+                # Coverage data can be used only if protein ID contains contig ID
+                contig_id = '_'.join(protein_id.split(' # ')[0].split('_')[:-1])[1:]
+                coverage = 1.0
+                if coverage_data is not None and contig_id in coverage_data:
+                    coverage = coverage_data[contig_id]
+                try:
+                    compare_protein_hits_lca(
                         parser.reads[protein_id], hit_start, hit_end, _hit_list,
-                        biscore_range_cutoff, average_coverage, parser.taxonomy_data,
-                        parser.ref_data, coverage_data
+                        biscore_range_cutoff, coverage, average_coverage,
+                        parser.taxonomy_data, parser.ref_data
                         )
-                else:
+                except KeyError:
                     print('Protein not found: ', protein_id)
                 current_query_id = hit.query_id
                 _hit_list = DiamondHitList(current_query_id)
             _hit_list.add_hit(hit)
         _hit_list.annotate_hits(parser.ref_data)
+        _hit_list.filter_list_by_identity(parser.ref_data)
         current_query_id_tokens = current_query_id.split('|')
         protein_id = '|'.join(current_query_id_tokens[:-2])
         hit_start = int(current_query_id_tokens[-2])
         hit_end = int(current_query_id_tokens[-1])
-        if protein_id in parser.reads.keys():
-            compare_hits_lca(
+        try:
+            # Coverage data can be used only if protein ID contains contig ID
+            contig_id = '_'.join(protein_id.split(' # ')[0].split('_')[:-1])[1:]
+            coverage = 1.0
+            if coverage_data is not None and contig_id in coverage_data:
+                coverage = coverage_data[contig_id]
+            compare_protein_hits_lca(
                 parser.reads[protein_id], hit_start, hit_end, _hit_list, biscore_range_cutoff,
-                average_coverage, parser.taxonomy_data, parser.ref_data, coverage_data
+                coverage, average_coverage, parser.taxonomy_data, parser.ref_data
                 )
-        else:
-            print('Read not found: ', protein_id)
+        except KeyError:
+            print('Protein not found: ', protein_id)
 
 
 def generate_output(project):

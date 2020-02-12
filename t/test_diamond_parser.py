@@ -1,17 +1,18 @@
 #!/usr/bin/python3
 import os, csv, operator
+import gzip
 import unittest
 import json
-from context import lib
 from collections import Counter
 
+from context import lib
 from lib.utils.const import STATUS_CAND, STATUS_GOOD, STATUS_BAD
 from lib.project.project import Project
 from lib.project.sample import Sample
 from lib.diamond_parser.diamond_hit import DiamondHit
 from lib.diamond_parser.diamond_hit_list import DiamondHitList
 from lib.diamond_parser.diamond_parser import DiamondParser
-from lib.diamond_parser.hit_utils import get_paired_read_id, compare_hits_erpk_lca, parse_fastq_seqid
+from lib.diamond_parser.hit_utils import get_paired_read_id, compare_hits_erpk_lca, parse_fastq_seqid, get_erpk_score
 from lib.sequences.annotated_read import AnnotatedRead
 from lib.output.json_util import import_annotated_reads, export_annotated_reads
 
@@ -19,6 +20,7 @@ from lib.output.json_util import import_annotated_reads, export_annotated_reads
 data_dir = 'data'
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
 #config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config_rpL6_singleDB.ini')
+config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config_test.ini')
 project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_rpl6_testdb.ini')
@@ -65,7 +67,7 @@ class DiamondParserTest(unittest.TestCase):
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1')
         old_hit_list.add_hit(hit)
         read.hit_list = old_hit_list
-        #print ('* test 3 hits with 1 function, case 1.1 *')
+        print ('*test_2_compare_hits_1: test 3 hits with 1 function, case 1.1 *')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	fig|485913.3.peg.8591	87.9	33	4	101	99	1	1	33	2.1e-07	58.9',
                     'NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	kegg|cap:CLDAP_03170	81.8	33	6	100	99	1	1	33	1.4e-06	56.2',
                     'NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	fig|316274.7.peg.2519	78.8	33	7	100	99	1	1	33	6.8e-06	53.9'
@@ -76,13 +78,16 @@ class DiamondParserTest(unittest.TestCase):
             hit.create_hit(new_hit.split('\t'))
             hit.annotate_hit(self.parser.ref_data)
             hit_list.add_hit(hit)
-        compare_hits_erpk_lca(read, 100, 2, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
-        #print('Read status:', read.get_status())
-        #print('Read function:', read.get_functions())
+        self.assertEqual(read.functions['UreA'], 0.0)
+
+        compare_hits_erpk_lca(read, 100, 2, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
+        # print('Read status:', read.status)
+        # print('Read function:', read.functions)
         self.assertEqual(read.status, STATUS_GOOD)
         self.assertEqual(len(read.functions), 1)
-        self.assertEqual(read.functions['UreA'], 193798.4496124031)
-        self.assertEqual(read.taxonomy, '485913')
+        
+        self.assertEqual(read.functions['UreA'], get_erpk_score(101, 150, 15))
+        self.assertEqual(read.taxonomy, '363277')
 
     def test_2_compare_hits_2(self):
         # test 2 hits with 1 function, case 1.2
@@ -92,7 +97,7 @@ class DiamondParserTest(unittest.TestCase):
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1')
         old_hit_list.add_hit(hit)
         read.hit_list = old_hit_list
-#        print ('* test 2 hits with 1 function, case 1.2 *')
+        print ('*test_2_compare_hits_2: test 2 hits with 1 function, case 1.2 *')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	fig|316274.7.peg.2519	87.9	33	4	101	99	1	1	33	2.1e-07	58.9'
                     ]
         hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2')
@@ -101,13 +106,14 @@ class DiamondParserTest(unittest.TestCase):
             hit.create_hit(new_hit.split('\t'))
             hit.annotate_hit(self.parser.ref_data)
             hit_list.add_hit(hit)
-        compare_hits_erpk_lca(read, 100, 2, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
-#        print('Read status:', read.get_status())
-#        print('Read function:', read.get_functions())
+        self.assertEqual(read.functions['UreA'], 0.0)
+        compare_hits_erpk_lca(read, 100, 2, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
+        # print('Read status:', read.status)
+        # print('Read function:', read.functions)
         self.assertEqual(read.status, STATUS_GOOD)
         self.assertEqual(len(read.functions), 1)
-        self.assertEqual(read.functions['UreA'], 193798.4496124031)
-        self.assertEqual(read.taxonomy, '316274')
+        self.assertEqual(read.functions['UreA'], get_erpk_score(101, 150, 15))
+        self.assertEqual(read.taxonomy, '65')
 
     def test_2_compare_hits_3(self):
         # test 3 hits with 1 function, case 1.3
@@ -117,7 +123,7 @@ class DiamondParserTest(unittest.TestCase):
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1')
         old_hit_list.add_hit(hit)
         read.hit_list = old_hit_list
-#        print ('* test 1 hit with 1 function, case 1.3  *')
+        print ('* test 1 hit with 1 function, case 1.3  *')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2	fake_id	87.9	33	4	101	99	1	1	33	2.1e-07	58.9'
                     ]
         hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:10772:2071#CTCTCT/1|100|2')
@@ -126,7 +132,7 @@ class DiamondParserTest(unittest.TestCase):
             hit.create_hit(new_hit.split('\t'))
             hit.annotate_hit(self.parser.ref_data)
             hit_list.add_hit(hit)
-        compare_hits_erpk_lca(read, 100, 2, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
+        compare_hits_erpk_lca(read, 100, 2, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
 #        print('Read status:', read.get_status())
 #        print('Read function:', read.get_functions())
         self.assertEqual(read.status, STATUS_BAD)
@@ -143,7 +149,7 @@ class DiamondParserTest(unittest.TestCase):
         old_hit_list.add_hit(hit)
         read.hit_list = old_hit_list
         # test 20 hits, one function
-#        print ('*test 20 hits with 2 functions, case 2.1*')
+        print ('*test_2_compare_hits_4: test 20 hits with 2 functions, case 2.1*')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1121378.3.peg.2960	76.0	50	12	231	150	1	23	72	3.3e-12	75.5',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	kegg|hco:LOKO_03690	72.0	50	14	100	150	1	23	72	4.3e-12	75.1',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1160705.3.peg.7402	72.0	50	14	236	150	1	159	208	4.3e-12	75.1',
@@ -170,14 +176,12 @@ class DiamondParserTest(unittest.TestCase):
             hit.create_hit(new_hit.split('\t'))
             hit.annotate_hit(self.parser.ref_data)
             hit_list.add_hit(hit)
-        compare_hits_erpk_lca(read, 150, 1, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
+        compare_hits_erpk_lca(read, 150, 1, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
 #        print('268 Read status:', read.get_status())
 #        print('269 Read function:', read.get_functions())
         self.assertEqual(read.status, STATUS_GOOD)
-        self.assertEqual(len(read.functions), 2)
-        self.assertEqual(read.functions['UreA'], 77160.49382716049)
-        self.assertEqual(read.functions['UreB'], 77160.49382716049)
-#        self.assertEqual(read.get_functions()['UreA'], 70145.9034792368)
+        self.assertEqual(len(read.functions), 1)
+        self.assertEqual(read.functions['UreA'], get_erpk_score(231, 150, 15))
         self.assertEqual(read.taxonomy, '2')
 
     def test_2_compare_hits_5(self):
@@ -188,7 +192,7 @@ class DiamondParserTest(unittest.TestCase):
         old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1')
         old_hit_list.add_hit(hit)
         read.hit_list = old_hit_list
-#        print ('* test 7 hits with 2 functions, case 2.1*')
+        print ('* test_2_compare_hits_5: test 7 hits with 2 functions, case 2.1*')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1121378.3.peg.2960	76.0	50	12	231	150	1	23	72	3.3e-12	75.5',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	kegg|hco:LOKO_03690	72.0	50	14	100	150	1	23	72	4.3e-12	75.1',
                     'NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1|150|1	fig|1160705.3.peg.7402	72.0	50	14	236	150	1	159	208	4.3e-12	75.1',
@@ -203,13 +207,12 @@ class DiamondParserTest(unittest.TestCase):
             hit.create_hit(new_hit.split('\t'))
             hit.annotate_hit(self.parser.ref_data)
             hit_list.add_hit(hit)
-        compare_hits_erpk_lca(read, 150, 1, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
+        compare_hits_erpk_lca(read, 150, 1, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
 #        print('Read status:', read.get_status())
 #        print('Read function:', read.get_functions())
         self.assertEqual(read.status, STATUS_GOOD)
-        self.assertEqual(len(read.functions), 2)
-        self.assertEqual(read.functions['UreA'], 77160.49382716049)
-        self.assertEqual(read.functions['UreB'], 77160.49382716049)
+        self.assertEqual(len(read.functions), 1)
+        self.assertEqual(read.functions['UreA'], get_erpk_score(231, 150, 15))
         self.assertEqual(read.taxonomy, '2')
 
     def test_2_compare_hits_6(self):
@@ -222,7 +225,7 @@ class DiamondParserTest(unittest.TestCase):
         read.hit_list = old_hit_list
         # test 20 hits, one function
 
-#        print ('* test 40 hits with 1 function, case 2.1*')
+        print ('* test_2_compare_hits_6: test 40 hits with 1 function, case 2.1*')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	2.8e-19	99.0',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266835.9.peg.3902	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|411684.3.peg.2730	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
@@ -270,12 +273,12 @@ class DiamondParserTest(unittest.TestCase):
             hit.create_hit(new_hit.split('\t'))
             hit.annotate_hit(self.parser.ref_data)
             hit_list.add_hit(hit)
-        compare_hits_erpk_lca(read, 1, 150, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
+        compare_hits_erpk_lca(read, 1, 150, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
 #        print('Read status:', read.get_status())
 #        print('Read function:', read.get_functions())
         self.assertEqual(read.status, STATUS_GOOD)
         self.assertEqual(len(read.functions), 1)
-        self.assertEqual(read.functions['UreC'], 30030.03003003003)
+        self.assertEqual(read.functions['UreC'], get_erpk_score(570, 150, 15))
         self.assertEqual(read.taxonomy, '2')
 
     def test_2_compare_hits_7(self):
@@ -288,188 +291,7 @@ class DiamondParserTest(unittest.TestCase):
         read.hit_list = old_hit_list
         # test 20 hits, one function
 
-#        print ('* test 17 hits with 1 function, case 2.2*')
-        new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266835.9.peg.3902	88.0	50	6	570	1	150	270	319	2.8e-19	99.0',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|363754.4.peg.84	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|411684.3.peg.2730	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|176299.10.peg.2410	90.0	50	5	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|maad:AZF01_14085	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266834.11.peg.3959	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|six:BSY16_122	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1144306.3.peg.717	86.0	50	7	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|meso:BSQ44_05880	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|118163.3.peg.2804	90.0	50	5	565	1	150	266	315	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|244592.3.peg.2201	90.0	50	5	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1150469.3.peg.1765	90.0	50	5	583	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|don:BSK21_03675	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1048680.4.peg.3848	86.0	50	7	569	1	150	269	318	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|311402.9.peg.5014	86.0	50	7	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|hoe:IMCC20628_02897	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|744979.4.peg.2070	88.0	50	6	570	1	150	270	319	8.1e-19	97.4'
-                     ]
-        hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150')
-        for new_hit in new_hits:
-            hit = DiamondHit()
-            hit.create_hit(new_hit.split('\t'))
-            hit.annotate_hit(self.parser.ref_data)
-            hit_list.add_hit(hit)
-        compare_hits_erpk_lca(read, 1, 150, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
-#        print('Read status:', read.get_status())
-#        print('Read function:', read.get_functions())
-        self.assertEqual(read.status, STATUS_GOOD)
-        self.assertEqual(len(read.functions), 1)
-        self.assertEqual(read.functions['UreC'], 30030.03003003003)
-        self.assertEqual(read.taxonomy, '28211')
-
-    def test_2_compare_hits_8(self):
-        # test hit with one function and many close homologs, case 2.4
-        hit = DiamondHit()
-        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	99.0	UreC'.split('\t'))
-        read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
-        old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
-        old_hit_list.add_hit(hit)
-        read.hit_list = old_hit_list
-
-        # test 20 hits, one function, case 2.4
-#        print ('* test2_8: 17 hits with 1 function, case 2.4*')
-        new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id1	88.0	50	6	570	1	150	270	319	2.8e-19	99.0',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id2	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id3	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id4	90.0	50	5	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id5	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id6	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id7	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id8	86.0	50	7	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id9	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id10	90.0	50	5	565	1	150	266	315	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id11	90.0	50	5	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id12	90.0	50	5	583	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id13	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id14	86.0	50	7	569	1	150	269	318	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id15	86.0	50	7	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id16	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id17	88.0	50	6	570	1	150	270	319	8.1e-19	97.4'
-                     ]
-        hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150')
-        for new_hit in new_hits:
-            hit = DiamondHit()
-            hit.create_hit(new_hit.split('\t'))
-            hit.annotate_hit(self.parser.ref_data)
-            hit_list.add_hit(hit)
-        compare_hits_erpk_lca(read, 1, 150, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
-#        print('Read status:', read.get_status())
-#        print('Read function:', read.get_functions())
-        self.assertEqual(read.status, STATUS_BAD)
-        self.assertEqual(len(read.functions), 0)
-        self.assertEqual(read.taxonomy, None)
-
-    def test_2_compare_hits_9(self):
-        # test hit with one function and many close homologs, case 2.3 and 2.5
-        hit = DiamondHit()
-        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	79.0	UreC'.split('\t'))
-        read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
-        old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
-        old_hit_list.add_hit(hit)
-        read.hit_list = old_hit_list
-
-        # test 17 hits, one function, case 2.3
-#        print ('* test 17 hits with 1 function, case 2.3*')
-        new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266835.9.peg.3902	88.0	50	6	570	1	150	270	319	2.8e-19	99.0',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|363754.4.peg.84	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|411684.3.peg.2730	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|176299.10.peg.2410	90.0	50	5	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|maad:AZF01_14085	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266834.11.peg.3959	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|six:BSY16_122	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1144306.3.peg.717	86.0	50	7	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|meso:BSQ44_05880	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|244592.3.peg.2201	90.0	50	5	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1150469.3.peg.1765	90.0	50	5	583	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|don:BSK21_03675	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1048680.4.peg.3848	86.0	50	7	569	1	150	269	318	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|311402.9.peg.5014	86.0	50	7	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|hoe:IMCC20628_02897	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|744979.4.peg.2070	88.0	50	6	570	1	150	270	319	8.1e-19	97.4'
-                     ]
-        hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150')
-        for new_hit in new_hits:
-            hit = DiamondHit()
-            hit.create_hit(new_hit.split('\t'))
-            hit.annotate_hit(self.parser.ref_data)
-            hit_list.add_hit(hit)
-        compare_hits_erpk_lca(read, 1, 150, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
-#        print('Read status:', read.get_status())
-#        print('Read function:', read.get_functions())
-        self.assertEqual(read.status, STATUS_GOOD)
-        self.assertEqual(len(read.functions), 1)
-        self.assertEqual(read.functions['UreC'], 30030.03003003003)
-        self.assertEqual(read.taxonomy, '28211')
-
-    def test_2_compare_hits_10(self):
-        # test 20 hits, one function, case 2.5
-        hit = DiamondHit()
-        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	79.0	UreC'.split('\t'))
-        read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
-        old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
-        old_hit_list.add_hit(hit)
-        read.hit_list = old_hit_list
-#        print ('* test2_10: 17 hits with 1 function, case 2.5*')
-        new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id1	88.0	50	6	570	1	150	270	319	2.8e-19	99.0',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id2	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id3	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id4	90.0	50	5	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id5	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id6	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id7	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id8	86.0	50	7	569	1	150	269	318	6.2e-19	97.8',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id9	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id10	90.0	50	5	565	1	150	266	315	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id11	90.0	50	5	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id12	90.0	50	5	583	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id13	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id14	86.0	50	7	569	1	150	269	318	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id15	86.0	50	7	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id16	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id17	88.0	50	6	570	1	150	270	319	8.1e-19	97.4'
-                     ]
-        hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150')
-        for new_hit in new_hits:
-            hit = DiamondHit()
-            hit.create_hit(new_hit.split('\t'))
-            hit.annotate_hit(self.parser.ref_data)
-            hit_list.add_hit(hit)
-        compare_hits_erpk_lca(read, 1, 150, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
-#        print('Read status:', read.get_status())
-#        print('Read function:', read.get_functions())
-        self.assertEqual(read.status, STATUS_BAD)
-        self.assertEqual(len(read.functions), 0)
-        self.assertEqual(read.taxonomy, None)
-
-    def test_2_compare_hits_11(self):
-        # read with two hits
-        hit1 = DiamondHit()
-        hit1.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	99.0	UreC'.split('\t'))
-        hit2 = DiamondHit()
-        hit2.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	UreA'.split('\t'))
-        read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
-        old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
-        old_hit_list.add_hit(hit1)
-        old_hit_list.add_hit(hit2)
-        read.hit_list = old_hit_list
-
-#        print ('* test read with 2 hits                 *')
-        new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|100|2	fig|485913.3.peg.8591	87.9	33	4	101	99	1	1	33	2.1e-07	58.9',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|100|2	kegg|cap:CLDAP_03170	81.8	33	6	100	99	1	1	33	1.4e-06	56.2',
-                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|100|2	fig|316274.7.peg.2519	78.8	33	7	100	99	1	1	33	6.8e-06	53.9'
-                    ]
-        hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|100|2')
-        for new_hit in new_hits:
-            hit = DiamondHit()
-            hit.create_hit(new_hit.split('\t'))
-            hit.annotate_hit(self.parser.ref_data)
-            hit_list.add_hit(hit)
-        compare_hits_erpk_lca(read, 100, 2, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
-        
+        print ('* test 17 hits with 1 function, case 2.2*')
         new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266835.9.peg.3902	88.0	50	6	570	1	150	270	319	2.8e-19	99.0',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|363754.4.peg.84	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
                     'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|411684.3.peg.2730	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
@@ -495,13 +317,193 @@ class DiamondParserTest(unittest.TestCase):
             hit.annotate_hit(self.parser.ref_data)
             hit_list.add_hit(hit)
         compare_hits_erpk_lca(read, 1, 150, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
+#        print('Read status:', read.get_status())
+#        print('Read function:', read.get_functions())
+        self.assertEqual(read.status, STATUS_GOOD)
+        self.assertEqual(len(read.functions), 1)
+        self.assertEqual(read.functions['UreC'], get_erpk_score(570, 150, 15))
+        self.assertEqual(read.taxonomy, '28211')
 
-        print('Read status:', read.status)
-        print('Read function:', read.functions)
-        print('Read hits:', read.show_hits())
+    def test_2_compare_hits_8(self):
+        # test hit with one function and many close homologs, case 2.4
+        hit = DiamondHit()
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	99.0	UreC'.split('\t'))
+        read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
+        old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
+        old_hit_list.add_hit(hit)
+        read.hit_list = old_hit_list
+
+        # test 20 hits, one function, case 2.4
+        print ('* test2_8: 17 hits with 1 function, case 2.4*')
+        new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id1	88.0	50	6	570	1	150	270	319	2.8e-19	99.0',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id2	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id3	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id4	90.0	50	5	569	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id5	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id6	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id7	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id8	86.0	50	7	569	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id9	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id10	90.0	50	5	565	1	150	266	315	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id11	90.0	50	5	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id12	90.0	50	5	583	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id13	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id14	86.0	50	7	569	1	150	269	318	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id15	86.0	50	7	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id16	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id17	88.0	50	6	570	1	150	270	319	8.1e-19	97.4'
+                     ]
+        hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150')
+        for new_hit in new_hits:
+            hit = DiamondHit()
+            hit.create_hit(new_hit.split('\t'))
+            hit.annotate_hit(self.parser.ref_data)
+            hit_list.add_hit(hit)
+        compare_hits_erpk_lca(read, 1, 150, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
+#        print('Read status:', read.get_status())
+#        print('Read function:', read.get_functions())
+        self.assertEqual(read.status, STATUS_BAD)
+        self.assertEqual(len(read.functions), 0)
+        self.assertEqual(read.taxonomy, None)
+
+    def test_2_compare_hits_9(self):
+        # test hit with one function and many close homologs, case 2.3 and 2.5
+        hit = DiamondHit()
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	79.0	UreC'.split('\t'))
+        read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
+        old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
+        old_hit_list.add_hit(hit)
+        read.hit_list = old_hit_list
+
+        # test 17 hits, one function, case 2.3
+        print ('* test 17 hits with 1 function, case 2.3*')
+        new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266835.9.peg.3902	88.0	50	6	570	1	150	270	319	2.8e-19	99.0',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|363754.4.peg.84	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|411684.3.peg.2730	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|176299.10.peg.2410	90.0	50	5	569	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|maad:AZF01_14085	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266834.11.peg.3959	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|six:BSY16_122	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1144306.3.peg.717	86.0	50	7	569	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|meso:BSQ44_05880	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|244592.3.peg.2201	90.0	50	5	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1150469.3.peg.1765	90.0	50	5	583	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|don:BSK21_03675	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1048680.4.peg.3848	86.0	50	7	569	1	150	269	318	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|311402.9.peg.5014	86.0	50	7	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|hoe:IMCC20628_02897	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|744979.4.peg.2070	88.0	50	6	570	1	150	270	319	8.1e-19	97.4'
+                     ]
+        hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150')
+        for new_hit in new_hits:
+            hit = DiamondHit()
+            hit.create_hit(new_hit.split('\t'))
+            hit.annotate_hit(self.parser.ref_data)
+            hit_list.add_hit(hit)
+        compare_hits_erpk_lca(read, 1, 150, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
+#        print('Read status:', read.get_status())
+#        print('Read function:', read.get_functions())
+        self.assertEqual(read.status, STATUS_GOOD)
+        self.assertEqual(len(read.functions), 1)
+        self.assertEqual(read.functions['UreC'], get_erpk_score(570, 150, 15))
+        self.assertEqual(read.taxonomy, '28211')
+
+    def test_2_compare_hits_10(self):
+        # test 20 hits, one function, case 2.5
+        hit = DiamondHit()
+        hit.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	79.0	UreC'.split('\t'))
+        read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
+        old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
+        old_hit_list.add_hit(hit)
+        read.hit_list = old_hit_list
+        print ('* test2_10: 17 hits with 1 function, case 2.5*')
+        new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id1	88.0	50	6	570	1	150	270	319	2.8e-19	99.0',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id2	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id3	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id4	90.0	50	5	569	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id5	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id6	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id7	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id8	86.0	50	7	569	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id9	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id10	90.0	50	5	565	1	150	266	315	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id11	90.0	50	5	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id12	90.0	50	5	583	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id13	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id14	86.0	50	7	569	1	150	269	318	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id15	86.0	50	7	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id16	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fake_id17	88.0	50	6	570	1	150	270	319	8.1e-19	97.4'
+                     ]
+        hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150')
+        for new_hit in new_hits:
+            hit = DiamondHit()
+            hit.create_hit(new_hit.split('\t'))
+            hit.annotate_hit(self.parser.ref_data)
+            hit_list.add_hit(hit)
+        compare_hits_erpk_lca(read, 1, 150, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
+#        print('Read status:', read.get_status())
+#        print('Read function:', read.get_functions())
+        self.assertEqual(read.status, STATUS_BAD)
+        self.assertEqual(len(read.functions), 0)
+        self.assertEqual(read.taxonomy, None)
+
+    def test_2_compare_hits_11(self):
+        # read with two hits
+        hit1 = DiamondHit()
+        hit1.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|363754.4.peg.84	88.0	50	6	570	1	150	270	319	7.6e-22	99.0	UreC'.split('\t'))
+        hit2 = DiamondHit()
+        hit2.import_hit('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1	fig|485913.3.peg.8591	87.9	33	4	101	100	2	1	33	1.1e-09	58.5	UreA'.split('\t'))
+        read = AnnotatedRead('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
+        old_hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1')
+        old_hit_list.add_hit(hit1)
+        old_hit_list.add_hit(hit2)
+        read.hit_list = old_hit_list
+
+        print ('* test read with 2 hits                 *')
+        new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|100|2	fig|485913.3.peg.8591	87.9	33	4	101	99	1	1	33	2.1e-07	58.9',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|100|2	kegg|cap:CLDAP_03170	81.8	33	6	100	99	1	1	33	1.4e-06	56.2',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|100|2	fig|316274.7.peg.2519	78.8	33	7	100	99	1	1	33	6.8e-06	53.9'
+                    ]
+        hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|100|2')
+        for new_hit in new_hits:
+            hit = DiamondHit()
+            hit.create_hit(new_hit.split('\t'))
+            hit.annotate_hit(self.parser.ref_data)
+            hit_list.add_hit(hit)
+        compare_hits_erpk_lca(read, 100, 2, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
+        
+        new_hits = ['NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266835.9.peg.3902	88.0	50	6	570	1	150	270	319	2.8e-19	99.0',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|363754.4.peg.84	90.0	50	5	590	1	150	290	339	4.7e-19	98.2',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|411684.3.peg.2730	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|176299.10.peg.2410	90.0	50	5	569	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|maad:AZF01_14085	86.0	50	7	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|266834.11.peg.3959	88.0	50	6	570	1	150	270	319	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|six:BSY16_122	88.0	50	6	568	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1144306.3.peg.717	86.0	50	7	569	1	150	269	318	6.2e-19	97.8',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|meso:BSQ44_05880	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|244592.3.peg.2201	90.0	50	5	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1150469.3.peg.1765	90.0	50	5	583	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|don:BSK21_03675	90.0	50	5	566	1	150	269	318	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|1048680.4.peg.3848	86.0	50	7	569	1	150	269	318	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|311402.9.peg.5014	86.0	50	7	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	kegg|hoe:IMCC20628_02897	88.0	50	6	570	1	150	270	319	8.1e-19	97.4',
+                    'NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150	fig|744979.4.peg.2070	88.0	50	6	570	1	150	270	319	8.1e-19	97.4'
+                     ]
+        hit_list = DiamondHitList('NS500496_240_HYN75BGXX:1:11101:9460:3085#CTCTCT/1|1|150')
+        for new_hit in new_hits:
+            hit = DiamondHit()
+            hit.create_hit(new_hit.split('\t'))
+            hit.annotate_hit(self.parser.ref_data)
+            hit_list.add_hit(hit)
+        compare_hits_erpk_lca(read, 1, 150, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
+
+        # print('Read status:', read.status)
+        # print('Read function:', read.functions)
+        # print('Read hits:', read.show_hits())
         self.assertEqual(read.status, STATUS_GOOD)
         self.assertEqual(len(read.functions), 2)
-        self.assertEqual(read.functions['UreA'], 193798.4496124031)
+        self.assertEqual(read.functions['UreA'], get_erpk_score(101, 150, 15))
         self.assertEqual(read.taxonomy, '28211')
 
     def test_2_compare_hits_12(self):
@@ -526,9 +528,9 @@ class DiamondParserTest(unittest.TestCase):
             hit.create_hit(new_hit.split('\t'))
             hit.annotate_hit(self.parser.ref_data)
             hit_list.add_hit(hit)
-        compare_hits_erpk_lca(read, 3, 125, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 20, self.parser.taxonomy_data, self.parser.ref_data)
-        print('Read status:', read.status)
-        print('Read function:', read.functions)
+        compare_hits_erpk_lca(read, 3, 125, hit_list, self.parser.config.get_biscore_range_cutoff(self.parser.collection), 15, 150, self.parser.taxonomy_data, self.parser.ref_data)
+        # print('Read status:', read.status)
+        # print('Read function:', read.functions)
         self.assertEqual(read.status, STATUS_BAD)
         self.assertEqual(len(read.functions), 0)
         self.assertEqual(read.taxonomy, None)
@@ -544,14 +546,14 @@ class DiamondParserTest(unittest.TestCase):
 #            print('Functions:',self.parser.reads[read].get_functions())
 #            for hit in self.parser.reads[read].get_hit_list().get_hits():
 #                print('\t',hit)
-        self.assertEqual(len(self.parser.reads), 10)
+        self.assertEqual(len(self.parser.reads), 9)
 
     def test_4_export_paired_end_reads_fastq(self):
         # load data first
         self.parser.parse_background_output()
-#        print('\n'.join(sorted(self.parser.reads.keys())))
-        for read in sorted(self.parser.reads.keys()):
-            print(read, self.parser.reads[read].status)
+        # print('\n'.join(sorted(self.parser.reads.keys())))
+        #~ for read in sorted(self.parser.reads.keys()):
+            #~ print(read, self.parser.reads[read].status)
         # export reads
         self.parser.export_paired_end_reads_fastq()
         
@@ -559,8 +561,8 @@ class DiamondParserTest(unittest.TestCase):
         # read outfile:
         
         lines = []
-        outfile = os.path.join(self.parser.options.get_project_dir(sample_id), sample_id + '_' + end + '_' + self.parser.options.pe_reads_fastq_name)
-        with open (outfile, 'r') as f:
+        outfile = os.path.join(self.parser.options.get_project_dir(sample_id), sample_id + '_' + end + '_' + self.parser.options.pe_reads_fastq_name + '.gz')
+        with gzip.open (outfile, 'rt') as f:
             for line in f:
                 lines.append(line)
         self.assertEqual(len(lines), 32)
@@ -582,17 +584,17 @@ class DiamondParserTest(unittest.TestCase):
         hits = ','.join([str(hit) for read in sorted(self.parser.reads.keys()) for hit in self.parser.reads[read].hit_list.hits])
         infile = os.path.join(self.parser.options.get_project_dir(sample_id), sample_id + '_' + end + '_' + self.parser.options.reads_json_name)
         self.parser.reads = import_annotated_reads(infile)
-        for read in self.parser.reads:
-            for hit in self.parser.reads[read].hit_list.hits:
-                print(hit)
-        self.assertEqual(len(self.parser.reads),10)
+        #~ for read in self.parser.reads:
+            #~ for hit in self.parser.reads[read].hit_list.hits:
+                #~ print(hit)
+        self.assertEqual(len(self.parser.reads), 9)
         self.assertEqual(','.join([str(hit) for read in sorted(self.parser.reads.keys()) for hit in self.parser.reads[read].hit_list.hits]),hits)
 
     def test_9_import_fastq(self):
         self.parser.parse_reference_output()
         self.parser.import_fastq()
-        #print(self.parser.reads.keys())
-        self.assertEqual(len(self.parser.reads),10)
+        # print(self.parser.reads.keys())
+        self.assertEqual(len(self.parser.reads), 9)
         self.assertEqual(self.parser.reads['NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT'].read_id_line,'@NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT/1')
         self.assertEqual(self.parser.reads['NS500496_240_HYN75BGXX:1:11101:9189:2106#CTCTCT'].sequence,'CCCTTCCATCACTTCGTCCCGGCTCAGAATTTTTATCCCTGACTCCATCAGCTCGGAGACAGATCTTCCGTCCCTTATCCCTTCGAGCACTTCGGCAGTGATTAGGGCCAGCGCCTCTGGGTAGTTGAGTTTAAGACAACGAGCACGCCT')
 
@@ -600,7 +602,7 @@ class DiamondParserTest(unittest.TestCase):
         self.parser.parse_reference_output()
         self.parser.import_fastq()
         self.parser.export_hit_fastq()
-        self.assertEqual(len(self.parser.reads),10)
+        self.assertEqual(len(self.parser.reads), 9)
 
     def test_11_parse_fastq_seqid(self):
         self.assertEqual(parse_fastq_seqid('@NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT/1'),('NS500496_240_HYN75BGXX:1:11101:25877:1078#CTCTCT', '1'))

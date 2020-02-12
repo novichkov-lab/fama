@@ -1,7 +1,7 @@
 """Describes ReferenceData class"""
 from collections import defaultdict
 from lib.utils.utils import singleton
-
+from lib.utils.const import RANKS
 
 @singleton
 class ReferenceData(object):
@@ -22,6 +22,8 @@ class ReferenceData(object):
            config (:obj:'ProgramConfig'): Fama configuration parameters
            collection (str): collection identifier
         """
+        self.default_identity_threshold = config.get_identity_cutoff(collection)
+        self.default_ranks_thresholds = config.get_ranks_cutoffs(collection)
         self.functions_dict = defaultdict(dict)
         self.proteins_dict = defaultdict(dict)
         self.load_reference_data(config, collection)
@@ -44,10 +46,17 @@ class ReferenceData(object):
                     continue  # skip header and comments
                 else:
                     line = line.rstrip('\n\r')
-                    line_tokens = line.split('\t')
-                    if len(line_tokens) > 2:
-                        self.functions_dict[line_tokens[0]]['name'] = line_tokens[1]
-                        self.functions_dict[line_tokens[0]]['group'] = line_tokens[2]
+                    row = line.split('\t')
+                    function = row[0]
+                    if len(row) > 2:
+                        self.functions_dict[function]['name'] = row[1]
+                        self.functions_dict[function]['group'] = row[2]
+                    if len(row) > 3:
+                        self.functions_dict[function]['function_cutoff'] = float(row[3])
+                        n = 3
+                        for rank in RANKS:  # threshold for the rank 'norank' is the same as for function assignment
+                            self.functions_dict[function][rank] = float(row[n])
+                            n += 1
         print(len(self.functions_dict), ' functions found')
 
     def initialize_proteins_dict(self, infile):
@@ -69,19 +78,22 @@ class ReferenceData(object):
     def lookup_protein_function(self, protein):
         """Returns list of function identifiers assigned to a reference protein"""
         ret_val = []
-        if protein in self.proteins_dict:
+        try:
             ret_val = self.proteins_dict[protein]['function'].split('|')
-            return ret_val
-        ret_val.append('')
+        except KeyError:
+            print('Protein', protein, 'not found in reference database. Unknown function reported')
+            ret_val.append('')
         return ret_val
 
     def lookup_protein_tax(self, protein):
         """Returns taxonomy identifier assigned to a reference protein"""
         ret_val = ''
 #        print('Lookup tax for ', protein)
-        if protein in self.proteins_dict:
-            # print('found ', self.proteins_dict[protein]['taxid'])
+        try:
             ret_val = self.proteins_dict[protein]['taxid']
+        except KeyError:
+            print('Protein not found in reference database', protein, 'Taxonomy ID set to zero')
+            ret_val = '0'
         return ret_val
 
     def lookup_function_name(self, func_id):
@@ -99,10 +111,46 @@ class ReferenceData(object):
         return ret_val
 
     def get_functions_in_group(self, group):
-        """Returns list of function identifiers haveing the same function group name"""
-        return [function for function in self.functions_dict if
-                self.functions_dict[function]['group'] == group]
+        """Returns list of function identifiers having the same function group name"""
+        ret_val = []
+        try:
+            ret_val =  [function for function in self.functions_dict if
+                       self.functions_dict[function]['group'] == group]
+        except KeyError:
+            print('Group not found:', group)
+            raise
+        return ret_val
 
     def list_functions(self):
         """Returns list of all available functions"""
         return sorted(self.functions_dict.keys())
+
+    def lookup_identity_threshold(self, function=None, rank=None):
+        """Returns amino acid identity threshold for a given function and taxonomy rank.
+        If taxonomy rank is None, returns amino acid identity threshold for function prediction.
+        If function is None and rank is not None, returns amino acid identity threshold 
+        for the taxonomy rank defined in config.ini.
+
+        If both function and taxonomy rank are None, returns default threshold defined in config.ini
+        
+        Args:
+            function (str): function identifier
+            rank (str): taxonomy rank defined in lib.utils.const.RANKS
+
+        Returns:
+            result (float): amino acid identity cutoff
+
+        """
+        result = self.default_identity_threshold
+        if function == '':
+            return result
+        try:
+            if function is not None and rank is not None:
+                result = self.functions_dict[function][rank]
+            elif function is not None:
+                result = self.functions_dict[function]['function_cutoff']
+            elif rank is not None:
+                result = self.default_ranks_thresholds[rank]
+        except KeyError:
+            pass
+        return result

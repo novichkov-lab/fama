@@ -40,7 +40,7 @@ class Gene:
         self.status = STATUS_CAND
         self.taxonomy = None
 
-    def set_functions(self, functions):
+    def append_functions(self, functions):
         """Appends scores from functions argument to scores in self.functions
         attribute
 
