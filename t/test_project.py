@@ -5,9 +5,9 @@ import json
 from collections import Counter,defaultdict
 
 from context import Fama
-from Fama.Project import Project
-from Fama.Sample import Sample
-from Fama.ProjectUtil.ProjectOptions import ProjectOptions
+from lib.project.project import Project
+from lib.project.sample import Sample
+from lib.project.project_options import ProjectOptions
 
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
 #config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config_rpL6_singleDB.ini')

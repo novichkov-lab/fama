@@ -4,28 +4,29 @@ import unittest
 from collections import Counter,defaultdict
 from fpdf import FPDF
 
-from context import Fama
-from Fama.utils import autovivify,cleanup_protein_id,sanitize_file_name
-from Fama.DiamondParser.DiamondParser import DiamondParser
-from Fama.Project import Project
-from Fama.OutputUtil.PdfReport import generate_pdf_report
-from Fama.OutputUtil.KronaXMLWriter import generate_functions_chart
-from Fama.OutputUtil.PdfReport import generate_pdf_report
-from Fama.OutputUtil.XlsxUtil import generate_function_sample_xlsx,generate_sample_taxonomy_function_xlsx
-from Fama.OutputUtil.Report import generate_project_markdown_document,get_function_scores,get_function_taxonomy_scores,generate_functions_stamp_input,generate_functions_taxonomy_stamp_input
-from Fama.lib_est import get_lib_est
+from context import lib
+
+from lib.utils.const import ENDS
+from lib.utils.utils import autovivify,cleanup_protein_id,sanitize_file_name
+from lib.diamond_parser.diamond_parser import DiamondParser
+from lib.project.project import Project
+from lib.output.krona_xml_writer import generate_functions_chart
+from lib.output.pdf_report import generate_pdf_report
+from lib.output.xlsx_util import generate_function_sample_xlsx,generate_sample_taxonomy_function_xlsx
+from lib.output.report import generate_project_markdown_document,get_function_scores,get_function_taxonomy_scores,generate_functions_stamp_input,generate_functions_taxonomy_stamp_input
+from lib.third_party.lib_est import get_lib_est
 
 data_dir = 'data'
 config_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'config.ini')
-#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
-project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen9.ini')
+project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project.ini')
+#project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_nitrogen9.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW306_universal1_lca_test.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_FW3062M_universal1.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_EB271-ZV-D103_nitrogen9.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_EB271_nitrogen9.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_freshwater_isolates_universal1.ini')
 #project_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), 'py', 'project_benchmark_universal1.ini')
-#sample_id = 'test_sample'
+sample_id = 'test_sample'
 #sample_id = 'sample1'
 #sample_id = 'FW306-4701'
 #sample_id = 'HL1G'
@@ -37,12 +38,12 @@ class FamaReportTest(unittest.TestCase):
     def setUp(self):
         self.project = Project(config_file=config_path, project_file=project_path)
         self.project.load_project()
-        #~ self.parser = DiamondParser(config = self.project.config, 
-                            #~ options=self.project.options, 
-                            #~ taxonomy_data=self.project.taxonomy_data,
-                            #~ ref_data=self.project.ref_data,
-                            #~ sample=self.project.samples[sample_id], 
-                            #~ end=end)
+        self.parser = DiamondParser(config = self.project.config, 
+                            options=self.project.options, 
+                            taxonomy_data=self.project.taxonomy_data,
+                            ref_data=self.project.ref_data,
+                            sample=self.project.samples[sample_id], 
+                            end=end)
 
 
     @unittest.skip("for faster testing")
@@ -69,7 +70,7 @@ class FamaReportTest(unittest.TestCase):
         outfile = os.path.join(data_dir,'collection_list.pdf')
         pdf.output(outfile, 'F')
         self.assertTrue(os.path.exists(outfile))
-        # if this test fails, function names may contain 'bad' symbols 
+        # If function names contain 'bad' symbols, this test fails
 
     @unittest.skip("for faster testing")
     def test_2_get_functions_in_group(self):
@@ -77,7 +78,7 @@ class FamaReportTest(unittest.TestCase):
         self.assertEqual(len(urease_list), 3)
         self.assertEqual(sorted(urease_list)[0], 'UreA')
         
-    @unittest.skip("for faster testing")
+#    @unittest.skip("for faster testing")
     def test_3_generate_pdf_report(self):
         self.parser.parse_background_output()
         generate_pdf_report(self.parser)
@@ -264,12 +265,12 @@ class FamaReportTest(unittest.TestCase):
                             rank = rank)
         self.assertTrue(len(scores) > 0)
 
-#    @unittest.skip("for faster testing")
+    @unittest.skip("for faster testing")
     def test_collect_taxonomic_data(self):
         print ('Load project from JSON')
         sample_id = 'FW306-ZV-1'
         metrics = 'efpkg'
-        self.project.import_reads_json(sample_id, self.project.ENDS)
+        self.project.import_reads_json(sample_id, ENDS)
         
         sample_scores = get_function_taxonomy_scores(self.project, sample_id = sample_id, metrics = metrics)# autovivify(2, float)
         

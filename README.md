@@ -10,7 +10,7 @@ Selected reads can be assembled into functional genes.
 ### Requirements
 * Supported platforms: Unix/Linux (developed and tested on Ubuntu 18.04)
 * Python version 3
-* Python dependencies: Numpy, BioPython, fpdf, xlsxwriter, sqlite3
+* Python dependencies: Numpy, BioPython, fpdf, xlsxwriter
 * DIAMOND aligner: install from [https://github.com/bbuchfink/diamond]
 * Krona tools: install from [https://github.com/marbl/Krona]
 
@@ -26,30 +26,10 @@ For gene-centric assembly:
 Clone the repo:  
 `git clone https://github.com/novichkov-lab/fama.git`
 
-Download and unpack reference datasets:
-* Nitrogen cycle enzymes: [https://iseq.lbl.gov/mydocs/fama_downloads/fama_nitrogen.tar.gz] 
-* Universal markers: [https://iseq.lbl.gov/mydocs/fama_downloads/fama_universal.tar.gz] 
-* Carbohydrate-active enzymes: [https://iseq.lbl.gov/mydocs/fama_downloads/fama_cazy.tar.gz] 
+Download and install reference datasets:
+`/bin/sh install_reference_data.sh`
 
-Download and unpack proteome database: [https://iseq.lbl.gov/mydocs/fama_downloads/fama_background_db.faa.gz] 
-
-Download and unpack MicrobeCensus reference database: [https://iseq.lbl.gov/mydocs/fama_downloads/microbecensus_data.tar.gz] 
-
-Download and unpack taxonomy database: [https://iseq.lbl.gov/mydocs/fama_downloads/fama_taxonomy.tar.gz] 
-
-
-Generate DIAMOND databases:  
-
-`diamond makedb --in fama_cazy_db.faa --db fama_cazy_db`
-
-`diamond makedb --in fama_nitrogen_db.faa --db fama_nitrogen_db`
-
-`diamond makedb --in fama_universal_db.faa --db fama_universal_db`
-
-`diamond makedb --in fama_background_db.faa --db fama_background_db`
-
-`diamond makedb --in seqs.fa --db seqs`
-
+This script creates refdata folder, generates DIAMOND databases and writes config.ini file. 
 
 
 ### Configuring Fama
@@ -57,9 +37,9 @@ There are two sorts of configuration files in Fama: program configuration file (
 
 In the config.ini file, there are individual sections for each reference dataset. Each of the sections contains paths to refrence dataset files. Different datasets may use the same proteome database ('background DB').
 
-Before running Fama, open file py/config.ini and change paths to DIAMOND databases, reference and taxonomy files.
+Before running Fama, open file py/config.ini and change number of threads available for DIAMOND aligner. The more, the better. 
 
-In the Default section of config.ini, you can also change paths to programs utilized by Fama.
+In the Default section of config.ini, you can also change paths to programs utilized by Fama and paths to reference data files.
 
 
 The second configuration file, project ini file, keeps parameters of analyzed metagenomic dataset. So, there should be separate project files for each dataset. 
