@@ -91,12 +91,11 @@ class DiamondHitList(object):
                 temp_list = hit_utils.replace_hit(hit, temp_list, overlap_cutoff)
         self.hits = temp_list
 
-
     def filter_list_by_identity(self, reference_data):
         """Filters list of DiamondHit objects in the DiamondHitList.
         Removes hits, which have amino acid identity below threshold defined
         in reference data or config file.
-        WARNING: before filtering, functions must be assigned to assigned 
+        WARNING: before filtering, functions must be assigned to assigned
         to all hits (i.e. call annotate_hits function first)
 
         Args:
@@ -115,7 +114,6 @@ class DiamondHitList(object):
             if hit.identity >= max_threshold:
                 temp_list.append(hit)
         self.hits = temp_list
-
 
     def remove_hit(self, hit_to_remove):
         """Removes a DiamondHit from the DiamondHitList.

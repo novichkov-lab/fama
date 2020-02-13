@@ -62,11 +62,15 @@ class Contig:
         result = 0.0
         try:
             if sample in self.read_count:
-                result = self.read_count[sample] * 1000000000 / len(self.sequence) / sample_readcount
+                result = self.read_count[sample] * 1000000000 / \
+                         len(self.sequence) / sample_readcount
             elif sample is None:
-                result = len(self.reads) * 1000000000 / len(self.sequence) / sample_readcount
+                result = len(self.reads) * 1000000000 / len(self.sequence) / \
+                         sample_readcount
         except ZeroDivisionError:
-            print('ZeroDivisionError for contig', self.contig_id, str(len(self.sequence)), 'bp', sample_readcount, 'reads', 'sample', sample)
+            print('ZeroDivisionError for contig',
+                  self.contig_id, str(len(self.sequence)), 'bp',
+                  sample_readcount, 'reads', 'sample', sample)
             raise
         return result
 

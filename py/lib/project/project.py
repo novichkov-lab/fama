@@ -137,9 +137,11 @@ class Project(object):
             if ret_val is None:
                 ret_val = paired_end_sample
             elif ret_val and not paired_end_sample:
-                raise RuntimeError('Project contains both single-end and paired-end input files. Process them separately.')
+                raise RuntimeError('Project contains both single-end and' +
+                                   'paired-end input files. Process them separately.')
             elif not ret_val and paired_end_sample:
-                raise RuntimeError('Project contains both single-end and paired-end input files. Process them separately.')
+                raise RuntimeError('Project contains both single-end and' +
+                                   ' paired-end input files. Process them separately.')
         if ret_val is None:
             raise RuntimeError('Project does not contain any samples.')
         return ret_val

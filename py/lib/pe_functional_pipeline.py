@@ -5,7 +5,6 @@ import gzip
 from lib.utils.const import ENDS, STATUS_GOOD
 from lib.se_functional_pipeline import run_fastq_pipeline
 from lib.utils.utils import run_external_program
-from lib.project.project import Project
 from lib.project.sample import Sample
 from lib.diamond_parser.diamond_parser import DiamondParser
 from lib.output.report import generate_fastq_report, generate_sample_report
@@ -13,7 +12,8 @@ from lib.output.pdf_report import generate_pdf_report
 from lib.output.krona_xml_writer import make_functions_chart
 from lib.output.json_util import export_annotated_reads, export_sample
 from lib.third_party.microbe_census import run_pipeline, report_results
-from lib.diamond_parser.hit_utils import get_paired_end, parse_fastq_seqid
+from lib.diamond_parser.hit_utils import parse_fastq_seqid
+
 
 def run_ref_search(parser, command):
     """Runs pre-selection DIAMOND search
@@ -222,15 +222,13 @@ def import_fastq_pe(parser1, parser2):
 
 
 def export_paired_end_reads_fastq(parser):
-    """ For paired-end sequence reads, write paired-end reads for pre-selected 
+    """ For paired-end sequence reads, write paired-end reads for pre-selected
     reads into a separate FASTQ file
     """
-    fastq_file = parser.options.get_fastq_path(parser.sample.sample_id, get_paired_end(parser.end))
     outdir = parser.sample.work_directory
     read_ids = {}
     for read_id in sorted(parser.reads.keys()):
         read_ids[read_id] = read_id
-    line_counter = 0
     fastq_outfile = os.path.join(outdir,
                                  parser.sample.sample_id + '_'
                                  + parser.end + '_'
@@ -258,14 +256,14 @@ def fastq_pe_pipeline(project, sample_identifier=None, end_identifier=None):
         sample.load_sample(project.options)
         project.samples[sample_id] = sample
         if end_identifier:
-            project.samples[sample_id].reads[end] = \
+            project.samples[sample_id].reads[end_identifier] = \
                 run_fastq_pipeline(project,
                                    sample=project.samples[sample_id],
                                    end_id=end_identifier)
         else:
             project.samples[sample_id].reads = \
                 run_pe_fastq_pipeline(project,
-                                   sample=project.samples[sample_id])
+                                      sample=project.samples[sample_id])
         export_sample(project.samples[sample_id])
         # Generate output for the sample or delete sample from memory
         generate_sample_report(project, sample_id)
@@ -289,17 +287,17 @@ def run_pe_fastq_pipeline(project, sample):
     """
     result = {}
     parser1 = DiamondParser(config=project.config,
-                           options=project.options,
-                           taxonomy_data=project.taxonomy_data,
-                           ref_data=project.ref_data,
-                           sample=sample,
-                           end=ENDS[0])
+                            options=project.options,
+                            taxonomy_data=project.taxonomy_data,
+                            ref_data=project.ref_data,
+                            sample=sample,
+                            end=ENDS[0])
     parser2 = DiamondParser(config=project.config,
-                           options=project.options,
-                           taxonomy_data=project.taxonomy_data,
-                           ref_data=project.ref_data,
-                           sample=sample,
-                           end=ENDS[1])
+                            options=project.options,
+                            taxonomy_data=project.taxonomy_data,
+                            ref_data=project.ref_data,
+                            sample=sample,
+                            end=ENDS[1])
 
     if not os.path.isdir(project.options.get_project_dir(sample.sample_id)):
         os.makedirs(project.options.get_project_dir(sample.sample_id), exist_ok=True)
@@ -329,13 +327,11 @@ def run_pe_fastq_pipeline(project, sample):
     parser1.parse_reference_output()
     parser2.parse_reference_output()
 
-
-    parser1_read_ids = set(parser1.reads.keys())
-    parser2_read_ids = set(parser2.reads.keys())
-
     # Import sequence data for selected sequence reads
     print('Reading FASTQ file')
-    (parser1, parser2, read_count1, read_count2, base_count1, base_count2) = import_fastq_pe(parser1, parser2)
+    (parser1, parser2, read_count1, read_count2, base_count1, base_count2) = import_fastq_pe(
+        parser1, parser2
+        )
 
     if sample.fastq_fwd_readcount == 0:
         sample.fastq_fwd_readcount = read_count1
@@ -381,7 +377,8 @@ def run_pe_fastq_pipeline(project, sample):
         print('PDF report for forward end reads created')
         make_functions_chart(parser1)
         print('Krona chart for forward end reads created')
-        result[ENDS[0]] = {read_id: read for (read_id, read) in parser1.reads.items() if read.status == STATUS_GOOD}
+        result[ENDS[0]] = {read_id: read for (read_id, read) in
+                           parser1.reads.items() if read.status == STATUS_GOOD}
     else:
         # No hits found
         print('Pre-selection search did not find any hits for forward end reads')
@@ -415,43 +412,15 @@ def run_pe_fastq_pipeline(project, sample):
         print('PDF report for reverse end reads created')
         make_functions_chart(parser2)
         print('Krona chart for reverse end reads created')
-        result[ENDS[1]] = {read_id: read for (read_id, read) in parser2.reads.items() if read.status == STATUS_GOOD}
+        result[ENDS[1]] = {read_id: read for (read_id, read) in
+                           parser2.reads.items() if read.status == STATUS_GOOD}
     else:
         # No hits found
         print('Pre-selection search did not find any hits for reverse end reads')
         result[ENDS[1]] = {}
 
-
-    #~ print('Exporting FASTQ ')
-    #~ parser2.export_hit_fastq()
-    #~ print('Exporting hits')
-    #~ parser2.export_hit_list()
-
-    #~ # Search in background database
-    #~ if not os.path.exists(
-            #~ os.path.join(
-                #~ parser2.options.get_project_dir(parser2.sample.sample_id),
-                #~ parser2.sample.sample_id + '_' + parser2.end + '_'
-                #~ + parser2.options.background_output_name
-            #~ )
-    #~ ):
-        #~ run_bgr_search(parser2, 'blastx')
-
-    #~ # Process output of background DB search
-    #~ parser2.parse_background_output()
-
-    #~ parser2.export_read_fastq()
-    
-    #~ # TODO: make new export_paired_end_reads_fastq
-    #~ export_paired_end_reads_fastq(parser2)
-    #~ export_annotated_reads(parser2)
-
-    #~ # Generate output
-    #~ generate_fastq_report(parser2)
-    #~ generate_pdf_report(parser2)
-    #~ make_functions_chart(parser2)
-
     return result
+
 
 def main():
     """Main function"""

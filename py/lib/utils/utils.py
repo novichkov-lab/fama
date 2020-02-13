@@ -85,4 +85,4 @@ def run_external_program_ignoreerror(cmd):
     if proc.returncode != 0:
         # Suppress false positive no-member error (see https://github.com/PyCQA/pylint/issues/1860)
         # pylint: disable=no-member
-        print ('Called process returned error', proc.returncode, proc.args)
+        print('Called process returned error', proc.returncode, proc.args)

@@ -3,7 +3,6 @@ import os
 
 from lib.utils.const import ENDS, STATUS_GOOD
 from lib.utils.utils import run_external_program
-from lib.project.project import Project
 from lib.project.sample import Sample
 from lib.diamond_parser.diamond_parser import DiamondParser
 from lib.output.report import generate_fastq_report, generate_sample_report
@@ -13,7 +12,7 @@ from lib.output.json_util import export_annotated_reads, export_sample
 from lib.third_party.microbe_census import run_pipeline, report_results
 
 
-def run_ref_search(parser, command, options = None):
+def run_ref_search(parser, command, options=None):
     """Runs pre-selection DIAMOND search
 
     Args:
@@ -25,35 +24,36 @@ def run_ref_search(parser, command, options = None):
                     command]
     if options is not None:
         diamond_args = diamond_args + options
-    diamond_args = diamond_args + \
-                    ['--db',
-                    parser.config.get_reference_diamond_db(
-                        parser.options.get_collection(parser.sample.sample_id)
-                    ),
-                    '--query',
-                    parser.options.get_fastq_path(parser.sample.sample_id, parser.end),
-                    '--out',
-                    os.path.join(
-                        parser.options.get_project_dir(parser.sample.sample_id),
-                        parser.sample.sample_id + '_' + parser.end + '_'
-                        + parser.options.ref_output_name
-                    ),
-                    '--max-target-seqs',
-                    '50',
-                    '--evalue',
-                    str(parser.config.get_evalue_cutoff(
-                        parser.options.get_collection(parser.sample.sample_id)
-                    )),
-                    '--threads',
-                    parser.config.threads,
-                    '--outfmt', '6', 'qseqid', 'sseqid', 'pident', 'length',
-                    'mismatch', 'slen', 'qstart', 'qend', 'sstart', 'send',
-                    'evalue', 'bitscore']
+    diamond_args = diamond_args + ['--db',
+                                   parser.config.get_reference_diamond_db(
+                                       parser.options.get_collection(parser.sample.sample_id)
+                                   ),
+                                   '--query',
+                                   parser.options.get_fastq_path(
+                                       parser.sample.sample_id, parser.end
+                                   ),
+                                   '--out',
+                                   os.path.join(
+                                       parser.options.get_project_dir(parser.sample.sample_id),
+                                       parser.sample.sample_id + '_' + parser.end + '_'
+                                       + parser.options.ref_output_name
+                                   ),
+                                   '--max-target-seqs',
+                                   '50',
+                                   '--evalue',
+                                   str(parser.config.get_evalue_cutoff(
+                                       parser.options.get_collection(parser.sample.sample_id)
+                                   )),
+                                   '--threads',
+                                   parser.config.threads,
+                                   '--outfmt', '6', 'qseqid', 'sseqid', 'pident', 'length',
+                                   'mismatch', 'slen', 'qstart', 'qend', 'sstart', 'send',
+                                   'evalue', 'bitscore']
     run_external_program(diamond_args)
     print('DIAMOND finished')
 
 
-def run_bgr_search(parser, command, options = None):
+def run_bgr_search(parser, command, options=None):
     """Runs classification DIAMOND search
 
     Args:
@@ -65,38 +65,38 @@ def run_bgr_search(parser, command, options = None):
                     command]
     if options is not None:
         diamond_args = diamond_args + options
-    diamond_args = diamond_args + \
-                    ['--db',
-                    parser.config.get_background_diamond_db(
-                        parser.options.get_collection(parser.sample.sample_id)
-                    ),
-                    '--query',
-                    os.path.join(
-                        parser.options.get_project_dir(parser.sample.sample_id),
-                        parser.sample.sample_id + '_' + parser.end + '_'
-                        + parser.options.ref_hits_fastq_name
-                    ),
-                    '--out',
-                    os.path.join(
-                        parser.options.get_project_dir(parser.sample.sample_id),
-                        parser.sample.sample_id + '_' + parser.end + '_'
-                        + parser.options.background_output_name
-                    ),
-                    '--max-target-seqs',
-                    '100',
-                    '--evalue',
-                    str(
-                        parser.config.get_background_db_size(
-                            parser.options.get_collection(parser.sample.sample_id)
-                        ) * parser.config.get_evalue_cutoff(
-                            parser.options.get_collection(parser.sample.sample_id)
-                        ) / parser.config.get_reference_db_size(
-                            parser.options.get_collection(parser.sample.sample_id)
-                        )),
-                    '--threads',
-                    parser.config.threads,
-                    '--outfmt', '6', 'qseqid', 'sseqid', 'pident', 'length', 'mismatch',
-                    'slen', 'qstart', 'qend', 'sstart', 'send', 'evalue', 'bitscore']
+    diamond_args = diamond_args + ['--db',
+                                   parser.config.get_background_diamond_db(
+                                       parser.options.get_collection(parser.sample.sample_id)
+                                   ),
+                                   '--query',
+                                   os.path.join(
+                                       parser.options.get_project_dir(parser.sample.sample_id),
+                                       parser.sample.sample_id + '_' + parser.end + '_'
+                                       + parser.options.ref_hits_fastq_name
+                                   ),
+                                   '--out',
+                                   os.path.join(
+                                       parser.options.get_project_dir(parser.sample.sample_id),
+                                       parser.sample.sample_id + '_' + parser.end + '_'
+                                       + parser.options.background_output_name
+                                   ),
+                                   '--max-target-seqs',
+                                   '100',
+                                   '--evalue',
+                                   str(
+                                       parser.config.get_background_db_size(
+                                           parser.options.get_collection(parser.sample.sample_id)
+                                       ) * parser.config.get_evalue_cutoff(
+                                           parser.options.get_collection(parser.sample.sample_id)
+                                       ) / parser.config.get_reference_db_size(
+                                           parser.options.get_collection(parser.sample.sample_id)
+                                       )),
+                                   '--threads',
+                                   parser.config.threads,
+                                   '--outfmt', '6', 'qseqid', 'sseqid', 'pident', 'length',
+                                   'mismatch', 'slen', 'qstart', 'qend', 'sstart', 'send',
+                                   'evalue', 'bitscore']
     run_external_program(diamond_args)
     print('DIAMOND finished')
 

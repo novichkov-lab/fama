@@ -30,9 +30,6 @@ class TaxonomyData(object):
     def load_taxdata(self, config, collection):
         """Loads taxonomic data from NCBI files"""
         taxonomy_file = config.get_taxonomy_file(collection)
-        #~ names_file = config.taxonomy_names_file
-        #~ nodes_file = config.taxonomy_nodes_file
-        #~ merged_file = config.taxonomy_merged_file
         print('Loading taxonomy file', taxonomy_file)
         with open(taxonomy_file, 'r') as infile:
             for line in infile:
@@ -43,43 +40,6 @@ class TaxonomyData(object):
 
         if not self.data:
             raise Exception('Taxonomy names load failed')
-        
-        # initialize self.names
-        #~ print('Loading names file', names_file)
-        #~ with open(names_file, 'r') as infile:
-            #~ for line in infile:
-                #~ line = line.rstrip('\n\r')
-                #~ line_tokens = line.split('\t|\t')
-                #~ if line_tokens[3] == 'scientific name\t|':
-                    #~ self.names[line_tokens[0]]['name'] = line_tokens[1]
-
-        #~ if not self.names:
-            #~ raise Exception('Taxonomy names load failed')
-
-        #~ # initialize self.nodes
-        #~ print('Loading nodes file', nodes_file)
-        #~ with open(nodes_file, 'r') as infile:
-            #~ for line in infile:
-                #~ line = line.rstrip('\n\r')
-                #~ line_tokens = line.split('\t|\t')
-                #~ taxid = line_tokens[0]
-                #~ parent = line_tokens[1]
-                #~ rank = line_tokens[2]
-                #~ self.nodes[taxid]['parent'] = parent
-                #~ self.nodes[taxid]['rank'] = rank
-
-        #~ # merge
-        #~ print('Loading merged file', merged_file)
-        #~ with open(merged_file, 'r') as infile:
-            #~ for line in infile:
-                #~ line = line.rstrip('\n\r')
-                #~ line_tokens = line.split('\t')
-                #~ old_id = line_tokens[0]
-                #~ new_id = line_tokens[2]
-                #~ if new_id in self.names:
-                    #~ self.names[old_id]['name'] = self.names[new_id]['name']
-                    #~ self.nodes[old_id]['parent'] = self.nodes[new_id]['parent']
-                    #~ self.nodes[old_id]['rank'] = self.nodes[new_id]['rank']
 
         # inject 'Unknown' entry
         self.data[UNKNOWN_TAXONOMY_ID]['name'] = 'Unknown'

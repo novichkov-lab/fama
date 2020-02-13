@@ -1,6 +1,7 @@
 """Various functions working with DIAMOND hits"""
 from collections import defaultdict, Counter
-from lib.utils.const import ENDS, RANKS, STATUS_GOOD, STATUS_BAD, ROOT_TAXONOMY_ID, UNKNOWN_TAXONOMY_ID
+from lib.utils.const import ENDS, RANKS, STATUS_GOOD, STATUS_BAD, \
+    ROOT_TAXONOMY_ID, UNKNOWN_TAXONOMY_ID
 
 
 def get_rpkm_score(hit, function_fraction, total_readcount, length_cutoff):
@@ -107,7 +108,7 @@ def get_efpk_score(protein_length, average_read_length, length_cutoff, insert_si
     return result
 
 
-def get_abundance(coverage, average_coverage, function_fraction = 1.0):
+def get_abundance(coverage, average_coverage, function_fraction=1.0):
     """Calculates  relative abundance from contig coverage"""
     if function_fraction > 1.0:
         print('FUNCTION FRACTION TOO BIG!', function_fraction)
@@ -150,8 +151,6 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
 
     """
 
-    #TODO remove: 
-    #print('Hit list', read.hit_list)
     hit = None
     hit_i = None
     for hit_index, existing_hit in enumerate(read.hit_list.hits):
@@ -169,8 +168,7 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
             best_hit = new_hit
             best_bitscore = new_hit.bitscore
 
-    # Set status of read
-    if best_hit is None: # or '' in best_hit.functions:
+    if best_hit is None:
         read.set_status(STATUS_BAD)
         return
 
@@ -185,7 +183,6 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
         selected_hits.append(hit)
 
     # Make non-redundant list of functions from hits after filtering
-    candidate_functions = {}
     candidate_functions_count = Counter()
     candidate_functions_data = defaultdict(dict)
     # Find best hit for each function: only one hit with
@@ -207,24 +204,17 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
                     selected_hit.bitscore
                 candidate_functions_data[selected_hit_function]['hit'] = \
                     selected_hit
-    #TODO remove: 
-    #print('Candidate functions',candidate_functions_count)
     selected_functions = {}
     function_weight_threshold = 0.5
     # Calculate RPK scores for functions
     for function in candidate_functions_data:
         function_weight = candidate_functions_count[function] / len(selected_hits)
         if function_weight > function_weight_threshold:
-            #TODO remove: 
-            # print('Call get_erpk_score', function, candidate_functions_data[function]['hit'].s_len, average_read_length, length_cutoff)
             selected_functions[function] = \
                 get_erpk_score(candidate_functions_data[function]['hit'].s_len,
                                average_read_length, length_cutoff)
-    #TODO remove: 
-    # print('Selected functions', selected_functions)
-    # print(read.functions)
 
-    # If the most common function in new hits is unknown, set
+    # If one of the most common function in new hits is unknown, set
     # status STATUS_BAD and return
     if not selected_functions or '' in selected_functions:
         read.set_status(STATUS_BAD)
@@ -233,8 +223,6 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
         read.set_status(STATUS_GOOD)
 
     read.append_functions(selected_functions)
-    #TODO remove: 
-    #print(candidate_functions_data)
     # Set new list of hits
     read.hit_list.remove_hit_by_index(hit_i)
     for func in selected_functions:
@@ -242,7 +230,6 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
         good_hit.query_id = read.read_id
         good_hit.q_start = hit_start
         good_hit.q_end = hit_end
-        #good_hit.annotate_hit(ref_data)
         read.hit_list.add_hit(good_hit)
 
     taxonomy_ids = set()
@@ -285,8 +272,8 @@ def compare_hits_erpk_lca(read, hit_start, hit_end, new_hit_list, bitscore_range
 
 
 def compare_protein_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_range_cutoff,
-                            coverage, average_coverage, taxonomy_data, ref_data):
-    """Compares DiamondHit object assigned to AnnotatedRead object for a protein 
+                             coverage, average_coverage, taxonomy_data, ref_data):
+    """Compares DiamondHit object assigned to AnnotatedRead object for a protein
     with a list of new DiamondHit objects, assigns scores to functions and taxonomy
 
     Args:
@@ -341,9 +328,7 @@ def compare_protein_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_ra
     ] and hit.bitscore >= best_bitscore:
         selected_hits.append(hit)
 
-
     # Make non-redundant list of functions from hits after filtering
-    candidate_functions = {}
     candidate_functions_count = Counter()
     candidate_functions_data = defaultdict(dict)
     # Find best hit for each function: only one hit with highest bitscore will be
@@ -393,7 +378,6 @@ def compare_protein_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_ra
             good_hit.query_id = read.read_id
         except AttributeError:
             good_hit.query_id = read.gene_id
-        #good_hit.annotate_hit(ref_data)
         read.hit_list.add_hit(good_hit)
 
     taxonomy_ids = set()

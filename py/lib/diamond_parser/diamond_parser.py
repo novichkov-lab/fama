@@ -133,9 +133,7 @@ class DiamondParser(object):
                 hit = DiamondHit()
                 (row[0], _) = parse_fastq_seqid(row[0])
                 hit.create_hit(row)
-                # filtering by identity and length
-                #~ if hit.identity < identity_cutoff:
-                    #~ continue  # go to next hit
+                # filtering by length
                 if hit.length < length_cutoff:
                     continue  # go to next hit
 
@@ -191,10 +189,11 @@ class DiamondParser(object):
 
         current_query_id = None
         hit_list = None
-        #TODO:clean up identity_cutoff = self.ref_data.lookup_identity_threshold()
         length_cutoff = self.config.get_length_cutoff(self.collection)
         bitscore_range_cutoff = self.config.get_biscore_range_cutoff(self.collection)
-        print('Relative bit-score cutoff:', bitscore_range_cutoff, ', Length cutoff:', length_cutoff)
+        print('Relative bit-score cutoff:', bitscore_range_cutoff,
+              ', Length cutoff:', length_cutoff
+              )
 
         with open(tsvfile, 'r', newline='') as infile:
             tsvin = csv.reader(infile, delimiter='\t')
@@ -204,9 +203,7 @@ class DiamondParser(object):
                     hit_list = DiamondHitList(current_query_id)
                 hit = DiamondHit()
                 hit.create_hit(row)
-                # filtering by identity and length
-                #~ TODO:clean up if hit.identity < identity_cutoff:
-                    #~ continue  # skip this line
+                # filtering by length
                 if hit.length < length_cutoff:
                     continue  # skip this line
 

@@ -661,6 +661,7 @@ def get_function_scores(project, sample_id=None, metric=None):
                         print('Function', function, 'not found in hits of read', read_id)
     return ret_val
 
+
 def slice_function_taxonomy_scores(scores, sample_id):
     result = defaultdict(dict)
     for tax in scores.keys():
@@ -668,7 +669,7 @@ def slice_function_taxonomy_scores(scores, sample_id):
             if sample_id in scores[tax][function_id]:
                 result[tax][function_id] = scores[tax][function_id][sample_id]
     return result
-    
+
 
 def get_function_taxonomy_scores(project, sample_id=None, metric=None):
     """Builds three-dimensional (taxonomy ID/ function ID / sample ID) tables for read

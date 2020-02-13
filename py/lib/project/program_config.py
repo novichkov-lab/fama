@@ -61,7 +61,7 @@ class ProgramConfig(object):
         try:
             result = self.parser[collection]['taxonomy_file']
         except KeyError:
-            print('Taxonomy file for collection' + collection + 
+            print('Taxonomy file for collection' + collection +
                   ' not found. Loading entire NCBI taxonomy instead.')
             result = self.parser['DEFAULT']['taxonomy_file']
         return result
@@ -191,21 +191,6 @@ class ProgramConfig(object):
         except KeyError:
             result = int(self.parser['DEFAULT']['background_db_size'])
         return result
-
-    #~ @property
-    #~ def taxonomy_names_file(self):
-        #~ """Path to NCBI taxonomy names.dmp file"""
-        #~ return self.parser['DEFAULT']['taxonomy_names_file']
-
-    #~ @property
-    #~ def taxonomy_nodes_file(self):
-        #~ """Path to NCBI taxonomy nodes.dmp file"""
-        #~ return self.parser['DEFAULT']['taxonomy_nodes_file']
-
-    #~ @property
-    #~ def taxonomy_merged_file(self):
-        #~ """Path to NCBI taxonomy merged.dmp file"""
-        #~ return self.parser['DEFAULT']['taxonomy_merged_file']
 
     @property
     def collections(self):

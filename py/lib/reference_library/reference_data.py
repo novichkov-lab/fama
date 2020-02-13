@@ -3,6 +3,7 @@ from collections import defaultdict
 from lib.utils.utils import singleton
 from lib.utils.const import RANKS
 
+
 @singleton
 class ReferenceData(object):
     """ReferenceData object stores functional reference data for a collection.
@@ -54,7 +55,7 @@ class ReferenceData(object):
                     if len(row) > 3:
                         self.functions_dict[function]['function_cutoff'] = float(row[3])
                         n = 3
-                        for rank in RANKS:  # threshold for the rank 'norank' is the same as for function assignment
+                        for rank in RANKS:  # threshold for 'norank' is the same as for function
                             self.functions_dict[function][rank] = float(row[n])
                             n += 1
         print(len(self.functions_dict), ' functions found')
@@ -114,7 +115,7 @@ class ReferenceData(object):
         """Returns list of function identifiers having the same function group name"""
         ret_val = []
         try:
-            ret_val =  [function for function in self.functions_dict if
+            ret_val = [function for function in self.functions_dict if
                        self.functions_dict[function]['group'] == group]
         except KeyError:
             print('Group not found:', group)
@@ -128,11 +129,11 @@ class ReferenceData(object):
     def lookup_identity_threshold(self, function=None, rank=None):
         """Returns amino acid identity threshold for a given function and taxonomy rank.
         If taxonomy rank is None, returns amino acid identity threshold for function prediction.
-        If function is None and rank is not None, returns amino acid identity threshold 
+        If function is None and rank is not None, returns amino acid identity threshold
         for the taxonomy rank defined in config.ini.
 
         If both function and taxonomy rank are None, returns default threshold defined in config.ini
-        
+
         Args:
             function (str): function identifier
             rank (str): taxonomy rank defined in lib.utils.const.RANKS
