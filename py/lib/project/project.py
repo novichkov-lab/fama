@@ -6,10 +6,8 @@ from lib.utils.const import ENDS
 from lib.project.program_config import ProgramConfig
 from lib.project.project_options import ProjectOptions
 from lib.project.sample import Sample
-
 from lib.reference_library.reference_data import ReferenceData
 from lib.reference_library.taxonomy_data import TaxonomyData
-
 from lib.output.report import generate_project_report
 from lib.output.json_util import import_sample, import_annotated_reads
 

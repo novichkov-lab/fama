@@ -394,7 +394,7 @@ def compare_protein_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_ra
             continue
         while subject_taxon_id != ROOT_TAXONOMY_ID:
             if subject_rank not in RANKS:
-                (subject_taxon_id, subject_rank) = \
+                subject_taxon_id, subject_rank = \
                     taxonomy_data.get_upper_level_taxon(subject_taxon_id)
             else:
                 min_rank_threshold = 100.0

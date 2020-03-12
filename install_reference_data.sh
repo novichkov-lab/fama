@@ -20,7 +20,6 @@ else
     rm fama_nitrogen-cycle_classification_db_v.10.0.faa
     rm fama_nitrogen-cycle_preselection_db_v.10.0.faa
 
-    cd $script_dir/refdata
     echo "downloading Microbe Censys data: http://iseq.lbl.gov/mydocs/fama_downloads/microbecensus_data.tar.gz"
     curl -LJO -q http://iseq.lbl.gov/mydocs/fama_downloads/microbecensus_data.tar.gz
     tar xvf microbecensus_data.tar.gz
@@ -44,9 +43,9 @@ echo "functions_file = ${REFDIR}/fama_nitrogen-cycle_v.10.0_functions_thresholds
 echo "taxonomy_file = ${REFDIR}/fama_nitrogen-cycle_v.10.0_taxonomy.tsv" >> config.ini
 echo "proteins_list_file = ${REFDIR}/fama_nitrogen-cycle_v.10.0_proteins.txt" >> config.ini
 echo "reference_diamond_db = ${REFDIR}/preselection_db_nr100_nitrogen10.dmnd" >> config.ini
-echo "reference_db_size = 18389191" >> config.ini
+echo "reference_db_size = 18388755" >> config.ini
 echo "background_diamond_db = ${REFDIR}/classification_db_nr100_nitrogen10.dmnd" >> config.ini
-echo "background_db_size = 64090633" >> config.ini
+echo "background_db_size = 64090197" >> config.ini
 
 if [ -s "$script_dir/refdata/fama_taxonomy.tsv" ] ; then
   echo "DATA DOWNLOADED SUCCESSFULLY"

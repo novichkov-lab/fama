@@ -126,7 +126,7 @@ class ProjectOptions(object):
         Args:
             sample (str): sample identifier
         """
-        return int(self.parser[sample]['fastq_pe1_readcount'])
+        return self.parser.getint(sample, 'fastq_pe1_readcount', fallback=0)
 
     def get_fastq2_readcount(self, sample):
         """Returns number of reads in FASTQ file 2 of a sample
@@ -134,7 +134,23 @@ class ProjectOptions(object):
         Args:
             sample (str): sample identifier
         """
-        return int(self.parser[sample]['fastq_pe2_readcount'])
+        return self.parser.getint(sample, 'fastq_pe2_readcount', fallback=0)
+
+    def get_fastq1_basecount(self, sample):
+        """Returns number of bases in FASTQ file 1 of a sample
+
+        Args:
+            sample (str): sample identifier
+        """
+        return self.parser.getint(sample, 'fastq_pe1_basecount', fallback=0)
+
+    def get_fastq2_basecount(self, sample):
+        """Returns number of bases in FASTQ file 2 of a sample
+
+        Args:
+            sample (str): sample identifier
+        """
+        return self.parser.getint(sample, 'fastq_pe2_basecount', fallback=0)
 
     def get_project_dir(self, sample):
         """Returns path to sample's working directory. If the name is
@@ -201,10 +217,7 @@ class ProjectOptions(object):
         Args:
             sample (str): sample identifier
         """
-        result = None
-        if self.parser.has_option(sample, 'rpkg_scaling'):
-            result = float(self.parser[sample]['rpkg_scaling'])
-        return result
+        return self.parser.getfloat(sample, 'rpkg_scaling', fallback=0.0)
 
     def set_sample_data(self, sample):
         """Writes parameters of sample from Sample object to the corresponding

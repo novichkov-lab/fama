@@ -54,8 +54,9 @@ class ReferenceData(object):
                         self.functions_dict[function]['group'] = row[2]
                     if len(row) > 3:
                         self.functions_dict[function]['function_cutoff'] = float(row[3])
-                        n = 3
-                        for rank in RANKS:  # threshold for 'norank' is the same as for function
+                        self.functions_dict[function]['norank'] = float(row[3])
+                        n = 4
+                        for rank in reversed(RANKS[1:]):
                             self.functions_dict[function][rank] = float(row[n])
                             n += 1
         print(len(self.functions_dict), ' functions found')
@@ -82,7 +83,7 @@ class ReferenceData(object):
         try:
             ret_val = self.proteins_dict[protein]['function'].split('|')
         except KeyError:
-            print('Protein', protein, 'not found in reference database. Unknown function reported')
+            # print('Protein', protein, 'not found in reference database. Unknown function reported')
             ret_val.append('')
         return ret_val
 

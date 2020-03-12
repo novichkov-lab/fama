@@ -2,7 +2,7 @@
 import os
 from collections import defaultdict
 
-from lib.utils.const import STATUS_GOOD
+from lib.utils.const import ENDS, STATUS_GOOD
 from lib.third_party.lib_est import get_lib_est
 
 
@@ -74,35 +74,25 @@ class Sample(object):
         Args:
             options (:obj:'ProjectOptions'): Fama project options
         """
-        self.sample_name = options.parser.get(self.sample_id, 'sample_id')
-        self.fastq_fwd_path = options.parser.get(self.sample_id, 'fastq_pe1')
-        self.fastq_rev_path = options.parser.get(self.sample_id, 'fastq_pe2', fallback=None)
+        self.sample_name = options.get_sample_name(self.sample_id)
+        self.fastq_fwd_path = options.get_fastq_path(self.sample_id, ENDS[0])
+        self.fastq_rev_path = options.get_fastq_path(self.sample_id, ENDS[1])
         if self.fastq_rev_path is None or self.fastq_rev_path == '':
             self.is_paired_end = False
         else:
             self.is_paired_end = True
-        self.fastq_fwd_readcount = options.parser.getint(self.sample_id,
-                                                         'fastq_pe1_readcount',
-                                                         fallback=0)
-        self.fastq_rev_readcount = options.parser.getint(self.sample_id,
-                                                         'fastq_pe2_readcount',
-                                                         fallback=0)
-        self.fastq_fwd_basecount = options.parser.getint(self.sample_id,
-                                                         'fastq_pe1_basecount',
-                                                         fallback=0)
-        self.fastq_rev_basecount = options.parser.getint(self.sample_id,
-                                                         'fastq_pe2_basecount',
-                                                         fallback=0)
-        self.work_directory = options.parser.get(self.sample_id, 'sample_dir')
+        self.fastq_fwd_readcount = options.get_fastq1_readcount(self.sample_id)
+        self.fastq_rev_readcount = options.get_fastq2_readcount(self.sample_id)
+        self.fastq_fwd_basecount = options.get_fastq1_basecount(self.sample_id)
+        self.fastq_rev_basecount = options.get_fastq1_basecount(self.sample_id)
+        self.work_directory = options.get_project_dir(self.sample_id)
         if self.fastq_fwd_readcount > 0:
             self.rpkm_scaling_factor = 1000000/self.fastq_fwd_readcount
         if self.is_paired_end:
             self.insert_size = options.parser.getfloat(self.sample_id,
                                                        'insert_size',
                                                        fallback=0)
-        self.rpkg_scaling_factor = options.parser.getfloat(self.sample_id,
-                                                           'rpkg_scaling',
-                                                           fallback=0.0)
+        self.rpkg_scaling_factor = options.get_rpkg_scaling_factor(self.sample_id)
         self.replicate = options.parser.get(self.sample_id, 'replicate')
 
     def import_rpkg_scaling_factor(self):
@@ -115,7 +105,9 @@ class Sample(object):
                 for line in infile:
                     if line.startswith('average_genome_size:'):
                         ags = float(line.rstrip('\n\r').split('\t')[-1])
-                        if self.fastq_fwd_basecount > 0:
+                        if ags == 0.0:
+                            self.rpkg_scaling_factor = 0.0
+                        elif self.fastq_fwd_basecount > 0:
                             self.rpkg_scaling_factor = ags/self.fastq_fwd_basecount
                         elif self.fastq_rev_basecount > 0:
                             self.rpkg_scaling_factor = ags/self.fastq_rev_basecount

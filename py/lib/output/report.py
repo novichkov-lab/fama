@@ -1038,10 +1038,10 @@ def generate_sample_report(project, sample_id, metric=None):
                         + str(project.samples[sample_id].fastq_rev_basecount) + '\n')
 
         out_f.write('\nNormalization\n')
-        if not project.samples[sample_id].rpkm_scaling_factor is None:
+        if not project.samples[sample_id].rpkm_scaling_factor == 0.0:
             out_f.write('RPKM normalization factor:\t'
                         + str(project.samples[sample_id].rpkm_scaling_factor) + '\n')
-        if not project.samples[sample_id].rpkg_scaling_factor is None:
+        if not project.samples[sample_id].rpkg_scaling_factor == 0.0:
             out_f.write('Average genome size:\t' + format(
                 project.samples[sample_id].rpkg_scaling_factor
                 * project.samples[sample_id].fastq_fwd_basecount, "0.0f"
@@ -1062,14 +1062,24 @@ def generate_sample_report(project, sample_id, metric=None):
                 'FASTQ file 2:\t' + str(len(project.samples[sample_id].reads['pe2'])) + '\n'
                 )
 
-    if project.samples[sample_id].rpkg_scaling_factor is None and (
+    if project.samples[sample_id].rpkg_scaling_factor == 0.0 and (
             metric in ['efpkg', 'fpkg', 'erpkg', 'rpkg']
     ):
-        raise ValueError('Not enough data to normalize by average genome size')
-    if project.samples[sample_id].rpkm_scaling_factor is None and (
+        print(('Not enough data to normalize by average genome size. '
+               'Raw read or fragment counts will be reported.'))
+        if project.is_paired_end():
+            metric = 'fragmentcount'
+        else:
+            metric = 'readcount'
+    if project.samples[sample_id].rpkm_scaling_factor == 0.0 and (
             metric in ['efpkm', 'fpkm', 'erpkm', 'rpkm']
     ):
-        raise ValueError('Not enough data to normalize by sample size')
+        print(('Not enough data to normalize by sample size. '
+               'Raw read or fragment counts will be reported.'))
+        if project.is_paired_end():
+            metric = 'fragmentcount'
+        else:
+            metric = 'readcount'
 
     scores_function = get_function_scores(project, sample_id, metric=metric)
     scores_function_taxonomy = get_function_taxonomy_scores(project, sample_id, metric=metric)
@@ -1216,8 +1226,14 @@ def generate_project_report(project, metric=None):
     if metric is None:
         if is_paired_end:
             metric = 'efpkg'
+            for sample_id in project.list_samples():
+                if project.samples[sample_id].rpkg_scaling_factor == 0.0:
+                    metric = 'fragmentcount'
         else:
             metric = 'erpkg'
+            for sample_id in project.list_samples():
+                if project.samples[sample_id].rpkg_scaling_factor == 0.0:
+                    metric = 'readcount'
 
     scores = get_function_scores(project, sample_id=None, metric=metric)
     make_function_sample_xlsx(project, scores, metric=metric)
@@ -1681,14 +1697,14 @@ def generate_sample_text_report(project, sample_id, metric=None):
                         + str(project.samples[sample_id].fastq_rev_basecount) + '\n')
 
         out_f.write('\nNormalization\n')
-        if not project.samples[sample_id].rpkm_scaling_factor is None:
+        if not project.samples[sample_id].rpkm_scaling_factor == 0.0:
             out_f.write(
                 'RPKM normalization factor:\t' + str(
                     project.samples[sample_id].rpkm_scaling_factor
                     )
                 + '\n'
                 )
-        if not project.samples[sample_id].rpkg_scaling_factor is None:
+        if not project.samples[sample_id].rpkg_scaling_factor == 0.0:
             out_f.write(
                 'Average genome size:\t' + format(
                     project.samples[sample_id].rpkg_scaling_factor
@@ -1725,11 +1741,11 @@ def generate_sample_text_report(project, sample_id, metric=None):
                 + '\n'
                 )
 
-    if project.samples[sample_id].rpkg_scaling_factor is None and (
+    if project.samples[sample_id].rpkg_scaling_factor == 0.0 and (
             metric in ['efpkg', 'fpkg', 'erpkg', 'rpkg']
     ):
         raise ValueError('Not enough data to normalize by average genome size')
-    if project.samples[sample_id].rpkm_scaling_factor is None and (
+    if project.samples[sample_id].rpkm_scaling_factor == 0.0 and (
             metric in ['efpkm', 'fpkm', 'erpkm', 'rpkm']
     ):
         raise ValueError('Not enough data to normalize by sample size')

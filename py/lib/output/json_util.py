@@ -96,8 +96,11 @@ def import_annotated_reads(infile):
             value is annotated read
     """
     deserialized = None
-    with open(infile, 'r') as file_handle:
-        deserialized = json.load(file_handle, object_hook=decode_reads)
+    try:
+        with open(infile, 'r') as file_handle:
+            deserialized = json.load(file_handle, object_hook=decode_reads)
+    except FileNotFoundError:
+        deserialized = {}
     return deserialized
 
 
