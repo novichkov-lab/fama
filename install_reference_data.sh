@@ -42,9 +42,9 @@ echo "[nitrogen_v10]" >> config.ini
 echo "functions_file = ${REFDIR}/fama_nitrogen-cycle_v.10.0_functions_thresholds.tsv" >> config.ini
 echo "taxonomy_file = ${REFDIR}/fama_nitrogen-cycle_v.10.0_taxonomy.tsv" >> config.ini
 echo "proteins_list_file = ${REFDIR}/fama_nitrogen-cycle_v.10.0_proteins.txt" >> config.ini
-echo "reference_diamond_db = ${REFDIR}/preselection_db_nr100_nitrogen10.dmnd" >> config.ini
+echo "reference_diamond_db = ${REFDIR}/fama_nitrogen-cycle_preselection_db_v.10.0.dmnd" >> config.ini
 echo "reference_db_size = 18388755" >> config.ini
-echo "background_diamond_db = ${REFDIR}/classification_db_nr100_nitrogen10.dmnd" >> config.ini
+echo "background_diamond_db = ${REFDIR}/fama_nitrogen-cycle_classification_db_v.10.0.dmnd" >> config.ini
 echo "background_db_size = 64090197" >> config.ini
 
 if [ -s "$script_dir/refdata/fama_taxonomy.tsv" ] ; then
