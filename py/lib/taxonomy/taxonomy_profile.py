@@ -278,7 +278,7 @@ class TaxonomyProfile(object):
                         str(self.tree.data[taxid].attributes[attribute])
                 ret_val += '\n'
             else:
-                ret_val += '\tScore:N/A\tIdentity:N/A\tRead count:N/A\n'
+                ret_val += '\tScore:N/A\tIdentity:N/A\tRaw count:N/A\n'
             offset += 1
             if self.tree.data[taxid].children:
                 for child_id in sorted(self.tree.data[taxid].children):
@@ -326,7 +326,7 @@ class TaxonomyProfile(object):
                 inner key is a tuple with function identifier or empty string as
                 first element and field name as second element, value is a float.
                 Field names are 'Rank', 'Taxon name', '1.Score', '2.Identity',
-                '3.Read count'. For each function, only the latter three fields are reported.
+                '3.Raw count'. For each function, only the latter three fields are reported.
             attribute_values (defaultdict[str,dict[str,obj]]): outer key is
                 function identifier, inner key may be metric, 'hit_count', 'identity'
                 'hit_count', value is float.
@@ -357,12 +357,12 @@ class TaxonomyProfile(object):
         ret_val[line_number][('', 'Rank')] = self.tree.data[taxid].rank
         ret_val[line_number][('', 'Taxon name')] = self.tree.data[taxid].name
         for function in function_list:
-            for field_name in ['1.Score', '2.Identity', '3.Read count']:
+            for field_name in ['1.Score', '2.Identity', '3.Raw count']:
                 ret_val[line_number][(function, field_name)] = 0.0
             if function in self.tree.data[taxid].attributes:
                 ret_val[line_number][(function, '1.Score')] = \
                     self.tree.data[taxid].attributes[function][metric]
-                ret_val[line_number][(function, '3.Read count')] = \
+                ret_val[line_number][(function, '3.Raw count')] = \
                     self.tree.data[taxid].attributes[function]['count']
                 if 'identity' in self.tree.data[taxid].attributes[function]:
                     ret_val[line_number][(function, '2.Identity')] = \
@@ -406,7 +406,7 @@ class TaxonomyProfile(object):
                     ret_val[line_number][('', 'Taxon name')] = 'Unclassified'
                 # Calculate scores for fictional node
                 for function in function_list:
-                    for field_name in ['1.Score', '2.Identity', '3.Read count']:
+                    for field_name in ['1.Score', '2.Identity', '3.Raw count']:
                         ret_val[line_number][(function, field_name)] = 0.0
                     if function in self.tree.data[taxid].attributes and (
                             children_values[function]['count']
@@ -415,7 +415,7 @@ class TaxonomyProfile(object):
                         ret_val[line_number][(function, '1.Score')] = \
                             self.tree.data[taxid].attributes[function][metric] \
                             - children_values[function][metric]
-                        ret_val[line_number][(function, '3.Read count')] = \
+                        ret_val[line_number][(function, '3.Raw count')] = \
                             self.tree.data[taxid].attributes[function]['count'] \
                             - children_values[function]['count']
 

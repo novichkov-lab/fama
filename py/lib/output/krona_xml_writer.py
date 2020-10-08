@@ -30,9 +30,15 @@ def make_functions_chart(parser, metric='efpkg'):
     )
     with open(outfile, 'w') as out:
         # Write header
-        out.write('<krona key="false">\n' +
-                  '\t<attributes magnitude="' + metric + '">\n' +
-                  '\t\t<attribute display="Read count">readcount</attribute>\n')
+        if metric == 'proteincount':
+            metric = 'readcount'
+            out.write('<krona key="false">\n' +
+                      '\t<attributes magnitude="' + metric + '">\n' +
+                      '\t\t<attribute display="Protein count">' + metric + '</attribute>\n')
+        else:
+            out.write('<krona key="false">\n' +
+                      '\t<attributes magnitude="' + metric + '">\n' +
+                      '\t\t<attribute display="Read count">readcount</attribute>\n')
         if metric != 'readcount':
             out.write('\t\t<attribute display="Score:' + metric + '">' + metric + '</attribute>\n')
         out.write('\t\t<attribute display="AAI %" mono="true">identity</attribute>\n'
@@ -184,7 +190,7 @@ def get_lca_tax_xml(tax_profile, taxid, offset, metric='efpkg'):
         raise KeyError
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
-        if metric != 'readcount':
+        if metric != 'readcount' and metric != 'proteincount':
             ret_val += '\t'*offset + '<readcount><val>' + format(
                 tax_profile.tree.data[taxid].attributes['count'], "0.0f"
             ) + '</val></readcount>\n'
@@ -196,7 +202,7 @@ def get_lca_tax_xml(tax_profile, taxid, offset, metric='efpkg'):
             / tax_profile.tree.data[taxid].attributes['hit_count']
         ), "0.1f") + '</val></identity>\n'
     else:
-        if metric != 'readcount':
+        if metric != 'readcount' and metric != 'proteincount':
             ret_val += '\t'*offset + '<readcount><val>0</val></readcount>\n'
         ret_val += '\t'*offset + '<' + metric + '><val>0.0</val></' + metric + '>\n'
         ret_val += '\t'*offset + '<identity><val>0.0</val></identity>\n'
@@ -217,7 +223,7 @@ def get_lca_tax_xml(tax_profile, taxid, offset, metric='efpkg'):
                 unknown_node = 'Unknown'
             ret_val += '\t'*offset + '<node name="' + unknown_node + '">\n'
             offset += 1
-            if metric != 'readcount':
+            if metric != 'readcount' and metric != 'proteincount':
                 ret_val += '\t'*offset + '<readcount><val>' + format((
                     tax_profile.tree.data[taxid].attributes['count']
                     - attribute_values['count']
@@ -263,9 +269,12 @@ def make_taxonomy_chart(tax_profile, sample, outfile, krona_path, metric='efpkg'
         # Write header
         out.write('<krona key="false">\n')
         out.write('\t<attributes magnitude="' + metric + '">\n')
-        if metric != 'readcount':
+        if metric == 'proteincount':
+            out.write('\t\t<attribute display="Protein count">' + metric + '</attribute>\n')
+        else:
             out.write('\t\t<attribute display="Read count">readcount</attribute>\n')
-        out.write('\t\t<attribute display="Score:' + metric + '">' + metric + '</attribute>\n')
+        if metric != 'readcount' and metric != 'proteincount':
+            out.write('\t\t<attribute display="Score:' + metric + '">' + metric + '</attribute>\n')
         out.write('\t\t<attribute display="AAI %" mono="true">identity</attribute>\n')
         out.write('\t</attributes>\n')
         out.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0"'
@@ -304,9 +313,12 @@ def make_taxonomy_series_chart(tax_profile, sample_list, outfile, krona_path, me
         # Write header
         out.write('<krona key="false">\n')
         out.write('\t<attributes magnitude="' + metric + '">\n')
-        if metric != 'readcount':
+        if metric == 'proteincount':
+            out.write('\t\t<attribute display="Protein count">' + metric + '</attribute>\n')
+        else:
             out.write('\t\t<attribute display="Read count">readcount</attribute>\n')
-        out.write('\t\t<attribute display="Score:' + metric + '">' + metric + '</attribute>\n')
+        if metric != 'readcount' and metric != 'proteincount':
+            out.write('\t\t<attribute display="Score:' + metric + '">' + metric + '</attribute>\n')
         out.write('\t\t<attribute display="AAI %" mono="true">identity</attribute>\n')
         out.write('\t</attributes>\n')
         out.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" ' +
@@ -357,7 +369,7 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, metric='e
     ret_val = '\t'*offset + '<node name="' + tax_profile.tree.data[taxid].name + '">\n'
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
-        if metric != 'readcount':
+        if metric != 'readcount' and metric != 'proteincount':
             ret_val += '\t'*offset + '<readcount>'
             for datapoint in dataseries:
                 if (datapoint in tax_profile.tree.data[taxid].attributes) and (
@@ -392,7 +404,7 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, metric='e
                 ret_val += '<val>0.0</val>'
         ret_val += '</identity>\n'
     else:
-        if metric != 'readcount':
+        if metric != 'readcount' and metric != 'proteincount':
             ret_val += '\t'*offset + '<readcount>'
             ret_val += '<val>0</val>'*len(dataseries)
             ret_val += '</readcount>\n'
@@ -431,7 +443,7 @@ def get_lca_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, metric='e
                 ret_val += '\t'*offset + '<node name="Unclassified '\
                            + tax_profile.tree.data[taxid].name + '">\n'
             offset += 1
-            if metric != 'readcount':
+            if metric != 'readcount' and metric != 'proteincount':
                 ret_val += '\t'*offset + '<readcount>'
                 for datapoint in dataseries:
                     if datapoint in tax_profile.tree.data[taxid].attributes and (
@@ -517,7 +529,7 @@ def get_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, metric='efpkg
     ret_val = '\t'*offset + '<node name="' + tax_profile.tree.data[taxid].name + '">\n'
     offset += 1
     if tax_profile.tree.data[taxid].attributes:
-        if metric != 'readcount':
+        if metric != 'readcount' and metric != 'proteincount':
             ret_val += '\t'*offset + '<readcount>'
             for datapoint in dataseries:
                 if datapoint in tax_profile.tree.data[taxid].attributes:
@@ -546,7 +558,7 @@ def get_dataseries_tax_xml(tax_profile, dataseries, taxid, offset, metric='efpkg
                 ret_val += '<val>0.0</val>'
         ret_val += '</identity>\n'
     else:
-        if metric != 'readcount':
+        if metric != 'readcount' and metric != 'proteincount':
             ret_val += '\t'*offset + '<readcount>'
             ret_val += '<val>0</val>'*len(dataseries)
             ret_val += '</readcount>\n'
@@ -582,9 +594,12 @@ def make_function_taxonomy_chart(tax_profile, function_list, outfile, krona_path
         # Write header
         out.write('<krona key="false">\n')
         out.write('\t<attributes magnitude="' + metric + '">\n')
-        if metric != 'readcount':
+        if metric == 'proteincount':
+            out.write('\t\t<attribute display="Protein count">' + metric + '</attribute>\n')
+        else:
             out.write('\t\t<attribute display="Read count">readcount</attribute>\n')
-        out.write('\t\t<attribute display="Score:' + metric + '">' + metric + '</attribute>\n')
+        if metric != 'readcount' and metric != 'proteincount':
+            out.write('\t\t<attribute display="Score:' + metric + '">' + metric + '</attribute>\n')
         out.write('\t\t<attribute display="Best hit identity %" mono="true">identity</attribute>\n')
         out.write('\t</attributes>\n')
         out.write('\t<color attribute="identity" valueStart="50" valueEnd="100" hueStart="0" '

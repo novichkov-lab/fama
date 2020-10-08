@@ -334,7 +334,7 @@ def functional_profiling_pipeline(project, sample):
     print('Generating reports')
     generate_fasta_report(parser)
 #    generate_protein_pdf_report(parser)
-    make_functions_chart(parser, metric='readcount')
+    make_functions_chart(parser, metric='proteincount')
     return {read_id: read for (read_id, read) in parser.reads.items() if read.status == 'function'}
 
 
@@ -368,13 +368,13 @@ def protein_pipeline(args):
             )
         export_sample(project.samples[sample_id])
         # Generate output for the sample or delete sample from memory
-        generate_protein_sample_report(project, sample_id, metric='readcount')
+        generate_protein_sample_report(project, sample_id, metric='proteincount')
         project.options.set_sample_data(project.samples[sample_id])
 
     # Generate output for the project
     if args.sample is None:
         # Skip project report if the pipeline is running for only one sample
         generate_protein_project_report(project)
+        generate_output(project)
 
-    generate_output(project)
     project.save_project_options()

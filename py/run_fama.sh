@@ -1,12 +1,29 @@
 #!/bin/sh
 
+python3 fama.py -c config_test.ini -p /mnt/data2/ENIGMA/genomes/internal/Fama/internal_protein_univ.ini --prot
+python3 fama.py -c config_test.ini -p /mnt/data2/ENIGMA/genomes/internal/Fama/internal_protein_nitr.ini --prot
+python3 fama.py -c config_test.ini -p /mnt/data2/ENIGMA/genomes/internal/Fama/internal_protein_cazy.ini --prot
+
+#python3 fama.py -c config_test.ini -p /mnt/data2/Bacter/Acidovorax/comparative_genomics/proteins/acidovorax_nitrogen_project2.ini --prot
+
+#CAMI testing
+#python3 fama.py -c config_test.ini -p ../p/project_cami_universal1.ini
+#python3 fama.py -c config_test.ini -p ../p/project_cami_nitrogen10.ini
+#python3 fama_prepare.py -c config_test.ini -i /mnt/data2/Metagenomics/benchmark/cami/CAMI_medium/fastq.list -r universal_v1.4 -p cami_toy_med_universal_v.1.4
+#python3 fama.py -c config_test.ini -p /mnt/data2/Metagenomics/benchmark/cami/CAMI_high/project_universal_v1.4_cami.ini
+#python3 fama_assembly.py -c config_test.ini -p /mnt/data2/Metagenomics/benchmark/cami/CAMI_high/project_universal_v1.4_cami.ini --coassembly
+#python3 fama.py -c config_test.ini -p /mnt/data2/Metagenomics/benchmark/cami/CAMI_high/ref_data/fama_cami_high_ref_universal.ini --prot
+#python3 fama.py -c config_test.ini -p /mnt/data2/Metagenomics/benchmark/cami/CAMI_medium/project_universal_v1.4.ini
+
 # Test project
 # python3 fama.py -c config_test.ini -p /mnt/data2/SEED/fama/p/project_FW3062M_universal1.4.ini
 #python3 fama.py -c config_test.ini -p /mnt/data2/SEED/fama/p/project_FW3062M_universal1.ini
 
 # ENIGMA isolates, non-pseudomonad, nitrogen v.10
 #python3 fama.py -c config_test.ini -p ../p/project_protein_enigma_nonpseudomonas_nitrogen10.ini --prot
-python3 fama.py -c config_test.ini -p ../p/project_protein_ht1_isolates_nitrogen10.ini -s GW821-FHT02F09 --prot
+#python3 fama.py -c config_test.ini -p ../p/project_protein_ht_ok_isolates_nitrogen10.ini --prot
+#python3 fama.py -c config_test.ini -p ../p/project_protein_enigma_isolates_nitrogen10.ini --prot
+#python3 fama.py -c config_test.ini -p ../p/project_protein_ht1_isolates_nitrogen10.ini -s GW821-FHT02F09 --prot
 
 # Protein projects
 # python3 fama.py -c config_test.ini -p /mnt/data2/SEED/fama/p/project_protein_ht1_isolates_universal1.4.ini --prot

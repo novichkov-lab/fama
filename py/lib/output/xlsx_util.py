@@ -18,7 +18,7 @@ def make_function_sample_xlsx(project, scores, metric, sample_id=None):
         inner key is metric, value id float
         metric (str, optional): acceptable values are 'readcount', 'erpk', 'rpkm',
             'fragmentcount', 'fpk', 'efpk', 'fpkm', 'erpkm', 'efpkm',
-            'fpkg', 'rpkg', 'erpkg', 'efpkg'
+            'fpkg', 'rpkg', 'erpkg', 'efpkg', 'proteincount'
         sample_id (str, optional): sample identifier
     """
     if sample_id is None:
@@ -129,7 +129,7 @@ def make_func_tax_sample_xlsx(project, scores, metric, sample_id=None, rank=None
         inner key is metric, value id float
         metric (str, optional): acceptable values are 'readcount', 'erpk', 'rpkm',
             'fragmentcount', 'fpk', 'efpk', 'fpkm', 'erpkm', 'efpkm',
-            'fpkg', 'rpkg', 'erpkg', 'efpkg'
+            'fpkg', 'rpkg', 'erpkg', 'efpkg', 'proteincount'
         sample_id (str, optional): sample identifier
         rank (str, optional): taxonomic rank. if rank parameter is not None, the
             resulting XLSX file will contain only entries for this rank.
@@ -189,11 +189,16 @@ def make_func_tax_sample_xlsx(project, scores, metric, sample_id=None, rank=None
         else:
             taxonomy_df = tax_profile.convert_profile_into_df(metric=metric)
 
+        if len(sample) > 31:
+            worksheet_label = sample[:31]
+        else:
+            worksheet_label = sample
+
         if rank is None:
-            taxonomy_df.to_excel(writer, sheet_name=sample, merge_cells=False)
+            taxonomy_df.to_excel(writer, sheet_name=worksheet_label, merge_cells=False)
         else:
             filtered_df = taxonomy_df[taxonomy_df[('', 'Rank')] == rank]
-            filtered_df.to_excel(writer, sheet_name=sample, merge_cells=False)
+            filtered_df.to_excel(writer, sheet_name=worksheet_label, merge_cells=False)
 
         format_taxonomy_worksheet(writer, sample)
 
@@ -207,6 +212,8 @@ def format_taxonomy_worksheet(xlsx_writer, worksheet_label):
         xlsx_writer (xlsxwriter): xlsxwriter instance with existing Workbook
         worksheet_label (str): labal of worksheet to format
     """
+    if len(worksheet_label) > 31:
+        worksheet_label = worksheet_label[:31]
     workbook = xlsx_writer.book
     worksheet = xlsx_writer.sheets[worksheet_label]
     superkingdom_format = workbook.add_format({'bg_color': '#FF6666'})
@@ -249,7 +256,7 @@ def make_sample_tax_func_xlsx(project, scores, metric, function_id=None, rank=No
         inner key is metric, value id float
         metric (str, optional): acceptable values are 'readcount', 'erpk', 'rpkm',
             'fragmentcount', 'fpk', 'efpk', 'fpkm', 'erpkm', 'efpkm',
-            'fpkg', 'rpkg', 'erpkg', 'efpkg'
+            'fpkg', 'rpkg', 'erpkg', 'efpkg', 'proteincount'
         function_id (str, optional): function identifier. If function_id is None, all
             functions will be included into workbook.
         rank (str, optional): taxonomic rank. if rank parameter is not None, the
