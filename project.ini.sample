@@ -1,0 +1,23 @@
+[DEFAULT]
+project_name = 'Test sample nitrogen cycle'
+collection = nitrogen_v10
+ref_output_name = ref_tabular_output.txt
+background_output_name = bgr_tabular_output.txt
+ref_hits_list_name = ref_hits.txt
+ref_hits_fastq_name = ref_hits.fq
+reads_fastq_name = reads.fq
+pe_reads_fastq_name = reads_pe.fq
+output_subdir = out
+report_name = report.txt
+xml_name = krona.xml
+html_name = functional_profile.html
+reads_json_name = reads.json
+assembly_subdir = assembly
+work_dir = <fama path>/t/data
+
+[test_sample]
+sample_id = test
+fastq_pe1 = <fama path>/t/data/test_fastq.fq.gz
+fastq_pe2 = <fama path>/t/data/test_fastq_2.fq.gz
+sample_dir = <fama path>/t/data
+replicate = 0
