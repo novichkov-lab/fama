@@ -20,7 +20,7 @@ else
     rm fama_nitrogen-cycle_classification_db_v.10.0.faa
     rm fama_nitrogen-cycle_preselection_db_v.10.0.faa
 
-    echo "downloading Microbe Censys data: http://iseq.lbl.gov/mydocs/fama_downloads/microbecensus_data.tar.gz"
+    echo "downloading Microbe Census data: http://iseq.lbl.gov/mydocs/fama_downloads/microbecensus_data.tar.gz"
     curl -LJO -q http://iseq.lbl.gov/mydocs/fama_downloads/microbecensus_data.tar.gz
     tar xvf microbecensus_data.tar.gz
     rm microbecensus_data.tar.gz

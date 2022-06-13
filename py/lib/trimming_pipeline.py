@@ -34,7 +34,13 @@ def trimming_pipeline(config_file, sequence_list_file, project_name, collection,
     print(working_directory)
     with open(sequence_list_file, 'r') as infile:
         for line in infile:
-            sample_id, fwd_sequence_file, rev_sequence_file = line.rstrip('\n\r').split('\t')
+            if is_protein:
+                row = line.rstrip('\n\r').split('\t')
+                sample_id = row[0]
+                fwd_sequence_file = row[1]
+                rev_sequence_file = ''
+            else:
+                sample_id, fwd_sequence_file, rev_sequence_file = line.rstrip('\n\r').split('\t')
             if os.path.exists(fwd_sequence_file):
                 input_files[sample_id][ENDS[0]] = fwd_sequence_file
             elif os.path.exists(os.path.join(working_directory, fwd_sequence_file)):
