@@ -59,7 +59,7 @@ fi
 
 echo "Generating config.ini"
 cd $script_dir
-cp config.ini.template config_cgcms.ini
+cp config.ini.template config.ini
 echo "taxonomy_file = ${REFDIR}/fama/fama_taxonomy.tsv" >> config.ini
 echo "microbecensus_data = ${REFDIR}/fama" >> config.ini
 echo "" >> config.ini

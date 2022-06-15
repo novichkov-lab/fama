@@ -8,3 +8,6 @@ fpdf
 
 # Excel output
 xlsxwriter
+
+statsmodels
+mathstats
