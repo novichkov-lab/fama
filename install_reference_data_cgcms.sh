@@ -51,7 +51,7 @@ else
 	
 	cd "$REFDIR/fama/cazy2"
     diamond makedb --in preselection_database.faa --db preselection_database
-    diamond makedb --in classification_database.faa --db classification_database.faa
+    diamond makedb --in classification_database.faa --db classification_database
     rm preselection_database.faa
     rm classification_database.faa
 
