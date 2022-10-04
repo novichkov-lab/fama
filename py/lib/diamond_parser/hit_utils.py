@@ -406,7 +406,7 @@ def compare_protein_hits_lca(read, hit_start, hit_end, new_hit_list, bitscore_ra
                     if min_rank_threshold > rank_threshold:
                         min_rank_threshold = rank_threshold
                 if selected_hit.identity < min_rank_threshold:
-                    (subject_taxon_id, subject_rank) = \
+                    subject_taxon_id, subject_rank = \
                         taxonomy_data.get_upper_level_taxon(subject_taxon_id)
                 else:
                     taxonomy_ids.add(subject_taxon_id)
@@ -498,8 +498,12 @@ def parse_fastq_seqid(line):
         # Old Ilumina format
         result = (line[:-2], line[-1])
     elif line.endswith('.1') or line.endswith('.2'):
-        # Converted SRA
-        result = (line[:-2], line[-1])
+        if len(line.split('.')) == 3:
+            # Converted SRA
+            result = (line[:-2], line[-1])
+        else:
+            #  NCBI accession number?
+            result = (line, '')
     return result
 
 

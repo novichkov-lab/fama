@@ -84,7 +84,7 @@ class Sample(object):
         self.fastq_fwd_readcount = options.get_fastq1_readcount(self.sample_id)
         self.fastq_rev_readcount = options.get_fastq2_readcount(self.sample_id)
         self.fastq_fwd_basecount = options.get_fastq1_basecount(self.sample_id)
-        self.fastq_rev_basecount = options.get_fastq1_basecount(self.sample_id)
+        self.fastq_rev_basecount = options.get_fastq2_basecount(self.sample_id)
         self.work_directory = options.get_project_dir(self.sample_id)
         if self.fastq_fwd_readcount > 0:
             self.rpkm_scaling_factor = 1000000/self.fastq_fwd_readcount

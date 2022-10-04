@@ -84,9 +84,9 @@ echo "background_db_size = 49177580" >> config.ini
 
 echo "" >> config.ini
 echo "[cazy_v2]" >> config.ini
-echo "functions_file = ${REFDIR}/fama/cazy2/collection_functions.txt" >> config.ini
-echo "taxonomy_file = ${REFDIR}/fama/cazy2/collection_taxonomy.txt" >> config.ini
-echo "proteins_list_file = ${REFDIR}/fama/cazy2/final_gene_list.txt" >> config.ini
+echo "functions_file = ${REFDIR}/fama/cazy2/cazy_v2_functions.txt" >> config.ini
+echo "taxonomy_file = ${REFDIR}/fama/cazy2/cazy_v2_taxonomy.txt" >> config.ini
+echo "proteins_list_file = ${REFDIR}/fama/cazy2/cazy_v2_proteins.txt" >> config.ini
 echo "reference_diamond_db = ${REFDIR}/fama/cazy2/preselection_database.dmnd" >> config.ini
 echo "reference_db_size = 238821857" >> config.ini
 echo "background_diamond_db = ${REFDIR}/fama/cazy2/classification_database.dmnd" >> config.ini

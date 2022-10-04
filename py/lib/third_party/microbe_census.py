@@ -237,8 +237,8 @@ def auto_detect_file_type(seqfile):
 
 def auto_detect_quality_offset(seqfile):
     """ Automatically detect quality encoding (32 or 64 bit offset) """
-    offset_32 = set(list("""!"#$%&'()*+,-./0123456789"""))
-    offset_64 = set(list("""KLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~"""))
+    offset_32 = set(list(r"""!"#$%&'()*+,-./0123456789"""))
+    offset_64 = set(list(r"""KLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~"""))
     with open_file(seqfile) as f_in:
         seq_iterator = parse_seqs(f_in)
         for rec in seq_iterator:
